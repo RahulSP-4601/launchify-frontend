@@ -26,7 +26,16 @@ export function getBrowserSupabaseClient(): SupabaseClient {
 export async function getAccessToken(): Promise<string> {
   const client = getBrowserSupabaseClient();
   const sessionResult = await client.auth.getSession();
-  const existingToken = sessionResult.data.session?.access_token;
+  const session = sessionResult.data.session;
+  const existingToken = session?.access_token;
+  const expiresAt = (session?.expires_at ?? 0) * 1000;
+  if (existingToken && expiresAt > Date.now() + 30_000) {
+    return existingToken;
+  }
+  const refreshedToken = await refreshAccessToken();
+  if (refreshedToken) {
+    return refreshedToken;
+  }
   if (existingToken) {
     return existingToken;
   }
@@ -72,4 +81,15 @@ export async function getCurrentSession(): Promise<Session | null> {
   const client = getBrowserSupabaseClient();
   const result = await client.auth.getSession();
   return result.data.session ?? null;
+}
+
+export async function refreshAccessToken(): Promise<string> {
+  const client = getBrowserSupabaseClient();
+  const result = await client.auth.refreshSession();
+  return result.data.session?.access_token ?? "";
+}
+
+export async function clearAuthSession(): Promise<void> {
+  const client = getBrowserSupabaseClient();
+  await client.auth.signOut({ scope: "local" });
 }

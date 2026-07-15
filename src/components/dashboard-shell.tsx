@@ -5,7 +5,7 @@ import { useMemo } from "react";
 import type { Session } from "@supabase/supabase-js";
 
 import { ProjectsWorkspace } from "@/components/projects-workspace";
-import { fetchUsageSummary } from "@/lib/api";
+import { fetchUsageSummary, isAuthenticationError } from "@/lib/api";
 import { signOutUser } from "@/lib/supabase";
 import { DashboardSection, useDashboardStore } from "@/lib/dashboard-store";
 
@@ -160,7 +160,8 @@ function TrialCard() {
   const usageQuery = useQuery({
     queryKey: ["usage"],
     queryFn: fetchUsageSummary,
-    refetchInterval: 5000,
+    refetchInterval: (query) => (isAuthenticationError(query.state.error) ? false : 5000),
+    retry: (failureCount, error) => !isAuthenticationError(error) && failureCount < 2,
   });
   const usage = usageQuery.data;
   const usedMinutes = usage ? formatMinutes(usage.used_seconds) : "0.0";

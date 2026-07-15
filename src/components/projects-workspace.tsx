@@ -21,6 +21,7 @@ import {
   fetchProject,
   fetchProjects,
   fetchTranscript,
+  isAuthenticationError,
   updatePhaseFour,
   uploadProjectVideo,
 } from "@/lib/api";
@@ -333,18 +334,25 @@ function handlePhaseFourSuccess(
 }
 
 function useWorkspaceQueries(selectedProjectId: string) {
-  const projectsQuery = useQuery({ queryKey: ["projects"], queryFn: fetchProjects, refetchInterval: 3000 });
+  const projectsQuery = useQuery({
+    queryKey: ["projects"],
+    queryFn: fetchProjects,
+    refetchInterval: (query) => (isAuthenticationError(query.state.error) ? false : 3000),
+    retry: (failureCount, error) => !isAuthenticationError(error) && failureCount < 2,
+  });
   const projectQuery = useQuery({
     queryKey: ["project", selectedProjectId],
     queryFn: () => fetchProject(selectedProjectId),
     enabled: Boolean(selectedProjectId),
-    refetchInterval: 3000,
+    refetchInterval: (query) => (isAuthenticationError(query.state.error) ? false : 3000),
+    retry: (failureCount, error) => !isAuthenticationError(error) && failureCount < 2,
   });
   const transcriptQuery = useQuery({
     queryKey: ["transcript", selectedProjectId],
     queryFn: () => fetchTranscript(selectedProjectId),
     enabled: Boolean(selectedProjectId),
-    refetchInterval: 3000,
+    refetchInterval: (query) => (isAuthenticationError(query.state.error) ? false : 3000),
+    retry: (failureCount, error) => !isAuthenticationError(error) && failureCount < 2,
   });
   return { projectQuery, projectsQuery, transcriptQuery };
 }
