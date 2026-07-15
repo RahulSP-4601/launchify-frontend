@@ -25,7 +25,7 @@ export function LaunchifyApp() {
     if (!session || typeof window === "undefined") {
       return;
     }
-    clearAuthHash();
+    clearBareHash();
   }, [session]);
 
   if (!isReady) {
@@ -43,7 +43,7 @@ async function syncInitialSession(
   setIsReady(true);
 }
 
-function clearAuthHash() {
+function clearBareHash() {
   const { hash, pathname, search } = window.location;
   if (hash !== "#" && hash !== "#/") {
     return;

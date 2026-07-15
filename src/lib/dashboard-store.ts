@@ -15,7 +15,7 @@ type DashboardState = {
 };
 
 export const useDashboardStore = create<DashboardState>((set) => ({
-  activeSection: "templates",
+  activeSection: "home",
   activeHomePanel: "overview",
   createProjectOpen: false,
   setActiveHomePanel: (activeHomePanel) => set({ activeHomePanel }),
