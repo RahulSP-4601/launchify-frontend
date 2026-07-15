@@ -10,7 +10,7 @@ import {
   fetchTranscript,
   uploadProjectVideo,
 } from "@/lib/api";
-import { CreateProjectInput, ProjectDetail, ProjectSummary, TranscriptResponse } from "@/lib/types";
+import { CreateProjectInput, LaunchScriptRecord, ProjectDetail, ProjectSummary, TranscriptResponse } from "@/lib/types";
 
 const initialForm: CreateProjectInput = {
   project_name: "",
@@ -82,11 +82,11 @@ function usePhaseOneWorkspace() {
 function WorkspaceSidebar({ workspace }: { workspace: WorkspaceState }) {
   return (
     <section className="rounded-3xl border border-white/10 bg-white/5 p-6">
-      <p className="mb-2 text-sm uppercase tracking-[0.3em] text-emerald-200">Phase 1</p>
-      <h1 className="text-3xl font-semibold tracking-tight">Upload to transcript pipeline</h1>
+      <p className="mb-2 text-sm uppercase tracking-[0.3em] text-emerald-200">Phase 2</p>
+      <h1 className="text-3xl font-semibold tracking-tight">Transcript to launch script pipeline</h1>
       <p className="mt-3 max-w-xl text-sm leading-7 text-slate-300">
-        This first implementation proves the Launchify foundation: create a project, upload a
-        recording, process it in the backend, and return a structured transcript.
+        Launchify now takes a rough recording, extracts the transcript, and rewrites it into a
+        structured launch script using product context and OpenAI.
       </p>
       <CreateProjectForm workspace={workspace} />
       <ProjectList workspace={workspace} />
@@ -178,6 +178,10 @@ function ProjectPanel({ workspace }: { workspace: WorkspaceState }) {
       <ProjectHeader project={workspace.selectedProject} />
       <UploadCard workspace={workspace} />
       <TranscriptCard transcript={workspace.transcript} />
+      <LaunchScriptCard
+        launchScript={workspace.selectedProject.launch_script}
+        projectError={workspace.selectedProject.error_message}
+      />
     </div>
   );
 }
@@ -278,6 +282,63 @@ function TranscriptCard({ transcript }: { transcript: TranscriptResponse["transc
   );
 }
 
+function LaunchScriptCard({
+  launchScript,
+  projectError,
+}: {
+  launchScript: LaunchScriptRecord | null;
+  projectError: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+      <p className="text-sm font-semibold text-slate-100">Launch script</p>
+      {launchScript ? (
+        <div className="mt-4 space-y-4">
+          <ScriptBlock label="Hook" value={launchScript.hook} />
+          <ScriptBlock label="Summary" value={launchScript.summary} />
+          <SceneList scenes={launchScript.scenes} />
+          <ScriptBlock label="CTA" value={launchScript.cta} />
+          {launchScript.title_options.length ? (
+            <ScriptBlock label="Title options" value={launchScript.title_options.join(" | ")} />
+          ) : null}
+          {launchScript.notes.length ? (
+            <ScriptBlock label="Notes" value={launchScript.notes.join(" | ")} />
+          ) : null}
+        </div>
+      ) : (
+        <p className="mt-3 text-sm text-slate-400">
+          {projectError || "Structured launch script will appear here once transcript rewriting finishes."}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function SceneList({ scenes }: { scenes: LaunchScriptRecord["scenes"] }) {
+  return (
+    <div className="space-y-3">
+      {scenes.map((scene) => (
+        <div key={scene.scene_number} className="rounded-2xl border border-white/10 bg-slate-950/70 p-4">
+          <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Scene {scene.scene_number}</p>
+          <p className="mt-2 text-sm font-semibold text-slate-100">{scene.purpose}</p>
+          <p className="mt-2 text-sm text-slate-200">{scene.spoken_line}</p>
+          <p className="mt-2 text-sm text-emerald-200">{scene.on_screen_text}</p>
+          <p className="mt-2 text-xs text-slate-400">{scene.source_excerpt}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ScriptBlock({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-slate-950/70 p-4">
+      <p className="text-xs uppercase tracking-[0.2em] text-slate-400">{label}</p>
+      <p className="mt-2 text-sm leading-7 text-slate-100">{value}</p>
+    </div>
+  );
+}
+
 function TranscriptSegmentCard({ segment }: { segment: TranscriptResponse["transcript"][number] }) {
   return (
     <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
@@ -296,8 +357,8 @@ function EmptyState() {
         <p className="text-sm uppercase tracking-[0.25em] text-slate-400">No project selected</p>
         <h2 className="mt-3 text-2xl font-semibold">Create the first Launchify project</h2>
         <p className="mt-3 max-w-md text-sm leading-7 text-slate-300">
-          Phase 1 starts with project creation, upload, processing state, and transcript output.
-          This is the first brick of the full product pipeline.
+          Phase 2 now covers project creation, upload, transcript generation, and AI launch script
+          rewriting. This is the core product intelligence layer.
         </p>
       </div>
     </div>
@@ -331,6 +392,7 @@ function StatusBadge({ status }: { status: ProjectSummary["status"] }) {
     queued: "bg-violet-400/10 text-violet-200",
     uploading: "bg-sky-400/10 text-sky-200",
     transcribing: "bg-amber-400/10 text-amber-200",
+    scripting: "bg-fuchsia-400/10 text-fuchsia-200",
     ready: "bg-emerald-400/10 text-emerald-200",
     failed: "bg-rose-400/10 text-rose-200",
   };

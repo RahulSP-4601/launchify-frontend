@@ -1,4 +1,4 @@
-export type ProjectStatus = "draft" | "queued" | "uploading" | "transcribing" | "ready" | "failed";
+export type ProjectStatus = "draft" | "queued" | "uploading" | "transcribing" | "scripting" | "ready" | "failed";
 
 export type ProjectSummary = {
   id: string;
@@ -9,12 +9,32 @@ export type ProjectSummary = {
   created_at: string;
   updated_at: string;
   has_transcript: boolean;
+  has_launch_script: boolean;
+};
+
+export type LaunchScriptScene = {
+  scene_number: number;
+  purpose: string;
+  spoken_line: string;
+  on_screen_text: string;
+  source_excerpt: string;
+  estimated_duration_seconds: number;
+};
+
+export type LaunchScriptRecord = {
+  hook: string;
+  summary: string;
+  title_options: string[];
+  scenes: LaunchScriptScene[];
+  cta: string;
+  notes: string[];
 };
 
 export type ProjectDetail = ProjectSummary & {
   product_description: string;
   target_audience: string;
   error_message: string;
+  launch_script: LaunchScriptRecord | null;
   asset: {
     filename: string;
     content_type: string;
