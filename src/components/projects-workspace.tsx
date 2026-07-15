@@ -40,6 +40,7 @@ const initialForm: CreateProjectInput = {
   target_audience: "",
   video_goal: "launch_video",
 };
+const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
 
 const panelTabs: Array<{ key: HomePanel; label: string }> = [
   { key: "overview", label: "Overview" },
@@ -235,7 +236,7 @@ function UploadCard({ workspace }: { workspace: WorkspaceState }) {
   return (
     <div className="rounded-[28px] border border-black/6 bg-white p-5">
       <p className="text-sm font-semibold text-slate-900">Upload recording</p>
-      <p className="mt-2 text-sm leading-7 text-slate-500">Supported: MP4, WebM, MOV. Upload the raw walkthrough and Launchify will run the full processing pipeline.</p>
+      <p className="mt-2 text-sm leading-7 text-slate-500">Supported: MP4, WebM, MOV. Max file size: 50 MB. Upload the raw walkthrough and Launchify will run the full processing pipeline.</p>
       <input
         className="mt-4 block w-full text-sm text-slate-600 file:mr-4 file:rounded-full file:border-0 file:bg-slate-950 file:px-4 file:py-3 file:text-sm file:font-semibold file:text-white"
         onChange={(event) => workspace.setUploadFile(event.target.files?.[0] ?? null)}
@@ -390,7 +391,12 @@ function useWorkspaceMutations({
       ),
   });
   const uploadMutation = useMutation({
-    mutationFn: ({ projectId, file }: { file: File; projectId: string }) => uploadProjectVideo(projectId, file),
+    mutationFn: ({ projectId, file }: { file: File; projectId: string }) => {
+      if (file.size > MAX_UPLOAD_BYTES) {
+        throw new Error("Uploaded file must be 50 MB or smaller.");
+      }
+      return uploadProjectVideo(projectId, file);
+    },
     onSuccess: () => resetAfterUpload(selectedProjectId, queryClient, setUploadFile),
   });
   const phaseFourMutation = useMutation({
