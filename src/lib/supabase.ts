@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import type { Session } from "@supabase/supabase-js";
 
 let browserClient: SupabaseClient | null = null;
 
@@ -29,12 +30,37 @@ export async function getAccessToken(): Promise<string> {
   if (existingToken) {
     return existingToken;
   }
+  throw new Error("Authentication required. Sign in with Google to continue.");
+}
 
-  const signInResult = await client.auth.signInAnonymously();
-  const accessToken = signInResult.data.session?.access_token;
-  if (!accessToken) {
-    const message = signInResult.error?.message ?? "Unable to create an anonymous Supabase session.";
-    throw new Error(message);
+export async function signInWithGoogle(): Promise<void> {
+  const client = getBrowserSupabaseClient();
+  const redirectTo = typeof window === "undefined" ? undefined : `${window.location.origin}/`;
+  const result = await client.auth.signInWithOAuth({
+    provider: "google",
+    options: {
+      redirectTo,
+      queryParams: {
+        access_type: "offline",
+        prompt: "select_account",
+      },
+    },
+  });
+  if (result.error) {
+    throw new Error(result.error.message);
   }
-  return accessToken;
+}
+
+export async function signOutUser(): Promise<void> {
+  const client = getBrowserSupabaseClient();
+  const result = await client.auth.signOut();
+  if (result.error) {
+    throw new Error(result.error.message);
+  }
+}
+
+export async function getCurrentSession(): Promise<Session | null> {
+  const client = getBrowserSupabaseClient();
+  const result = await client.auth.getSession();
+  return result.data.session ?? null;
 }
