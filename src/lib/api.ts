@@ -1,5 +1,5 @@
 import { CreateProjectInput, ProjectDetail, ProjectSummary, TranscriptResponse, UpdatePhaseFourInput, UsageSummary } from "@/lib/types";
-import { clearAuthSession, getAccessToken, refreshAccessToken } from "@/lib/supabase";
+import { getAccessToken, refreshAccessToken } from "@/lib/supabase";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
@@ -97,14 +97,10 @@ async function apiFetch(path: string, init: RequestInit = {}, allowRetry = true)
     },
   });
   if (response.status !== 401 || !allowRetry) {
-    if (response.status === 401 && !allowRetry) {
-      await clearAuthSession();
-    }
     return response;
   }
   const refreshedToken = await refreshAccessToken();
   if (!refreshedToken) {
-    await clearAuthSession();
     throw new Error("Your session is no longer valid. Please sign in again.");
   }
   return apiFetch(path, init, false);

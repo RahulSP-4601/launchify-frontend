@@ -167,9 +167,12 @@ function TrialCard() {
   const usedMinutes = usage ? formatMinutes(usage.used_seconds) : "0.0";
   const limitMinutes = usage ? formatMinutes(usage.limit_seconds) : "10.0";
   const progress = usage ? Math.min((usage.used_seconds / usage.limit_seconds) * 100, 100) : 0;
+  const authError = usageQuery.error instanceof Error && isAuthenticationError(usageQuery.error) ? usageQuery.error.message : "";
   const body = usage?.blocked
     ? "Your trial limit has been reached. Uploads are blocked until billing logic is added."
-    : "Your trial usage is now based on rendered final video duration.";
+    : authError
+      ? "We could not verify trial usage because your session needs to be refreshed."
+      : "Your trial usage is now based on rendered final video duration.";
 
   return (
     <div className="mt-8 rounded-[26px] bg-[#111111] p-4 text-white">
@@ -182,9 +185,19 @@ function TrialCard() {
         </div>
       </div>
       {usageQuery.error instanceof Error ? <p className="mt-3 text-sm text-rose-300">{usageQuery.error.message}</p> : null}
-      <button className="mt-4 w-full rounded-[18px] bg-white px-4 py-3 text-sm font-semibold text-slate-950" type="button">
-        Upgrade Later
-      </button>
+      {authError ? (
+        <button
+          className="mt-4 w-full rounded-[18px] bg-white px-4 py-3 text-sm font-semibold text-slate-950"
+          onClick={() => void signOutUser()}
+          type="button"
+        >
+          Sign out and sign in again
+        </button>
+      ) : (
+        <button className="mt-4 w-full rounded-[18px] bg-white px-4 py-3 text-sm font-semibold text-slate-950" type="button">
+          Upgrade Later
+        </button>
+      )}
     </div>
   );
 }

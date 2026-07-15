@@ -26,6 +26,7 @@ import {
   uploadProjectVideo,
 } from "@/lib/api";
 import { DashboardSection, HomePanel, useDashboardStore } from "@/lib/dashboard-store";
+import { signOutUser } from "@/lib/supabase";
 import {
   CreateProjectInput,
   ProjectDetail,
@@ -102,8 +103,10 @@ function useProjectsWorkspace() {
     setUploadFile,
   });
   const { projectQuery, projectsQuery, transcriptQuery } = useWorkspaceQueries(selectedProjectId);
+  const authError = getWorkspaceAuthError(projectsQuery.error, projectQuery.error, transcriptQuery.error);
 
   return {
+    authError,
     createError: createMutation.error instanceof Error ? createMutation.error.message : "",
     createMutation,
     phaseFourMutation,
@@ -131,6 +134,7 @@ function ProjectsPanel({ workspace }: { workspace: WorkspaceState }) {
         <p className="rounded-full border border-black/6 bg-white px-3 py-1 text-xs uppercase tracking-[0.22em] text-slate-400">{workspace.projects.length}</p>
       </div>
       <div className="mt-3 space-y-2">
+        {workspace.authError ? <AuthenticationRecoveryCard message={workspace.authError} /> : null}
         {workspace.projects.length ? workspace.projects.map((project) => (
           <ProjectRow
             key={project.id}
@@ -194,6 +198,9 @@ function PanelTabs() {
 
 function WorkspaceCanvas({ workspace }: { workspace: WorkspaceState }) {
   const { activeHomePanel } = useDashboardStore();
+  if (workspace.authError) {
+    return <AuthenticationRecoveryPanel message={workspace.authError} />;
+  }
   if (!workspace.selectedProject) {
     return <EmptyState />;
   }
@@ -284,6 +291,39 @@ function ProjectRow({ onSelect, project, selectedProjectId }: { onSelect: (proje
   );
 }
 
+function AuthenticationRecoveryCard({ message }: { message: string }) {
+  return (
+    <div className="rounded-[24px] border border-rose-200 bg-rose-50 px-4 py-5">
+      <p className="text-sm font-semibold text-rose-700">Session expired</p>
+      <p className="mt-2 text-sm leading-7 text-rose-600">{message}</p>
+      <button
+        className="mt-4 rounded-[18px] bg-slate-950 px-4 py-3 text-sm font-semibold text-white"
+        onClick={() => void signOutUser()}
+        type="button"
+      >
+        Sign out and sign in again
+      </button>
+    </div>
+  );
+}
+
+function AuthenticationRecoveryPanel({ message }: { message: string }) {
+  return (
+    <section className="rounded-[30px] border border-rose-200 bg-[linear-gradient(135deg,#fff1f3_0%,#ffffff_100%)] p-8">
+      <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[var(--launchify-accent)]">Session expired</p>
+      <h3 className="mt-3 text-3xl font-black tracking-[-0.05em] text-slate-950">Reconnect to continue your workspace.</h3>
+      <p className="mt-4 max-w-2xl text-sm leading-8 text-slate-500">{message}</p>
+      <button
+        className="mt-6 rounded-[18px] bg-slate-950 px-5 py-3 text-sm font-semibold text-white"
+        onClick={() => void signOutUser()}
+        type="button"
+      >
+        Sign out and sign in again
+      </button>
+    </section>
+  );
+}
+
 function handleUpload(workspace: WorkspaceState) {
   if (!workspace.selectedProjectId || !workspace.uploadFile) {
     return;
@@ -356,6 +396,14 @@ function useWorkspaceQueries(selectedProjectId: string) {
     retry: (failureCount, error) => !isAuthenticationError(error) && failureCount < 2,
   });
   return { projectQuery, projectsQuery, transcriptQuery };
+}
+
+function getWorkspaceAuthError(...errors: Array<unknown>) {
+  const authFailure = errors.find(isAuthenticationError);
+  if (!(authFailure instanceof Error)) {
+    return "";
+  }
+  return authFailure.message;
 }
 
 function useWorkspaceMutations({

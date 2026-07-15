@@ -88,8 +88,3 @@ export async function refreshAccessToken(): Promise<string> {
   const result = await client.auth.refreshSession();
   return result.data.session?.access_token ?? "";
 }
-
-export async function clearAuthSession(): Promise<void> {
-  const client = getBrowserSupabaseClient();
-  await client.auth.signOut({ scope: "local" });
-}
