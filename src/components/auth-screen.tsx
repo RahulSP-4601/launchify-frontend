@@ -121,7 +121,7 @@ async function handleGoogleSignIn(
   setAuthError("");
   try {
     await signInWithGoogle();
-    router.refresh();
+    setAuthError("Redirecting to Google...");
   } catch (error) {
     setAuthError(error instanceof Error ? error.message : "Unable to start Google sign in.");
     setIsLoading(false);

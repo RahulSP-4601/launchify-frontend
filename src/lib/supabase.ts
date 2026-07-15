@@ -34,12 +34,16 @@ export async function getAccessToken(): Promise<string> {
 }
 
 export async function signInWithGoogle(): Promise<void> {
+  if (typeof window === "undefined") {
+    throw new Error("Google sign in must be started from a browser.");
+  }
   const client = getBrowserSupabaseClient();
-  const redirectTo = typeof window === "undefined" ? undefined : `${window.location.origin}/`;
+  const redirectTo = `${window.location.origin}/`;
   const result = await client.auth.signInWithOAuth({
     provider: "google",
     options: {
       redirectTo,
+      skipBrowserRedirect: true,
       queryParams: {
         access_type: "offline",
         prompt: "select_account",
@@ -49,6 +53,11 @@ export async function signInWithGoogle(): Promise<void> {
   if (result.error) {
     throw new Error(result.error.message);
   }
+  const authUrl = result.data.url;
+  if (!authUrl) {
+    throw new Error("Google sign in could not be started. Missing OAuth redirect URL.");
+  }
+  window.location.assign(authUrl);
 }
 
 export async function signOutUser(): Promise<void> {
