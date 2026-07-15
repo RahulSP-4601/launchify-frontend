@@ -11,6 +11,9 @@ export type ProjectSummary = {
   has_transcript: boolean;
   has_launch_script: boolean;
   has_edit_plan: boolean;
+  has_quality_report: boolean;
+  has_benchmark_report: boolean;
+  has_voiceover: boolean;
   has_preview_video: boolean;
   has_final_video: boolean;
 };
@@ -37,6 +40,8 @@ export type EditPlanCaption = {
   start: number;
   end: number;
   text: string;
+  emphasis_words: string[];
+  variant: string;
 };
 
 export type FocusBox = {
@@ -54,6 +59,11 @@ export type EditPlanZoom = {
   reason: string;
   confidence: number;
   focus_box: FocusBox | null;
+  easing: string;
+  x_offset: number;
+  y_offset: number;
+  smoothing: number;
+  hold_ratio: number;
 };
 
 export type EditPlanHighlight = {
@@ -64,6 +74,76 @@ export type EditPlanHighlight = {
   anchor_region: string;
   confidence: number;
   focus_box: FocusBox | null;
+  placement_preference: string;
+  ui_label: string;
+};
+
+export type TemplateConfigRecord = {
+  theme: "clean" | "spotlight" | "bold";
+  caption_profile: "product" | "minimal" | "cinematic";
+  motion_profile: "balanced" | "dynamic" | "calm";
+};
+
+export type SceneOverrideRecord = {
+  scene_number: number;
+  title: string;
+  spoken_line: string;
+  on_screen_text: string;
+  caption_override: string;
+  force_zoom: boolean | null;
+  force_highlight: boolean | null;
+  notes: string;
+};
+
+export type ManualOverrideRecord = {
+  scenes: SceneOverrideRecord[];
+  updated_at: string;
+};
+
+export type QualityIssueRecord = {
+  code: string;
+  severity: "low" | "medium" | "high";
+  scene_number: number | null;
+  message: string;
+  suggestion: string;
+};
+
+export type QualityReportRecord = {
+  score: number;
+  summary: string;
+  issues: QualityIssueRecord[];
+  ready_for_export: boolean;
+};
+
+export type BenchmarkMetricRecord = {
+  name: string;
+  score: number;
+  detail: string;
+};
+
+export type BenchmarkReportRecord = {
+  overall_score: number;
+  verdict: string;
+  metrics: BenchmarkMetricRecord[];
+};
+
+export type VoiceoverCueRecord = {
+  scene_number: number;
+  start: number;
+  end: number;
+  text: string;
+  duration_seconds: number;
+};
+
+export type VoiceoverRecord = {
+  provider: string;
+  model: string;
+  mode: "original" | "voiceover" | "mixed";
+  status: "disabled" | "script_only" | "ready";
+  script: string;
+  cues: VoiceoverCueRecord[];
+  audio_storage_path: string;
+  duration_seconds: number;
 };
 
 export type EditPlanScene = {
@@ -79,6 +159,9 @@ export type EditPlanScene = {
   spoken_line: string;
   on_screen_text: string;
   source_excerpt: string;
+  action_timestamp: number | null;
+  transition_style: "cut" | "fade" | "slide-up" | "focus-push";
+  transition_duration_seconds: number;
   captions: EditPlanCaption[];
   zooms: EditPlanZoom[];
   highlights: EditPlanHighlight[];
@@ -111,6 +194,11 @@ export type ProjectDetail = ProjectSummary & {
   error_message: string;
   launch_script: LaunchScriptRecord | null;
   edit_plan: EditPlanRecord | null;
+  template_config: TemplateConfigRecord | null;
+  manual_overrides: ManualOverrideRecord | null;
+  quality_report: QualityReportRecord | null;
+  benchmark_report: BenchmarkReportRecord | null;
+  voiceover: VoiceoverRecord | null;
   preview_video: RenderedVideoRecord | null;
   final_video: RenderedVideoRecord | null;
   asset: {
@@ -137,4 +225,10 @@ export type CreateProjectInput = {
   product_description: string;
   target_audience: string;
   video_goal: string;
+};
+
+export type UpdatePhaseFourInput = {
+  template_config: TemplateConfigRecord;
+  manual_overrides: ManualOverrideRecord;
+  voiceover_mode: VoiceoverRecord["mode"];
 };

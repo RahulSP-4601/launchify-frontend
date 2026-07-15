@@ -4,15 +4,17 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormEvent, useState } from "react";
 
 import { EditPlanCard } from "@/components/edit-plan-card";
+import { PhaseFourCard } from "@/components/phase-four-card";
 import { RenderOutputCard } from "@/components/render-output-card";
 import {
   createProject,
   fetchProject,
   fetchProjects,
   fetchTranscript,
+  updatePhaseFour,
   uploadProjectVideo,
 } from "@/lib/api";
-import { CreateProjectInput, LaunchScriptRecord, ProjectDetail, ProjectSummary, TranscriptResponse } from "@/lib/types";
+import { CreateProjectInput, LaunchScriptRecord, ProjectDetail, ProjectSummary, TranscriptResponse, UpdatePhaseFourInput } from "@/lib/types";
 
 const initialForm: CreateProjectInput = {
   project_name: "",
@@ -42,7 +44,30 @@ function usePhaseOneWorkspace() {
   const [selectedProjectId, setSelectedProjectId] = useState<string>("");
   const [projectForm, setProjectForm] = useState<CreateProjectInput>(initialForm);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const queries = useWorkspaceQueries(selectedProjectId);
+  const mutations = useWorkspaceMutations(
+    queryClient,
+    selectedProjectId,
+    setProjectForm,
+    setSelectedProjectId,
+    setUploadFile,
+  );
 
+  return {
+    ...mutations,
+    projectForm,
+    projects: queries.projectsQuery.data ?? [],
+    selectedProject: queries.selectedProject.data,
+    selectedProjectId,
+    setProjectForm,
+    setSelectedProjectId,
+    setUploadFile,
+    transcript: queries.transcriptQuery.data?.transcript ?? [],
+    uploadFile,
+  };
+}
+
+function useWorkspaceQueries(selectedProjectId: string) {
   const projectsQuery = useQuery({ queryKey: ["projects"], queryFn: fetchProjects, refetchInterval: 3000 });
   const selectedProject = useQuery({
     queryKey: ["project", selectedProjectId],
@@ -56,39 +81,40 @@ function usePhaseOneWorkspace() {
     enabled: Boolean(selectedProjectId),
     refetchInterval: 3000,
   });
+  return { projectsQuery, selectedProject, transcriptQuery };
+}
+
+function useWorkspaceMutations(
+  queryClient: ReturnType<typeof useQueryClient>,
+  selectedProjectId: string,
+  setProjectForm: (value: CreateProjectInput) => void,
+  setSelectedProjectId: (value: string) => void,
+  setUploadFile: (value: File | null) => void,
+) {
   const createMutation = useMutation({
     mutationFn: createProject,
     onSuccess: (project) => resetAfterCreate(project, queryClient, setSelectedProjectId, setProjectForm),
   });
   const uploadMutation = useMutation({
-    mutationFn: ({ projectId, file }: { projectId: string; file: File }) =>
-      uploadProjectVideo(projectId, file),
+    mutationFn: ({ projectId, file }: { projectId: string; file: File }) => uploadProjectVideo(projectId, file),
     onSuccess: () => resetAfterUpload(selectedProjectId, queryClient, setUploadFile),
   });
-
-  return {
-    createMutation,
-    projectForm,
-    projects: projectsQuery.data ?? [],
-    selectedProject: selectedProject.data,
-    selectedProjectId,
-    setProjectForm,
-    setSelectedProjectId,
-    setUploadFile,
-    transcript: transcriptQuery.data?.transcript ?? [],
-    uploadFile,
-    uploadMutation,
-  };
+  const phaseFourMutation = useMutation({
+    mutationFn: ({ projectId, input }: { projectId: string; input: UpdatePhaseFourInput }) => updatePhaseFour(projectId, input),
+    onSuccess: (project) => handlePhaseFourSuccess(project, queryClient),
+  });
+  return { createMutation, uploadMutation, phaseFourMutation };
 }
 
 function WorkspaceSidebar({ workspace }: { workspace: WorkspaceState }) {
   return (
     <section className="rounded-3xl border border-white/10 bg-white/5 p-6">
-      <p className="mb-2 text-sm uppercase tracking-[0.3em] text-emerald-200">Phase 3</p>
-      <h1 className="text-3xl font-semibold tracking-tight">Launch script to video edit plan pipeline</h1>
+      <p className="mb-2 text-sm uppercase tracking-[0.3em] text-emerald-200">Phase 4</p>
+      <h1 className="text-3xl font-semibold tracking-tight">Launch script to premium video pipeline</h1>
       <p className="mt-3 max-w-xl text-sm leading-7 text-slate-300">
         Launchify now turns the upload into a transcript, rewrites it into a launch script, and
-        generates a polished edit plan with captions, zooms, highlights, and render timing.
+        generates a polished edit plan with quality scoring, motion tuning, manual overrides,
+        voiceover planning, and render timing.
       </p>
       <CreateProjectForm workspace={workspace} />
       <ProjectList workspace={workspace} />
@@ -185,6 +211,12 @@ function ProjectPanel({ workspace }: { workspace: WorkspaceState }) {
         projectError={workspace.selectedProject.error_message}
       />
       <EditPlanCard editPlan={workspace.selectedProject.edit_plan} projectError={workspace.selectedProject.error_message} />
+      <PhaseFourCard
+        isSaving={workspace.phaseFourMutation.isPending}
+        onSave={(input) => handlePhaseFourSave(workspace, input)}
+        project={workspace.selectedProject}
+        saveError={workspace.phaseFourMutation.error?.message}
+      />
       <RenderOutputCard project={workspace.selectedProject} />
     </div>
   );
@@ -273,6 +305,13 @@ function UploadActions({
       {projectError ? <p className="mt-3 text-sm text-rose-300">{projectError}</p> : null}
     </>
   );
+}
+
+function handlePhaseFourSave(workspace: WorkspaceState, input: UpdatePhaseFourInput) {
+  if (!workspace.selectedProjectId) {
+    return;
+  }
+  workspace.phaseFourMutation.mutate({ projectId: workspace.selectedProjectId, input });
 }
 
 function TranscriptCard({ transcript }: { transcript: TranscriptResponse["transcript"] }) {
@@ -444,6 +483,14 @@ function resetAfterUpload(
   queryClient.invalidateQueries({ queryKey: ["project", selectedProjectId] });
   queryClient.invalidateQueries({ queryKey: ["transcript", selectedProjectId] });
   setUploadFile(null);
+}
+
+function handlePhaseFourSuccess(
+  project: ProjectDetail,
+  queryClient: ReturnType<typeof useQueryClient>,
+) {
+  queryClient.setQueryData(["project", project.id], project);
+  void queryClient.invalidateQueries({ queryKey: ["projects"] });
 }
 
 type WorkspaceState = ReturnType<typeof usePhaseOneWorkspace>;

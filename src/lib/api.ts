@@ -1,4 +1,4 @@
-import { CreateProjectInput, ProjectDetail, ProjectSummary, TranscriptResponse } from "@/lib/types";
+import { CreateProjectInput, ProjectDetail, ProjectSummary, TranscriptResponse, UpdatePhaseFourInput } from "@/lib/types";
 import { getAccessToken } from "@/lib/supabase";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
@@ -41,6 +41,18 @@ export async function fetchProject(projectId: string): Promise<ProjectDetail> {
   const response = await fetch(`${API_URL}/api/projects/${projectId}`, {
     cache: "no-store",
     headers: await requestHeaders(),
+  });
+  return handleResponse<ProjectDetail>(response);
+}
+
+export async function updatePhaseFour(projectId: string, input: UpdatePhaseFourInput): Promise<ProjectDetail> {
+  const response = await fetch(`${API_URL}/api/projects/${projectId}/phase4`, {
+    method: "PUT",
+    headers: {
+      ...(await requestHeaders()),
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(input),
   });
   return handleResponse<ProjectDetail>(response);
 }

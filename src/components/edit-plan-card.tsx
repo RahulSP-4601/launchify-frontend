@@ -75,7 +75,7 @@ function describeZooms(zooms: EditPlanRecord["scenes"][number]["zooms"]) {
   return zooms
     .map((zoom) => {
       const box = zoom.focus_box ? " with detected UI box" : "";
-      return `${zoom.focus_region} at ${zoom.scale.toFixed(2)}x (${(zoom.confidence * 100).toFixed(0)}%)${box}`;
+      return `${zoom.focus_region} at ${zoom.scale.toFixed(2)}x (${(zoom.confidence * 100).toFixed(0)}%) smoothing ${Math.round(zoom.smoothing * 100)}%${box}`;
     })
     .join(" | ");
 }
@@ -87,7 +87,8 @@ function describeHighlights(highlights: EditPlanRecord["scenes"][number]["highli
   return highlights
     .map((highlight) => {
       const box = highlight.focus_box ? " anchored to detected target" : "";
-      return `${highlight.style}: ${highlight.label} (${(highlight.confidence * 100).toFixed(0)}%)${box}`;
+      const label = highlight.ui_label || highlight.label;
+      return `${highlight.style}: ${label} (${(highlight.confidence * 100).toFixed(0)}%)${box}`;
     })
     .join(" | ");
 }
