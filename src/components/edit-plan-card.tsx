@@ -42,6 +42,11 @@ function EditPlanSceneList({ scenes }: { scenes: EditPlanRecord["scenes"] }) {
             </p>
           </div>
           <p className="mt-2 text-sm text-slate-300">{scene.purpose}</p>
+          <p className="mt-2 text-sm text-cyan-300">
+            {scene.camera_mode} camera | confidence {(scene.confidence * 100).toFixed(0)}%
+          </p>
+          <p className="mt-2 text-sm text-slate-400">{scene.decision_summary}</p>
+          <p className="mt-2 text-sm text-slate-500">{scene.visual_summary}</p>
           <p className="mt-3 text-xs uppercase tracking-[0.2em] text-slate-400">Captions</p>
           <p className="mt-2 text-sm text-slate-100">{scene.captions.map((caption) => caption.text).join(" | ")}</p>
           <p className="mt-3 text-xs uppercase tracking-[0.2em] text-slate-400">Visual moves</p>
@@ -67,12 +72,22 @@ function describeZooms(zooms: EditPlanRecord["scenes"][number]["zooms"]) {
   if (!zooms.length) {
     return "No zoom move planned for this scene.";
   }
-  return zooms.map((zoom) => `${zoom.focus_region} at ${zoom.scale.toFixed(2)}x`).join(" | ");
+  return zooms
+    .map((zoom) => {
+      const box = zoom.focus_box ? " with detected UI box" : "";
+      return `${zoom.focus_region} at ${zoom.scale.toFixed(2)}x (${(zoom.confidence * 100).toFixed(0)}%)${box}`;
+    })
+    .join(" | ");
 }
 
 function describeHighlights(highlights: EditPlanRecord["scenes"][number]["highlights"]) {
   if (!highlights.length) {
     return "No additional highlight needed.";
   }
-  return highlights.map((highlight) => `${highlight.style}: ${highlight.label}`).join(" | ");
+  return highlights
+    .map((highlight) => {
+      const box = highlight.focus_box ? " anchored to detected target" : "";
+      return `${highlight.style}: ${highlight.label} (${(highlight.confidence * 100).toFixed(0)}%)${box}`;
+    })
+    .join(" | ");
 }

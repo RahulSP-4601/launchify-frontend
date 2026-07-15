@@ -53,6 +53,18 @@ export async function fetchTranscript(projectId: string): Promise<TranscriptResp
   return handleResponse<TranscriptResponse>(response);
 }
 
+export async function fetchRenderOutput(projectId: string, variant: "preview" | "final"): Promise<Blob> {
+  const response = await fetch(`${API_URL}/api/projects/${projectId}/renders/${variant}`, {
+    cache: "no-store",
+    headers: await requestHeaders(),
+  });
+  if (!response.ok) {
+    const detail = await response.text();
+    throw new Error(detail || "Render output request failed");
+  }
+  return response.blob();
+}
+
 async function handleResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
     const detail = await response.text();

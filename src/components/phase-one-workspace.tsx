@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormEvent, useState } from "react";
 
 import { EditPlanCard } from "@/components/edit-plan-card";
+import { RenderOutputCard } from "@/components/render-output-card";
 import {
   createProject,
   fetchProject,
@@ -184,6 +185,7 @@ function ProjectPanel({ workspace }: { workspace: WorkspaceState }) {
         projectError={workspace.selectedProject.error_message}
       />
       <EditPlanCard editPlan={workspace.selectedProject.edit_plan} projectError={workspace.selectedProject.error_message} />
+      <RenderOutputCard project={workspace.selectedProject} />
     </div>
   );
 }
@@ -396,6 +398,7 @@ function StatusBadge({ status }: { status: ProjectSummary["status"] }) {
     transcribing: "bg-amber-400/10 text-amber-200",
     scripting: "bg-fuchsia-400/10 text-fuchsia-200",
     planning: "bg-cyan-400/10 text-cyan-200",
+    rendering: "bg-orange-400/10 text-orange-200",
     ready: "bg-emerald-400/10 text-emerald-200",
     failed: "bg-rose-400/10 text-rose-200",
   };
