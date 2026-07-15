@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormEvent, useState } from "react";
 
+import { EditPlanCard } from "@/components/edit-plan-card";
 import {
   createProject,
   fetchProject,
@@ -82,11 +83,11 @@ function usePhaseOneWorkspace() {
 function WorkspaceSidebar({ workspace }: { workspace: WorkspaceState }) {
   return (
     <section className="rounded-3xl border border-white/10 bg-white/5 p-6">
-      <p className="mb-2 text-sm uppercase tracking-[0.3em] text-emerald-200">Phase 2</p>
-      <h1 className="text-3xl font-semibold tracking-tight">Transcript to launch script pipeline</h1>
+      <p className="mb-2 text-sm uppercase tracking-[0.3em] text-emerald-200">Phase 3</p>
+      <h1 className="text-3xl font-semibold tracking-tight">Launch script to video edit plan pipeline</h1>
       <p className="mt-3 max-w-xl text-sm leading-7 text-slate-300">
-        Launchify now takes a rough recording, extracts the transcript, and rewrites it into a
-        structured launch script using product context and OpenAI.
+        Launchify now turns the upload into a transcript, rewrites it into a launch script, and
+        generates a polished edit plan with captions, zooms, highlights, and render timing.
       </p>
       <CreateProjectForm workspace={workspace} />
       <ProjectList workspace={workspace} />
@@ -182,6 +183,7 @@ function ProjectPanel({ workspace }: { workspace: WorkspaceState }) {
         launchScript={workspace.selectedProject.launch_script}
         projectError={workspace.selectedProject.error_message}
       />
+      <EditPlanCard editPlan={workspace.selectedProject.edit_plan} projectError={workspace.selectedProject.error_message} />
     </div>
   );
 }
@@ -357,8 +359,8 @@ function EmptyState() {
         <p className="text-sm uppercase tracking-[0.25em] text-slate-400">No project selected</p>
         <h2 className="mt-3 text-2xl font-semibold">Create the first Launchify project</h2>
         <p className="mt-3 max-w-md text-sm leading-7 text-slate-300">
-          Phase 2 now covers project creation, upload, transcript generation, and AI launch script
-          rewriting. This is the core product intelligence layer.
+          Phase 3 now covers project creation, upload, transcript generation, launch script
+          rewriting, and automatic edit planning for polished product videos.
         </p>
       </div>
     </div>
@@ -393,6 +395,7 @@ function StatusBadge({ status }: { status: ProjectSummary["status"] }) {
     uploading: "bg-sky-400/10 text-sky-200",
     transcribing: "bg-amber-400/10 text-amber-200",
     scripting: "bg-fuchsia-400/10 text-fuchsia-200",
+    planning: "bg-cyan-400/10 text-cyan-200",
     ready: "bg-emerald-400/10 text-emerald-200",
     failed: "bg-rose-400/10 text-rose-200",
   };

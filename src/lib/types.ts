@@ -1,4 +1,4 @@
-export type ProjectStatus = "draft" | "queued" | "uploading" | "transcribing" | "scripting" | "ready" | "failed";
+export type ProjectStatus = "draft" | "queued" | "uploading" | "transcribing" | "scripting" | "planning" | "ready" | "failed";
 
 export type ProjectSummary = {
   id: string;
@@ -10,6 +10,7 @@ export type ProjectSummary = {
   updated_at: string;
   has_transcript: boolean;
   has_launch_script: boolean;
+  has_edit_plan: boolean;
 };
 
 export type LaunchScriptScene = {
@@ -30,11 +31,59 @@ export type LaunchScriptRecord = {
   notes: string[];
 };
 
+export type EditPlanCaption = {
+  start: number;
+  end: number;
+  text: string;
+};
+
+export type EditPlanZoom = {
+  start: number;
+  end: number;
+  scale: number;
+  focus_region: string;
+  reason: string;
+};
+
+export type EditPlanHighlight = {
+  start: number;
+  end: number;
+  label: string;
+  style: string;
+};
+
+export type EditPlanScene = {
+  scene_number: number;
+  title: string;
+  purpose: string;
+  start: number;
+  end: number;
+  spoken_line: string;
+  on_screen_text: string;
+  source_excerpt: string;
+  captions: EditPlanCaption[];
+  zooms: EditPlanZoom[];
+  highlights: EditPlanHighlight[];
+};
+
+export type EditPlanRecord = {
+  overview: string;
+  total_duration_seconds: number;
+  scenes: EditPlanScene[];
+  render_spec: {
+    title_card: string;
+    title_options: string[];
+    cta: string;
+    total_duration_seconds: number;
+  };
+};
+
 export type ProjectDetail = ProjectSummary & {
   product_description: string;
   target_audience: string;
   error_message: string;
   launch_script: LaunchScriptRecord | null;
+  edit_plan: EditPlanRecord | null;
   asset: {
     filename: string;
     content_type: string;
