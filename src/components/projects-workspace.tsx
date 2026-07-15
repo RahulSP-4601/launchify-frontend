@@ -85,12 +85,16 @@ export function ProjectsWorkspace({ section }: { section: DashboardSection }) {
 
 function useProjectsWorkspace() {
   const queryClient = useQueryClient();
+  const { setActiveHomePanel, setActiveSection, setCreateProjectOpen } = useDashboardStore();
   const [selectedProjectId, setSelectedProjectId] = useState("");
   const [projectForm, setProjectForm] = useState<CreateProjectInput>(initialForm);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const { createMutation, phaseFourMutation, uploadMutation } = useWorkspaceMutations({
     queryClient,
     selectedProjectId,
+    setActiveHomePanel,
+    setActiveSection,
+    setCreateProjectOpen,
     setProjectForm,
     setSelectedProjectId,
     setUploadFile,
@@ -98,6 +102,7 @@ function useProjectsWorkspace() {
   const { projectQuery, projectsQuery, transcriptQuery } = useWorkspaceQueries(selectedProjectId);
 
   return {
+    createError: createMutation.error instanceof Error ? createMutation.error.message : "",
     createMutation,
     phaseFourMutation,
     projectForm,
@@ -294,10 +299,16 @@ function handlePhaseFourSave(workspace: WorkspaceState, input: UpdatePhaseFourIn
 function resetAfterCreate(
   project: ProjectDetail,
   queryClient: ReturnType<typeof useQueryClient>,
+  setActiveHomePanel: (panel: HomePanel) => void,
+  setActiveSection: (section: DashboardSection) => void,
+  setCreateProjectOpen: (open: boolean) => void,
   setSelectedProjectId: (projectId: string) => void,
   setProjectForm: (input: CreateProjectInput) => void,
 ) {
   void queryClient.invalidateQueries({ queryKey: ["projects"] });
+  setActiveHomePanel("overview");
+  setActiveSection("projects");
+  setCreateProjectOpen(false);
   setSelectedProjectId(project.id);
   setProjectForm(initialForm);
 }
@@ -341,19 +352,34 @@ function useWorkspaceQueries(selectedProjectId: string) {
 function useWorkspaceMutations({
   queryClient,
   selectedProjectId,
+  setActiveHomePanel,
+  setActiveSection,
+  setCreateProjectOpen,
   setProjectForm,
   setSelectedProjectId,
   setUploadFile,
 }: {
   queryClient: ReturnType<typeof useQueryClient>;
   selectedProjectId: string;
+  setActiveHomePanel: (panel: HomePanel) => void;
+  setActiveSection: (section: DashboardSection) => void;
+  setCreateProjectOpen: (open: boolean) => void;
   setProjectForm: (input: CreateProjectInput) => void;
   setSelectedProjectId: (projectId: string) => void;
   setUploadFile: (file: File | null) => void;
 }) {
   const createMutation = useMutation({
     mutationFn: createProject,
-    onSuccess: (project) => resetAfterCreate(project, queryClient, setSelectedProjectId, setProjectForm),
+    onSuccess: (project) =>
+      resetAfterCreate(
+        project,
+        queryClient,
+        setActiveHomePanel,
+        setActiveSection,
+        setCreateProjectOpen,
+        setSelectedProjectId,
+        setProjectForm,
+      ),
   });
   const uploadMutation = useMutation({
     mutationFn: ({ projectId, file }: { file: File; projectId: string }) => uploadProjectVideo(projectId, file),

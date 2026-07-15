@@ -1,4 +1,4 @@
-import { CreateProjectInput, ProjectDetail, ProjectSummary, TranscriptResponse, UpdatePhaseFourInput } from "@/lib/types";
+import { CreateProjectInput, ProjectDetail, ProjectSummary, TranscriptResponse, UpdatePhaseFourInput, UsageSummary } from "@/lib/types";
 import { getAccessToken } from "@/lib/supabase";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
@@ -77,9 +77,17 @@ export async function fetchRenderOutput(projectId: string, variant: "preview" | 
   return response.blob();
 }
 
+export async function fetchUsageSummary(): Promise<UsageSummary> {
+  const response = await fetch(`${API_URL}/api/usage`, {
+    cache: "no-store",
+    headers: await requestHeaders(),
+  });
+  return handleResponse<UsageSummary>(response);
+}
+
 async function handleResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
-    const detail = await response.text();
+    const detail = await parseErrorDetail(response);
     throw new Error(detail || "Request failed");
   }
   return (await response.json()) as T;
@@ -89,4 +97,17 @@ async function requestHeaders(): Promise<HeadersInit> {
   return {
     Authorization: `Bearer ${await getAccessToken()}`,
   };
+}
+
+async function parseErrorDetail(response: Response): Promise<string> {
+  const detail = await response.text();
+  if (!detail) {
+    return "";
+  }
+  try {
+    const parsed = JSON.parse(detail) as { detail?: unknown };
+    return typeof parsed.detail === "string" ? parsed.detail : detail;
+  } catch {
+    return detail;
+  }
 }

@@ -5,6 +5,7 @@ import { FormEvent } from "react";
 import { CreateProjectInput, ProjectSummary } from "@/lib/types";
 
 export type CreateProjectWorkspace = {
+  createError: string;
   createMutation: { isPending: boolean; mutate: (input: CreateProjectInput) => void };
   projectForm: CreateProjectInput;
   setProjectForm: (input: CreateProjectInput) => void;
@@ -134,6 +135,7 @@ export function CreateProjectModal({
           <button className="w-full rounded-[18px] bg-[var(--launchify-accent)] px-5 py-3 text-sm font-semibold text-white" disabled={workspace.createMutation.isPending} type="submit">
             {workspace.createMutation.isPending ? "Creating..." : "Create project"}
           </button>
+          {workspace.createError ? <p className="text-sm text-rose-600">{workspace.createError}</p> : null}
         </form>
       </div>
     </div>

@@ -1,9 +1,11 @@
 "use client";
 
+import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import type { Session } from "@supabase/supabase-js";
 
 import { ProjectsWorkspace } from "@/components/projects-workspace";
+import { fetchUsageSummary } from "@/lib/api";
 import { signOutUser } from "@/lib/supabase";
 import { DashboardSection, useDashboardStore } from "@/lib/dashboard-store";
 
@@ -155,16 +157,30 @@ function SidebarHeader() {
 }
 
 function TrialCard() {
+  const usageQuery = useQuery({
+    queryKey: ["usage"],
+    queryFn: fetchUsageSummary,
+    refetchInterval: 5000,
+  });
+  const usage = usageQuery.data;
+  const usedMinutes = usage ? formatMinutes(usage.used_seconds) : "0.0";
+  const limitMinutes = usage ? formatMinutes(usage.limit_seconds) : "10.0";
+  const progress = usage ? Math.min((usage.used_seconds / usage.limit_seconds) * 100, 100) : 0;
+  const body = usage?.blocked
+    ? "Your trial limit has been reached. Uploads are blocked until billing logic is added."
+    : "Your trial usage is now based on rendered final video duration.";
+
   return (
     <div className="mt-8 rounded-[26px] bg-[#111111] p-4 text-white">
       <p className="text-sm font-semibold">Get more out of Launchify</p>
-      <p className="mt-2 text-sm text-white/66">Your trial simulates the Clueso-style free plan without payments enabled yet.</p>
+      <p className="mt-2 text-sm text-white/66">{body}</p>
       <div className="mt-4">
-        <p className="text-2xl font-black">0 mins / 10 mins</p>
+        <p className="text-2xl font-black">{usedMinutes} mins / {limitMinutes} mins</p>
         <div className="mt-3 h-2 rounded-full bg-white/10">
-          <div className="h-2 w-1/12 rounded-full bg-[var(--launchify-accent)]" />
+          <div className="h-2 rounded-full bg-[var(--launchify-accent)]" style={{ width: `${progress}%` }} />
         </div>
       </div>
+      {usageQuery.error instanceof Error ? <p className="mt-3 text-sm text-rose-300">{usageQuery.error.message}</p> : null}
       <button className="mt-4 w-full rounded-[18px] bg-white px-4 py-3 text-sm font-semibold text-slate-950" type="button">
         Upgrade Later
       </button>
@@ -285,4 +301,8 @@ function initials(name: string | undefined, email: string | undefined) {
     .slice(0, 2)
     .map((part) => part[0]?.toUpperCase() ?? "")
     .join("");
+}
+
+function formatMinutes(seconds: number) {
+  return (seconds / 60).toFixed(1);
 }

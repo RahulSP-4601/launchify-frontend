@@ -232,3 +232,10 @@ export type UpdatePhaseFourInput = {
   manual_overrides: ManualOverrideRecord;
   voiceover_mode: VoiceoverRecord["mode"];
 };
+
+export type UsageSummary = {
+  limit_seconds: number;
+  used_seconds: number;
+  remaining_seconds: number;
+  blocked: boolean;
+};
