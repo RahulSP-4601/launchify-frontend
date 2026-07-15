@@ -14,7 +14,6 @@ import {
 import {
   EmptyState,
   LaunchScriptCard,
-  TemplatesGallery,
   TranscriptCard,
 } from "@/components/workspace-detail-panels";
 import {
@@ -58,7 +57,6 @@ export function ProjectsWorkspace({ section }: { section: DashboardSection }) {
     return (
       <>
         <HomeDashboard
-          onBrowseTemplates={() => setActiveSection("templates")}
           onOpenCreate={() => setCreateProjectOpen(true)}
           onOpenProject={(projectId) => openProject(projectId, setActiveSection, workspace.setSelectedProjectId)}
           workspace={workspace}
@@ -68,27 +66,14 @@ export function ProjectsWorkspace({ section }: { section: DashboardSection }) {
     );
   }
 
-  if (section === "templates") {
-    return (
-      <>
-        <TemplatesGallery onCreate={() => {
-          setActiveSection("projects");
-          setCreateProjectOpen(true);
-        }} />
-        {createProjectOpen ? <CreateProjectModal onClose={() => setCreateProjectOpen(false)} workspace={workspace} /> : null}
-      </>
-    );
-  }
-
   return (
     <>
-      <div className="grid gap-5 p-5 lg:grid-cols-[300px_minmax(0,1fr)]">
+      <div className="grid gap-5 p-5 lg:grid-cols-[360px_minmax(0,1fr)]">
         <aside className="space-y-4">
-          <CreateProjectPanel workspace={workspace} />
           <ProjectsPanel workspace={workspace} />
         </aside>
         <section className="space-y-4">
-          <OverviewStrip workspace={workspace} />
+          <ProjectCanvasHeader workspace={workspace} />
           <PanelTabs />
           <WorkspaceCanvas workspace={workspace} />
         </section>
@@ -128,68 +113,54 @@ function useProjectsWorkspace() {
   };
 }
 
-function CreateProjectPanel({ workspace }: { workspace: WorkspaceState }) {
-  const { setCreateProjectOpen } = useDashboardStore();
-
-  return (
-    <section className="rounded-[28px] border border-black/6 bg-[#fafbfc] p-5">
-      <p className="text-xs font-semibold uppercase tracking-[0.25em] text-[var(--launchify-accent)]">Create project</p>
-      <h2 className="mt-3 text-2xl font-black tracking-[-0.04em] text-slate-950">Start from a raw recording.</h2>
-      <p className="mt-4 text-sm leading-7 text-slate-500">
-        Create the project first, then upload the walkthrough and continue inside the Launchify
-        studio workflow.
-      </p>
-      <button
-        className="mt-5 w-full rounded-[18px] bg-[var(--launchify-accent)] px-5 py-3 text-sm font-semibold text-white"
-        onClick={() => setCreateProjectOpen(true)}
-        type="button"
-      >
-        New project
-      </button>
-      {workspace.selectedProjectId ? (
-        <p className="mt-3 text-xs uppercase tracking-[0.22em] text-slate-400">
-          Active project selected
-        </p>
-      ) : null}
-    </section>
-  );
-}
-
 function ProjectsPanel({ workspace }: { workspace: WorkspaceState }) {
   return (
-    <section className="rounded-[28px] border border-black/6 bg-[#fafbfc] p-4">
+    <section className="rounded-[30px] border border-black/6 bg-[linear-gradient(180deg,#fbfcfe_0%,#f6f8fb_100%)] p-4">
       <div className="flex items-center justify-between">
-        <p className="text-sm font-semibold text-slate-900">Projects</p>
-        <p className="text-xs uppercase tracking-[0.22em] text-slate-400">{workspace.projects.length}</p>
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-400">Projects</p>
+          <p className="mt-2 text-2xl font-black tracking-[-0.04em] text-slate-950">Your workspace list</p>
+        </div>
+        <p className="rounded-full border border-black/6 bg-white px-3 py-1 text-xs uppercase tracking-[0.22em] text-slate-400">{workspace.projects.length}</p>
       </div>
       <div className="mt-3 space-y-2">
-        {workspace.projects.map((project) => (
+        {workspace.projects.length ? workspace.projects.map((project) => (
           <ProjectRow
             key={project.id}
             onSelect={workspace.setSelectedProjectId}
             project={project}
             selectedProjectId={workspace.selectedProjectId}
           />
-        ))}
+        )) : (
+          <div className="rounded-[24px] border border-dashed border-black/10 bg-white px-4 py-8 text-sm text-slate-400">
+            No projects yet. Use the top-right button to create your first one.
+          </div>
+        )}
       </div>
     </section>
   );
 }
 
-function OverviewStrip({ workspace }: { workspace: WorkspaceState }) {
+function ProjectCanvasHeader({ workspace }: { workspace: WorkspaceState }) {
   return (
-    <section className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr_0.8fr]">
-      <article className="rounded-[28px] bg-[#111111] p-5 text-white">
-        <p className="text-xs uppercase tracking-[0.25em] text-white/45">Studio Overview</p>
-        <h2 className="mt-3 text-3xl font-black tracking-[-0.04em]">
-          {workspace.selectedProject?.project_name ?? "Choose a project to enter the launch studio"}
-        </h2>
-        <p className="mt-3 text-sm leading-7 text-white/68">
-          {workspace.selectedProject?.product_description ?? "The active project appears here with its transcript, script, edit plan, and export output."}
-        </p>
-      </article>
-      <StatCard body="Projects move from transcript to render inside one workspace." title="Pipeline" value={workspace.selectedProject?.status ?? "draft"} />
-      <StatCard body="This mirrors Clueso’s trial-first, export-based activation loop." title="Trial usage" value="0 / 10 mins" />
+    <section className="rounded-[30px] border border-black/6 bg-[linear-gradient(135deg,#fff6f7_0%,#ffffff_48%,#f4f7fb_100%)] p-6">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[var(--launchify-accent)]">Projects</p>
+          <h2 className="mt-3 text-3xl font-black tracking-[-0.05em] text-slate-950">
+            {workspace.selectedProject?.project_name ?? "Select a project to continue"}
+          </h2>
+          <p className="mt-3 max-w-2xl text-sm leading-8 text-slate-500">
+            {workspace.selectedProject?.product_description ?? "Pick a project from the left to continue transcript, script, quality, and exports in one focused workspace."}
+          </p>
+        </div>
+        {workspace.selectedProject ? (
+          <div className="flex items-center gap-3">
+            <StatusBadge status={workspace.selectedProject.status} />
+            <p className="text-sm text-slate-400">{workspace.selectedProject.product_name}</p>
+          </div>
+        ) : null}
+      </div>
     </section>
   );
 }
@@ -281,41 +252,28 @@ function UploadCard({ workspace }: { workspace: WorkspaceState }) {
   );
 }
 
-function ProjectRow({
-  onSelect,
-  project,
-  selectedProjectId,
-}: {
-  onSelect: (projectId: string) => void;
-  project: ProjectSummary;
-  selectedProjectId: string;
-}) {
+function ProjectRow({ onSelect, project, selectedProjectId }: { onSelect: (projectId: string) => void; project: ProjectSummary; selectedProjectId: string }) {
   return (
     <button
-      className={`w-full rounded-[20px] px-4 py-4 text-left ${
-        selectedProjectId === project.id ? "bg-slate-950 text-white" : "border border-black/6 bg-white text-slate-700"
+      className={`w-full rounded-[24px] px-4 py-4 text-left transition ${
+        selectedProjectId === project.id
+          ? "bg-slate-950 text-white shadow-[0_18px_40px_rgba(15,23,42,0.18)]"
+          : "border border-black/6 bg-white text-slate-700 hover:-translate-y-0.5 hover:shadow-[0_14px_30px_rgba(15,23,42,0.06)]"
       }`}
       onClick={() => onSelect(project.id)}
       type="button"
     >
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex items-start justify-between gap-3">
         <div>
           <p className="font-semibold">{project.project_name}</p>
           <p className={`mt-1 text-sm ${selectedProjectId === project.id ? "text-white/60" : "text-slate-400"}`}>{project.product_name}</p>
         </div>
         <StatusBadge status={project.status} />
       </div>
+      <div className={`mt-4 h-1.5 rounded-full ${selectedProjectId === project.id ? "bg-white/10" : "bg-slate-100"}`}>
+        <div className={`h-1.5 rounded-full ${selectedProjectId === project.id ? "w-2/3 bg-[var(--launchify-accent)]" : "w-1/3 bg-slate-300"}`} />
+      </div>
     </button>
-  );
-}
-
-function StatCard({ body, title, value }: { body: string; title: string; value: string }) {
-  return (
-    <article className="rounded-[28px] border border-black/6 bg-white p-5">
-      <p className="text-xs uppercase tracking-[0.24em] text-slate-400">{title}</p>
-      <p className="mt-5 text-3xl font-black tracking-[-0.05em] text-slate-950 capitalize">{value}</p>
-      <p className="mt-2 text-sm leading-7 text-slate-500">{body}</p>
-    </article>
   );
 }
 

@@ -4,12 +4,6 @@ import { FormEvent } from "react";
 
 import { CreateProjectInput, ProjectSummary } from "@/lib/types";
 
-const gradients = [
-  "bg-[linear-gradient(135deg,#ef233c_0%,#111111_100%)]",
-  "bg-[linear-gradient(135deg,#2563eb_0%,#111111_100%)]",
-  "bg-[linear-gradient(135deg,#111111_0%,#ef233c_100%)]",
-];
-
 export type CreateProjectWorkspace = {
   createMutation: { isPending: boolean; mutate: (input: CreateProjectInput) => void };
   projectForm: CreateProjectInput;
@@ -22,94 +16,54 @@ type HomeWorkspace = {
 };
 
 export function HomeDashboard({
-  onBrowseTemplates,
   onOpenCreate,
   onOpenProject,
   workspace,
 }: {
-  onBrowseTemplates: () => void;
   onOpenCreate: () => void;
   onOpenProject: (projectId: string) => void;
   workspace: HomeWorkspace;
 }) {
   return (
     <div className="grid gap-5 p-5">
-      <HomeHero onBrowseTemplates={onBrowseTemplates} onOpenCreate={onOpenCreate} />
-      <HomeTemplateStrip onBrowseTemplates={onBrowseTemplates} />
+      <HomeHero onOpenCreate={onOpenCreate} />
       <HomeRecentProjects onOpenProject={onOpenProject} workspace={workspace} />
     </div>
   );
 }
 
 function HomeHero({
-  onBrowseTemplates,
   onOpenCreate,
 }: {
-  onBrowseTemplates: () => void;
   onOpenCreate: () => void;
 }) {
   return (
-    <section className="grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
-      <article className="rounded-[30px] border border-black/6 bg-[#fafbfc] p-6">
+    <section className="rounded-[34px] border border-black/6 bg-[linear-gradient(135deg,#fff8f8_0%,#ffffff_52%,#f4f7fb_100%)] p-6 lg:p-8">
+      <article className="max-w-4xl">
         <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[var(--launchify-accent)]">Home</p>
         <h2 className="mt-3 text-4xl font-black tracking-[-0.05em] text-slate-950">Create launch-ready videos from one clean workspace.</h2>
         <p className="mt-4 max-w-2xl text-sm leading-8 text-slate-500">
-          Use templates, create a new project, upload a rough walkthrough, and let Launchify
-          push it through transcript, script, edit planning, quality control, and export.
+          Create a new project, upload a rough walkthrough, and move it through transcript,
+          script, edit planning, quality control, and export from one simple workflow.
         </p>
         <div className="mt-6 flex flex-wrap gap-3">
           <button className="rounded-[18px] bg-[var(--launchify-accent)] px-5 py-3 text-sm font-semibold text-white" onClick={onOpenCreate} type="button">
             New project
           </button>
-          <button className="rounded-[18px] border border-black/8 bg-white px-5 py-3 text-sm font-semibold text-slate-900" onClick={onBrowseTemplates} type="button">
-            Explore templates
-          </button>
         </div>
-      </article>
-      <article className="rounded-[30px] bg-[#111111] p-6 text-white">
-        <p className="text-xs uppercase tracking-[0.25em] text-white/45">Trial usage</p>
-        <p className="mt-5 text-4xl font-black tracking-[-0.05em]">0 mins / 10 mins</p>
-        <p className="mt-3 text-sm leading-7 text-white/66">Modeled after the Clueso-style trial flow, without payments enabled yet.</p>
-        <div className="mt-4 h-2 rounded-full bg-white/10">
-          <div className="h-2 w-1/12 rounded-full bg-[var(--launchify-accent)]" />
+        <div className="mt-8 grid gap-3 lg:grid-cols-3">
+          {[
+            "Create a project from the top-right action.",
+            "Select a project to continue scripting and production.",
+            "Keep every launch asset inside one workspace.",
+          ].map((item) => (
+            <div key={item} className="rounded-[24px] border border-black/6 bg-white/80 px-4 py-4 text-sm text-slate-600 shadow-[0_12px_30px_rgba(15,23,42,0.04)]">
+              {item}
+            </div>
+          ))}
         </div>
       </article>
     </section>
-  );
-}
-
-function HomeTemplateStrip({ onBrowseTemplates }: { onBrowseTemplates: () => void }) {
-  return (
-    <section className="rounded-[30px] border border-black/6 bg-white p-5">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-400">Templates</p>
-          <h3 className="mt-2 text-2xl font-black tracking-[-0.04em] text-slate-950">Start from a polished pattern</h3>
-        </div>
-        <button className="rounded-[18px] border border-black/8 bg-[#fafbfc] px-4 py-2 text-sm font-semibold text-slate-900" onClick={onBrowseTemplates} type="button">
-          View all
-        </button>
-      </div>
-      <div className="mt-5 grid gap-4 lg:grid-cols-3">
-        {["Feature Launch", "Explainer", "How-to Walkthrough"].map((title, index) => (
-          <TemplatePreviewCard index={index} key={title} title={title} />
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function TemplatePreviewCard({ index, title }: { index: number; title: string }) {
-  return (
-    <article className="overflow-hidden rounded-[26px] border border-black/6 bg-[#fafbfc]">
-      <div className={`h-36 ${gradients[index % gradients.length]} px-5 py-5 text-white`}>
-        <p className="text-xs uppercase tracking-[0.25em] text-white/66">Launchify</p>
-        <h4 className="mt-8 text-2xl font-black leading-tight">{title}</h4>
-      </div>
-      <div className="px-4 py-4">
-        <p className="text-sm text-slate-500">A reusable workflow for consistent AI-driven product storytelling.</p>
-      </div>
-    </article>
   );
 }
 
@@ -168,10 +122,10 @@ export function CreateProjectModal({
   workspace: CreateProjectWorkspace;
 }) {
   return (
-    <div className="absolute inset-0 z-30 bg-slate-950/18 backdrop-blur-[2px]">
-      <div className="absolute right-4 top-4 w-full max-w-xl rounded-[30px] border border-black/6 bg-white p-6 shadow-[0_30px_120px_rgba(15,23,42,0.18)]">
+    <div className="absolute inset-0 z-30 grid place-items-center bg-slate-950/22 p-4 backdrop-blur-[4px]">
+      <div className="w-full max-w-2xl rounded-[34px] border border-black/6 bg-white p-6 shadow-[0_40px_140px_rgba(15,23,42,0.22)] lg:p-8">
         <ModalHeader onClose={onClose} />
-        <form className="mt-6 space-y-3" onSubmit={(event) => handleCreateProject(event, workspace)}>
+        <form className="mt-8 space-y-5" onSubmit={(event) => handleCreateProject(event, workspace)}>
           <FormInput label="Project name" value={workspace.projectForm.project_name} onValueChange={(value) => updateForm(workspace, "project_name", value)} />
           <FormInput label="Product name" value={workspace.projectForm.product_name} onValueChange={(value) => updateForm(workspace, "product_name", value)} />
           <FormInput label="Target audience" value={workspace.projectForm.target_audience} onValueChange={(value) => updateForm(workspace, "target_audience", value)} />
@@ -192,9 +146,9 @@ function ModalHeader({ onClose }: { onClose: () => void }) {
       <div>
         <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[var(--launchify-accent)]">New Project</p>
         <h3 className="mt-3 text-2xl font-black tracking-[-0.04em] text-slate-950">Create a launch-ready project</h3>
-        <p className="mt-3 text-sm leading-7 text-slate-500">Mirror the Clueso-style project entry point, then continue in the Launchify workspace.</p>
+        <p className="mt-3 text-sm leading-7 text-slate-500">Set up the basics here, then continue inside the project workspace.</p>
       </div>
-      <button className="rounded-full border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600" onClick={onClose} type="button">
+      <button className="rounded-full border border-rose-200 px-4 py-2 text-sm font-semibold text-[var(--launchify-accent)] transition hover:bg-[var(--launchify-accent)] hover:text-white" onClick={onClose} type="button">
         Close
       </button>
     </div>
@@ -203,10 +157,10 @@ function ModalHeader({ onClose }: { onClose: () => void }) {
 
 function DescriptionInput({ workspace }: { workspace: CreateProjectWorkspace }) {
   return (
-    <label className="block text-sm text-slate-600">
+    <label className="block text-sm font-medium text-slate-600">
       Product description
       <textarea
-        className="mt-2 min-h-24 w-full rounded-[18px] border border-black/8 bg-white px-4 py-3 text-sm outline-none"
+        className="mt-2 min-h-32 w-full rounded-[20px] border border-black/8 bg-[#fbfcfe] px-4 py-3 text-sm outline-none transition focus:border-[var(--launchify-accent)] focus:bg-white"
         value={workspace.projectForm.product_description}
         onChange={(event) => updateForm(workspace, "product_description", event.target.value)}
       />
@@ -224,10 +178,10 @@ function FormInput({
   value: string;
 }) {
   return (
-    <label className="block text-sm text-slate-600">
+    <label className="block text-sm font-medium text-slate-600">
       {label}
       <input
-        className="mt-2 w-full rounded-[18px] border border-black/8 bg-white px-4 py-3 text-sm outline-none"
+        className="mt-2 w-full rounded-[20px] border border-black/8 bg-[#fbfcfe] px-4 py-3 text-sm outline-none transition focus:border-[var(--launchify-accent)] focus:bg-white"
         onChange={(event) => onValueChange(event.target.value)}
         value={value}
       />

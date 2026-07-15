@@ -1,14 +1,5 @@
 import { LaunchScriptRecord, TranscriptResponse } from "@/lib/types";
 
-const templateCards = [
-  "Feature Launch",
-  "Explainer",
-  "Product Walkthrough",
-  "Training Video",
-  "Onboarding Tour",
-  "Changelog Update",
-];
-
 export function TranscriptCard({ transcript }: { transcript: TranscriptResponse["transcript"] }) {
   return (
     <div className="rounded-[28px] border border-black/6 bg-white p-5">
@@ -46,42 +37,13 @@ export function LaunchScriptCard({
   );
 }
 
-export function TemplatesGallery({ onCreate }: { onCreate: () => void }) {
-  return (
-    <div className="grid gap-5 p-5">
-      <section className="flex items-center justify-between rounded-[28px] border border-black/6 bg-[#fafbfc] p-5">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[var(--launchify-accent)]">Templates</p>
-          <h2 className="mt-3 text-3xl font-black tracking-[-0.04em] text-slate-950">Pick a Clueso-style launch starting point.</h2>
-        </div>
-        <button className="rounded-[18px] bg-[var(--launchify-accent)] px-5 py-3 text-sm font-semibold text-white" onClick={onCreate} type="button">
-          Use in project
-        </button>
-      </section>
-      <div className="grid gap-4 lg:grid-cols-3">
-        {templateCards.map((template, index) => (
-          <article key={template} className="overflow-hidden rounded-[28px] border border-black/6 bg-white shadow-[0_16px_50px_rgba(15,23,42,0.06)]">
-            <div className={`h-40 ${templateGradient(index)} px-6 py-6 text-white`}>
-              <p className="text-sm uppercase tracking-[0.24em] text-white/70">Launchify template</p>
-              <h3 className="mt-8 text-3xl font-black leading-tight">{template}</h3>
-            </div>
-            <div className="px-5 py-4">
-              <p className="text-sm leading-7 text-slate-500">Built to accelerate a product-marketing or education workflow with Launchify’s motion, caption, and export pipeline.</p>
-            </div>
-          </article>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 export function EmptyState() {
   return (
-    <div className="grid min-h-[520px] place-items-center rounded-[30px] border border-dashed border-black/10 bg-white p-10 text-center">
+    <div className="grid min-h-[520px] place-items-center rounded-[30px] border border-dashed border-black/10 bg-[linear-gradient(135deg,#fff9f9_0%,#ffffff_50%,#f7f9fc_100%)] p-10 text-center">
       <div className="max-w-xl">
         <p className="text-xs uppercase tracking-[0.25em] text-[var(--launchify-accent)]">No project selected</p>
-        <h2 className="mt-4 text-3xl font-black tracking-[-0.04em] text-slate-950">Create a Launchify project to start generating Clueso-style assets.</h2>
-        <p className="mt-4 text-sm leading-8 text-slate-500">Use the left-side project creation panel to create a workspace, upload a raw recording, and push it through the transcript, script, quality, and export pipeline.</p>
+        <h2 className="mt-4 text-3xl font-black tracking-[-0.04em] text-slate-950">Choose a project to continue your launch workflow.</h2>
+        <p className="mt-4 text-sm leading-8 text-slate-500">Use the project list on the left, or create a new project from the top-right button when you are ready to start something new.</p>
       </div>
     </div>
   );
@@ -121,13 +83,4 @@ function TranscriptSegmentCard({ segment }: { segment: TranscriptResponse["trans
       <p className="mt-2 text-sm leading-7 text-slate-900">{segment.text}</p>
     </div>
   );
-}
-
-function templateGradient(index: number) {
-  const gradients = [
-    "bg-[linear-gradient(135deg,#ef233c_0%,#111111_100%)]",
-    "bg-[linear-gradient(135deg,#111111_0%,#ef233c_100%)]",
-    "bg-[linear-gradient(135deg,#1f2937_0%,#ef233c_100%)]",
-  ];
-  return gradients[index % gradients.length];
 }

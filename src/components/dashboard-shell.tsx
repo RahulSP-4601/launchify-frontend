@@ -7,56 +7,138 @@ import { ProjectsWorkspace } from "@/components/projects-workspace";
 import { signOutUser } from "@/lib/supabase";
 import { DashboardSection, useDashboardStore } from "@/lib/dashboard-store";
 
-const navItems: Array<{ key: DashboardSection; label: string; short: string }> = [
+const navItems: Array<{ key: DashboardSection; label: string; short: string; locked?: boolean }> = [
   { key: "home", label: "Home", short: "HM" },
   { key: "projects", label: "Projects", short: "PR" },
-  { key: "templates", label: "Templates", short: "TM" },
-  { key: "analytics", label: "Analytics", short: "AN" },
+  { key: "templates", label: "Templates", short: "TM", locked: true },
+  { key: "analytics", label: "Analytics", short: "AN", locked: true },
   { key: "settings", label: "Settings", short: "ST" },
 ];
 
 export function DashboardShell({ session }: { session: Session }) {
   const { activeSection, setActiveSection, setCreateProjectOpen } = useDashboardStore();
   const userInitials = useMemo(() => initials(session.user.user_metadata.full_name, session.user.email), [session.user.email, session.user.user_metadata.full_name]);
+  const openCreateProject = () => {
+    setActiveSection("projects");
+    setCreateProjectOpen(true);
+  };
 
   return (
     <main className="min-h-screen bg-[var(--launchify-surface)] px-4 py-4 text-slate-950 lg:px-5">
       <div className="grid min-h-[calc(100vh-2rem)] gap-4 lg:grid-cols-[280px_minmax(0,1fr)]">
-        <aside className="rounded-[34px] border border-black/6 bg-[#f3f4f7] p-4 shadow-[0_24px_70px_rgba(15,23,42,0.08)]">
-          <SidebarHeader />
-          <nav className="mt-8 space-y-2">
-            {navItems.map((item) => (
-              <button
-                key={item.key}
-                className={`flex w-full items-center gap-3 rounded-[18px] px-4 py-3 text-left text-sm font-medium transition ${
-                  activeSection === item.key ? "bg-white text-slate-950 shadow-[0_10px_30px_rgba(15,23,42,0.08)]" : "text-slate-500 hover:bg-white/70"
-                }`}
-                onClick={() => setActiveSection(item.key)}
-                type="button"
-              >
-                <span className={`grid h-9 w-9 place-items-center rounded-2xl ${activeSection === item.key ? "bg-[var(--launchify-accent)] text-white" : "bg-white text-slate-500"}`}>
-                  {item.short}
-                </span>
-                {item.label}
-              </button>
-            ))}
-          </nav>
-          <TrialCard />
-          <UserPanel email={session.user.email ?? ""} initials={userInitials} onSignOut={() => void signOutUser()} />
-        </aside>
-        <section className="overflow-hidden rounded-[34px] border border-black/6 bg-white shadow-[0_24px_70px_rgba(15,23,42,0.08)]">
-          <TopBar
-            initials={userInitials}
-            onCreateProject={() => {
-              setActiveSection("projects");
-              setCreateProjectOpen(true);
-            }}
-            section={activeSection}
-          />
-          <DashboardContent section={activeSection} />
-        </section>
+        <DashboardSidebar
+          activeSection={activeSection}
+          email={session.user.email ?? ""}
+          initials={userInitials}
+          onSectionChange={setActiveSection}
+        />
+        <DashboardMain
+          initials={userInitials}
+          onCreateProject={openCreateProject}
+          section={activeSection}
+        />
       </div>
     </main>
+  );
+}
+
+function DashboardSidebar({
+  activeSection,
+  email,
+  initials,
+  onSectionChange,
+}: {
+  activeSection: DashboardSection;
+  email: string;
+  initials: string;
+  onSectionChange: (section: DashboardSection) => void;
+}) {
+  return (
+    <aside className="rounded-[34px] border border-black/6 bg-[#f3f4f7] p-4 shadow-[0_24px_70px_rgba(15,23,42,0.08)]">
+      <SidebarHeader />
+      <SidebarNav activeSection={activeSection} onSectionChange={onSectionChange} />
+      <TrialCard />
+      <UserPanel email={email} initials={initials} onSignOut={() => void signOutUser()} />
+    </aside>
+  );
+}
+
+function DashboardMain({
+  initials,
+  onCreateProject,
+  section,
+}: {
+  initials: string;
+  onCreateProject: () => void;
+  section: DashboardSection;
+}) {
+  return (
+    <section className="overflow-hidden rounded-[34px] border border-black/6 bg-white shadow-[0_24px_70px_rgba(15,23,42,0.08)]">
+      <TopBar initials={initials} onCreateProject={onCreateProject} section={section} />
+      <DashboardContent section={section} />
+    </section>
+  );
+}
+
+function SidebarNav({
+  activeSection,
+  onSectionChange,
+}: {
+  activeSection: DashboardSection;
+  onSectionChange: (section: DashboardSection) => void;
+}) {
+  return (
+    <nav className="mt-8 space-y-2">
+      {navItems.map((item) => (
+        <SidebarNavButton
+          activeSection={activeSection}
+          item={item}
+          key={item.key}
+          onSectionChange={onSectionChange}
+        />
+      ))}
+    </nav>
+  );
+}
+
+function SidebarNavButton({
+  activeSection,
+  item,
+  onSectionChange,
+}: {
+  activeSection: DashboardSection;
+  item: { key: DashboardSection; label: string; short: string; locked?: boolean };
+  onSectionChange: (section: DashboardSection) => void;
+}) {
+  const isActive = activeSection === item.key;
+  const buttonClass = isActive
+    ? "bg-white text-slate-950 shadow-[0_10px_30px_rgba(15,23,42,0.08)]"
+    : item.locked
+      ? "text-slate-400"
+      : "text-slate-500 hover:bg-white/70";
+  const iconClass = isActive
+    ? "bg-[var(--launchify-accent)] text-white"
+    : item.locked
+      ? "bg-white text-slate-300"
+      : "bg-white text-slate-500";
+
+  return (
+    <button
+      className={`flex w-full items-center gap-3 rounded-[18px] px-4 py-3 text-left text-sm font-medium transition ${buttonClass}`}
+      onClick={() => {
+        if (item.locked) {
+          return;
+        }
+        onSectionChange(item.key);
+      }}
+      type="button"
+    >
+      <span className={`grid h-9 w-9 place-items-center rounded-2xl ${iconClass}`}>
+        {item.short}
+      </span>
+      <span>{item.label}</span>
+      {item.locked ? <span className="ml-auto rounded-full border border-slate-200 bg-white px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400">Soon</span> : null}
+    </button>
   );
 }
 
@@ -148,8 +230,8 @@ function TopBar({
 }
 
 function DashboardContent({ section }: { section: DashboardSection }) {
-  if (section === "analytics") {
-    return <AnalyticsView />;
+  if (section === "templates" || section === "analytics") {
+    return <ComingSoonView section={section} />;
   }
   if (section === "settings") {
     return <SettingsView />;
@@ -157,16 +239,16 @@ function DashboardContent({ section }: { section: DashboardSection }) {
   return <ProjectsWorkspace section={section} />;
 }
 
-function AnalyticsView() {
+function ComingSoonView({ section }: { section: "templates" | "analytics" }) {
   return (
-    <div className="grid gap-4 p-5 lg:grid-cols-3">
-      {["Videos created", "Export minutes", "Docs generated"].map((title, index) => (
-        <article key={title} className="rounded-[28px] border border-black/6 bg-[#fafbfc] p-5">
-          <p className="text-xs uppercase tracking-[0.24em] text-slate-400">{title}</p>
-          <p className="mt-5 text-4xl font-black tracking-[-0.05em] text-slate-950">{index === 0 ? "0" : index === 1 ? "0.0" : "0"}</p>
-          <p className="mt-2 text-sm text-slate-500">This will fill up once users start exporting Launchify assets.</p>
-        </article>
-      ))}
+    <div className="grid min-h-[calc(100vh-10rem)] place-items-center p-5">
+      <section className="w-full max-w-3xl rounded-[34px] border border-black/6 bg-[linear-gradient(135deg,#fff6f7_0%,#ffffff_52%,#f6f8fb_100%)] p-8 text-center shadow-[0_30px_100px_rgba(15,23,42,0.08)] lg:p-12">
+        <p className="text-xs font-semibold uppercase tracking-[0.35em] text-[var(--launchify-accent)]">Coming soon</p>
+        <h2 className="mt-5 text-4xl font-black tracking-[-0.05em] text-slate-950 capitalize">{section}</h2>
+        <p className="mx-auto mt-4 max-w-2xl text-base leading-8 text-slate-500">
+          We are polishing this area right now. For now, use Home and Projects to create and manage launch-ready videos.
+        </p>
+      </section>
     </div>
   );
 }
