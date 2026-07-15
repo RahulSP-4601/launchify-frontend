@@ -19,15 +19,37 @@ export async function createProject(input: CreateProjectInput): Promise<ProjectD
   return handleResponse<ProjectDetail>(response);
 }
 
-export async function uploadProjectVideo(projectId: string, file: File): Promise<ProjectDetail> {
+export async function uploadProjectVideo(
+  projectId: string,
+  file: File,
+  onProgress?: (progress: number) => void,
+): Promise<ProjectDetail> {
+  const token = await getAccessToken();
+  try {
+    return await uploadProjectVideoWithToken(projectId, file, token, onProgress);
+  } catch (error) {
+    if (!shouldRetryUpload(error)) {
+      throw error;
+    }
+  }
+  const refreshedToken = await refreshAccessToken();
+  if (!refreshedToken) {
+    throw new Error("Your session is no longer valid. Please sign in again.");
+  }
+  return uploadProjectVideoWithToken(projectId, file, refreshedToken, onProgress);
+}
+
+async function uploadProjectVideoWithToken(
+  projectId: string,
+  file: File,
+  token: string,
+  onProgress?: (progress: number) => void,
+): Promise<ProjectDetail> {
   const formData = new FormData();
   formData.set("file", file);
   formData.set("filename", file.name);
-  const response = await apiFetch(`/api/projects/${projectId}/upload`, {
-    method: "POST",
-    body: formData,
-  });
-  return handleResponse<ProjectDetail>(response);
+  const responseText = await sendUploadRequest(`/api/projects/${projectId}/upload`, formData, token, onProgress);
+  return JSON.parse(responseText) as ProjectDetail;
 }
 
 export async function fetchProject(projectId: string): Promise<ProjectDetail> {
@@ -74,6 +96,10 @@ export function isAuthenticationError(error: unknown): boolean {
   );
 }
 
+function shouldRetryUpload(error: unknown) {
+  return error instanceof Error && error.message.includes("__UPLOAD_401__");
+}
+
 async function handleResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
     const detail = await parseErrorDetail(response);
@@ -108,6 +134,56 @@ async function apiFetch(path: string, init: RequestInit = {}, allowRetry = true)
 
 async function parseErrorDetail(response: Response): Promise<string> {
   const detail = await response.text();
+  if (!detail) {
+    return "";
+  }
+  try {
+    const parsed = JSON.parse(detail) as { detail?: unknown };
+    return typeof parsed.detail === "string" ? parsed.detail : detail;
+  } catch {
+    return detail;
+  }
+}
+
+function sendUploadRequest(
+  path: string,
+  body: FormData,
+  token: string,
+  onProgress?: (progress: number) => void,
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const request = new XMLHttpRequest();
+    request.open("POST", `${API_URL}${path}`);
+    request.setRequestHeader("Authorization", `Bearer ${token}`);
+    request.upload.addEventListener("progress", (event) => {
+      if (!event.lengthComputable || !onProgress) {
+        return;
+      }
+      onProgress(Math.round((event.loaded / event.total) * 100));
+    });
+    request.addEventListener("load", () => handleUploadResponse(request, resolve, reject));
+    request.addEventListener("error", () => reject(new Error("Upload failed. Please try again.")));
+    request.send(body);
+  });
+}
+
+function handleUploadResponse(
+  request: XMLHttpRequest,
+  resolve: (value: string) => void,
+  reject: (reason?: unknown) => void,
+) {
+  if (request.status >= 200 && request.status < 300) {
+    resolve(request.responseText);
+    return;
+  }
+  if (request.status === 401) {
+    reject(new Error("__UPLOAD_401__"));
+    return;
+  }
+  reject(new Error(parseUploadError(request.responseText) || "Upload request failed"));
+}
+
+function parseUploadError(detail: string) {
   if (!detail) {
     return "";
   }

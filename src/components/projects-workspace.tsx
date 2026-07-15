@@ -1,11 +1,20 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { EditPlanCard } from "@/components/edit-plan-card";
 import { PhaseFourCard } from "@/components/phase-four-card";
 import { RenderOutputCard } from "@/components/render-output-card";
+import {
+  initialUploadOverlayState,
+  UploadOverlayState,
+  UploadProgressModal,
+} from "@/components/upload-progress-modal";
+import {
+  AuthenticationRecoveryCard,
+  AuthenticationRecoveryPanel,
+} from "@/components/workspace-auth-recovery";
 import {
   CreateProjectModal,
   HomeDashboard,
@@ -26,7 +35,6 @@ import {
   uploadProjectVideo,
 } from "@/lib/api";
 import { DashboardSection, HomePanel, useDashboardStore } from "@/lib/dashboard-store";
-import { signOutUser } from "@/lib/supabase";
 import {
   CreateProjectInput,
   ProjectDetail,
@@ -81,6 +89,7 @@ export function ProjectsWorkspace({ section }: { section: DashboardSection }) {
           <WorkspaceCanvas workspace={workspace} />
         </section>
       </div>
+      {workspace.uploadOverlay.active ? <UploadProgressModal uploadOverlay={workspace.uploadOverlay} /> : null}
       {createProjectOpen ? <CreateProjectModal onClose={() => setCreateProjectOpen(false)} workspace={workspace} /> : null}
     </>
   );
@@ -92,6 +101,7 @@ function useProjectsWorkspace() {
   const [selectedProjectId, setSelectedProjectId] = useState("");
   const [projectForm, setProjectForm] = useState<CreateProjectInput>(initialForm);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadOverlay, setUploadOverlay] = useState<UploadOverlayState>(initialUploadOverlayState);
   const { createMutation, phaseFourMutation, uploadMutation } = useWorkspaceMutations({
     queryClient,
     selectedProjectId,
@@ -101,9 +111,18 @@ function useProjectsWorkspace() {
     setProjectForm,
     setSelectedProjectId,
     setUploadFile,
+    setUploadOverlay,
   });
   const { projectQuery, projectsQuery, transcriptQuery } = useWorkspaceQueries(selectedProjectId);
   const authError = getWorkspaceAuthError(projectsQuery.error, projectQuery.error, transcriptQuery.error);
+
+  useEffect(() => {
+    if (uploadOverlay.phase !== "processing") {
+      return;
+    }
+    const timeoutId = window.setTimeout(() => setUploadOverlay(initialUploadOverlayState), 1800);
+    return () => window.clearTimeout(timeoutId);
+  }, [uploadOverlay.phase]);
 
   return {
     authError,
@@ -117,8 +136,10 @@ function useProjectsWorkspace() {
     setProjectForm,
     setSelectedProjectId,
     setUploadFile,
+    setUploadOverlay,
     transcript: transcriptQuery.data?.transcript ?? [],
     uploadFile,
+    uploadOverlay,
     uploadMutation,
   };
 }
@@ -291,39 +312,6 @@ function ProjectRow({ onSelect, project, selectedProjectId }: { onSelect: (proje
   );
 }
 
-function AuthenticationRecoveryCard({ message }: { message: string }) {
-  return (
-    <div className="rounded-[24px] border border-rose-200 bg-rose-50 px-4 py-5">
-      <p className="text-sm font-semibold text-rose-700">Session expired</p>
-      <p className="mt-2 text-sm leading-7 text-rose-600">{message}</p>
-      <button
-        className="mt-4 rounded-[18px] bg-slate-950 px-4 py-3 text-sm font-semibold text-white"
-        onClick={() => void signOutUser()}
-        type="button"
-      >
-        Sign out and sign in again
-      </button>
-    </div>
-  );
-}
-
-function AuthenticationRecoveryPanel({ message }: { message: string }) {
-  return (
-    <section className="rounded-[30px] border border-rose-200 bg-[linear-gradient(135deg,#fff1f3_0%,#ffffff_100%)] p-8">
-      <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[var(--launchify-accent)]">Session expired</p>
-      <h3 className="mt-3 text-3xl font-black tracking-[-0.05em] text-slate-950">Reconnect to continue your workspace.</h3>
-      <p className="mt-4 max-w-2xl text-sm leading-8 text-slate-500">{message}</p>
-      <button
-        className="mt-6 rounded-[18px] bg-slate-950 px-5 py-3 text-sm font-semibold text-white"
-        onClick={() => void signOutUser()}
-        type="button"
-      >
-        Sign out and sign in again
-      </button>
-    </section>
-  );
-}
-
 function handleUpload(workspace: WorkspaceState) {
   if (!workspace.selectedProjectId || !workspace.uploadFile) {
     return;
@@ -359,11 +347,18 @@ function resetAfterUpload(
   selectedProjectId: string,
   queryClient: ReturnType<typeof useQueryClient>,
   setUploadFile: (file: File | null) => void,
+  setUploadOverlay: (value: UploadOverlayState) => void,
 ) {
   void queryClient.invalidateQueries({ queryKey: ["projects"] });
   void queryClient.invalidateQueries({ queryKey: ["project", selectedProjectId] });
   void queryClient.invalidateQueries({ queryKey: ["transcript", selectedProjectId] });
   setUploadFile(null);
+  setUploadOverlay({
+    active: true,
+    fileName: "Upload complete",
+    phase: "processing",
+    progress: 100,
+  });
 }
 
 function handlePhaseFourSuccess(
@@ -415,6 +410,7 @@ function useWorkspaceMutations({
   setProjectForm,
   setSelectedProjectId,
   setUploadFile,
+  setUploadOverlay,
 }: {
   queryClient: ReturnType<typeof useQueryClient>;
   selectedProjectId: string;
@@ -424,6 +420,7 @@ function useWorkspaceMutations({
   setProjectForm: (input: CreateProjectInput) => void;
   setSelectedProjectId: (projectId: string) => void;
   setUploadFile: (file: File | null) => void;
+  setUploadOverlay: (value: UploadOverlayState) => void;
 }) {
   const createMutation = useMutation({
     mutationFn: createProject,
@@ -438,21 +435,48 @@ function useWorkspaceMutations({
         setProjectForm,
       ),
   });
-  const uploadMutation = useMutation({
-    mutationFn: ({ projectId, file }: { file: File; projectId: string }) => {
-      if (file.size > MAX_UPLOAD_BYTES) {
-        throw new Error("Uploaded file must be 50 MB or smaller.");
-      }
-      return uploadProjectVideo(projectId, file);
-    },
-    onSuccess: () => resetAfterUpload(selectedProjectId, queryClient, setUploadFile),
-  });
+  const uploadMutation = useUploadMutation(selectedProjectId, queryClient, setUploadFile, setUploadOverlay);
   const phaseFourMutation = useMutation({
     mutationFn: ({ input, projectId }: { input: UpdatePhaseFourInput; projectId: string }) =>
       updatePhaseFour(projectId, input),
     onSuccess: (project) => handlePhaseFourSuccess(project, queryClient),
   });
   return { createMutation, phaseFourMutation, uploadMutation };
+}
+
+function useUploadMutation(
+  selectedProjectId: string,
+  queryClient: ReturnType<typeof useQueryClient>,
+  setUploadFile: (file: File | null) => void,
+  setUploadOverlay: (value: UploadOverlayState) => void,
+) {
+  return useMutation({
+    mutationFn: ({ projectId, file }: { file: File; projectId: string }) =>
+      uploadSelectedVideo(projectId, file, setUploadOverlay),
+    onSuccess: () => resetAfterUpload(selectedProjectId, queryClient, setUploadFile, setUploadOverlay),
+    onError: () => setUploadOverlay(initialUploadOverlayState),
+  });
+}
+
+function uploadSelectedVideo(
+  projectId: string,
+  file: File,
+  setUploadOverlay: (value: UploadOverlayState) => void,
+) {
+  if (file.size > MAX_UPLOAD_BYTES) {
+    throw new Error("Uploaded file must be 50 MB or smaller.");
+  }
+  setUploadOverlay(buildUploadOverlayState(file.name, 0));
+  return uploadProjectVideo(projectId, file, (progress) => setUploadOverlay(buildUploadOverlayState(file.name, progress)));
+}
+
+function buildUploadOverlayState(fileName: string, progress: number): UploadOverlayState {
+  return {
+    active: true,
+    fileName,
+    phase: "uploading",
+    progress,
+  };
 }
 
 function openProject(
