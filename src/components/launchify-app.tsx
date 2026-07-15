@@ -21,6 +21,13 @@ export function LaunchifyApp() {
     return () => listener.data.subscription.unsubscribe();
   }, []);
 
+  useEffect(() => {
+    if (!session || typeof window === "undefined") {
+      return;
+    }
+    clearAuthHash();
+  }, [session]);
+
   if (!isReady) {
     return <LoadingScreen />;
   }
@@ -34,6 +41,14 @@ async function syncInitialSession(
 ) {
   setSession(await getCurrentSession());
   setIsReady(true);
+}
+
+function clearAuthHash() {
+  const { hash, pathname, search } = window.location;
+  if (hash !== "#" && hash !== "#/") {
+    return;
+  }
+  window.history.replaceState(null, "", `${pathname}${search}`);
 }
 
 function LoadingScreen() {
