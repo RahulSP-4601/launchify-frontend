@@ -59,7 +59,7 @@ export function useProjectsWorkspace() {
   });
   const { projectQuery, projectsQuery, transcriptQuery } = useWorkspaceQueries(selectedProjectId);
   const authError = getWorkspaceAuthError(projectsQuery.error, projectQuery.error, transcriptQuery.error);
-  useUploadOverlaySync(projectQuery, selectedProjectId, setUploadOverlay, uploadOverlay);
+  useUploadOverlaySync(projectQuery, projectsQuery, transcriptQuery, selectedProjectId, setUploadOverlay, uploadOverlay);
 
   return {
     authError,
@@ -83,6 +83,8 @@ export function useProjectsWorkspace() {
 
 function useUploadOverlaySync(
   projectQuery: { data: ProjectDetail | undefined; error: unknown; failureCount: number },
+  projectsQuery: { error: unknown; failureCount: number },
+  transcriptQuery: { error: unknown; failureCount: number },
   selectedProjectId: string,
   setUploadOverlay: (value: UploadOverlayState) => void,
   uploadOverlay: UploadOverlayState,
@@ -95,21 +97,7 @@ function useUploadOverlaySync(
     }
     setUploadOverlay(overlayFromProject(project, uploadOverlay.fileName));
   }, [project, selectedProjectId, setUploadOverlay, uploadOverlay.active, uploadOverlay.fileName, uploadOverlay.phase]);
-
-  useEffect(() => {
-    if (!uploadOverlay.active || uploadOverlay.phase !== "processing") {
-      return;
-    }
-    if (!(projectQuery.error instanceof Error) || projectQuery.failureCount < 3) {
-      return;
-    }
-    setUploadOverlay(
-      uploadOverlayForFailure(
-        uploadOverlay.fileName,
-        "The backend stopped responding while building your video. Please refresh and retry after the backend recovers.",
-      ),
-    );
-  }, [projectQuery.error, projectQuery.failureCount, setUploadOverlay, uploadOverlay.active, uploadOverlay.fileName, uploadOverlay.phase]);
+  usePollingFailureOverlay(projectQuery, projectsQuery, transcriptQuery, setUploadOverlay, uploadOverlay);
 
   useEffect(() => {
     if (!uploadOverlay.active || (uploadOverlay.phase !== "complete" && uploadOverlay.phase !== "failed")) {
@@ -284,4 +272,64 @@ function uploadSelectedVideo(
   }
   setUploadOverlay(uploadOverlayForFile(file.name, 0));
   return uploadProjectVideo(projectId, file, (progress) => setUploadOverlay(uploadOverlayForFile(file.name, progress)));
+}
+
+function usePollingFailureOverlay(
+  projectQuery: { error: unknown; failureCount: number },
+  projectsQuery: { error: unknown; failureCount: number },
+  transcriptQuery: { error: unknown; failureCount: number },
+  setUploadOverlay: (value: UploadOverlayState) => void,
+  uploadOverlay: UploadOverlayState,
+) {
+  useEffect(() => {
+    if (!uploadOverlay.active || uploadOverlay.phase !== "processing") {
+      return;
+    }
+    if (
+      !hasRepeatedPollingFailure(
+        projectQuery.error,
+        projectQuery.failureCount,
+        projectsQuery.error,
+        projectsQuery.failureCount,
+        transcriptQuery.error,
+        transcriptQuery.failureCount,
+      )
+    ) {
+      return;
+    }
+    setUploadOverlay(
+      uploadOverlayForFailure(
+        uploadOverlay.fileName,
+        "The backend stopped responding while building your video. Please refresh and retry after the backend recovers.",
+      ),
+    );
+  }, [
+    projectQuery.error,
+    projectQuery.failureCount,
+    projectsQuery.error,
+    projectsQuery.failureCount,
+    transcriptQuery.error,
+    transcriptQuery.failureCount,
+    setUploadOverlay,
+    uploadOverlay.active,
+    uploadOverlay.fileName,
+    uploadOverlay.phase,
+  ]);
+}
+
+function hasRepeatedPollingFailure(
+  projectError: unknown,
+  projectFailureCount: number,
+  projectsError: unknown,
+  projectsFailureCount: number,
+  transcriptError: unknown,
+  transcriptFailureCount: number,
+) {
+  return [
+    [projectError, projectFailureCount],
+    [projectsError, projectsFailureCount],
+    [transcriptError, transcriptFailureCount],
+  ].some(
+    ([error, failureCount]) => error instanceof Error && typeof failureCount === "number" && failureCount >= 2,
+  );
 }
