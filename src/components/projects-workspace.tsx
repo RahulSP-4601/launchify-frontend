@@ -35,6 +35,7 @@ import {
   uploadProjectVideo,
 } from "@/lib/api";
 import { DashboardSection, HomePanel, useDashboardStore } from "@/lib/dashboard-store";
+import { overlayFromProject, shouldSyncUploadOverlay, uploadOverlayForFile } from "@/lib/upload-progress";
 import {
   CreateProjectInput,
   ProjectDetail,
@@ -115,14 +116,7 @@ function useProjectsWorkspace() {
   });
   const { projectQuery, projectsQuery, transcriptQuery } = useWorkspaceQueries(selectedProjectId);
   const authError = getWorkspaceAuthError(projectsQuery.error, projectQuery.error, transcriptQuery.error);
-
-  useEffect(() => {
-    if (uploadOverlay.phase !== "processing") {
-      return;
-    }
-    const timeoutId = window.setTimeout(() => setUploadOverlay(initialUploadOverlayState), 1800);
-    return () => window.clearTimeout(timeoutId);
-  }, [uploadOverlay.phase]);
+  useUploadOverlaySync(projectQuery.data, selectedProjectId, setUploadOverlay, uploadOverlay);
 
   return {
     authError,
@@ -142,6 +136,28 @@ function useProjectsWorkspace() {
     uploadOverlay,
     uploadMutation,
   };
+}
+
+function useUploadOverlaySync(
+  project: ProjectDetail | undefined,
+  selectedProjectId: string,
+  setUploadOverlay: (value: UploadOverlayState) => void,
+  uploadOverlay: UploadOverlayState,
+) {
+  useEffect(() => {
+    if (!project || !shouldSyncUploadOverlay(project, selectedProjectId, uploadOverlay.active, uploadOverlay.phase)) {
+      return;
+    }
+    setUploadOverlay(overlayFromProject(project, uploadOverlay.fileName));
+  }, [project, selectedProjectId, setUploadOverlay, uploadOverlay.active, uploadOverlay.fileName, uploadOverlay.phase]);
+
+  useEffect(() => {
+    if (!uploadOverlay.active || (uploadOverlay.phase !== "complete" && uploadOverlay.phase !== "failed")) {
+      return;
+    }
+    const timeoutId = window.setTimeout(() => setUploadOverlay(initialUploadOverlayState), 2400);
+    return () => window.clearTimeout(timeoutId);
+  }, [setUploadOverlay, uploadOverlay.active, uploadOverlay.phase]);
 }
 
 function ProjectsPanel({ workspace }: { workspace: WorkspaceState }) {
@@ -344,21 +360,18 @@ function resetAfterCreate(
 }
 
 function resetAfterUpload(
+  project: ProjectDetail,
   selectedProjectId: string,
   queryClient: ReturnType<typeof useQueryClient>,
   setUploadFile: (file: File | null) => void,
   setUploadOverlay: (value: UploadOverlayState) => void,
 ) {
+  queryClient.setQueryData(["project", selectedProjectId], project);
   void queryClient.invalidateQueries({ queryKey: ["projects"] });
   void queryClient.invalidateQueries({ queryKey: ["project", selectedProjectId] });
   void queryClient.invalidateQueries({ queryKey: ["transcript", selectedProjectId] });
   setUploadFile(null);
-  setUploadOverlay({
-    active: true,
-    fileName: "Upload complete",
-    phase: "processing",
-    progress: 100,
-  });
+  setUploadOverlay(overlayFromProject(project, project.asset?.filename ?? "Upload complete"));
 }
 
 function handlePhaseFourSuccess(
@@ -453,7 +466,7 @@ function useUploadMutation(
   return useMutation({
     mutationFn: ({ projectId, file }: { file: File; projectId: string }) =>
       uploadSelectedVideo(projectId, file, setUploadOverlay),
-    onSuccess: () => resetAfterUpload(selectedProjectId, queryClient, setUploadFile, setUploadOverlay),
+    onSuccess: (project) => resetAfterUpload(project, selectedProjectId, queryClient, setUploadFile, setUploadOverlay),
     onError: () => setUploadOverlay(initialUploadOverlayState),
   });
 }
@@ -466,17 +479,8 @@ function uploadSelectedVideo(
   if (file.size > MAX_UPLOAD_BYTES) {
     throw new Error("Uploaded file must be 50 MB or smaller.");
   }
-  setUploadOverlay(buildUploadOverlayState(file.name, 0));
-  return uploadProjectVideo(projectId, file, (progress) => setUploadOverlay(buildUploadOverlayState(file.name, progress)));
-}
-
-function buildUploadOverlayState(fileName: string, progress: number): UploadOverlayState {
-  return {
-    active: true,
-    fileName,
-    phase: "uploading",
-    progress,
-  };
+  setUploadOverlay(uploadOverlayForFile(file.name, 0));
+  return uploadProjectVideo(projectId, file, (progress) => setUploadOverlay(uploadOverlayForFile(file.name, progress)));
 }
 
 function openProject(
