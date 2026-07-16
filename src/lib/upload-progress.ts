@@ -96,6 +96,18 @@ export function uploadOverlayForFile(fileName: string, progress: number): Upload
   };
 }
 
+export function uploadOverlayForFailure(fileName: string, message: string): UploadOverlayState {
+  return {
+    active: true,
+    fileName,
+    label: "Processing interrupted",
+    title: "Launchify lost contact with the backend",
+    caption: message,
+    phase: "failed",
+    progress: 100,
+  };
+}
+
 export function shouldSyncUploadOverlay(
   project: ProjectDetail | undefined,
   selectedProjectId: string,

@@ -160,7 +160,7 @@ function TrialCard() {
   const usageQuery = useQuery({
     queryKey: ["usage"],
     queryFn: fetchUsageSummary,
-    refetchInterval: (query) => (isAuthenticationError(query.state.error) ? false : 5000),
+    refetchInterval: (query) => (isAuthenticationError(query.state.error) ? false : 30000),
     retry: (failureCount, error) => !isAuthenticationError(error) && failureCount < 2,
   });
   const usage = usageQuery.data;
