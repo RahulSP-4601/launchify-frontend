@@ -71,16 +71,36 @@ const detailByStatus: Record<ProjectStatus, { label: string; title: string; capt
   },
 };
 
+function displayStatus(project: ProjectDetail): ProjectStatus {
+  if (project.status === "ready" || project.status === "failed" || project.status === "draft") {
+    return project.status;
+  }
+  if (project.final_video || project.preview_video || project.edit_plan || project.quality_report || project.benchmark_report) {
+    return "rendering";
+  }
+  if (project.launch_script) {
+    return "planning";
+  }
+  if (project.has_transcript) {
+    return "scripting";
+  }
+  if (project.asset) {
+    return "transcribing";
+  }
+  return project.status;
+}
+
 export function overlayFromProject(project: ProjectDetail, fallbackFileName: string): UploadOverlayState {
-  const detail = detailByStatus[project.status];
+  const status = displayStatus(project);
+  const detail = detailByStatus[status];
   return {
-    active: project.status !== "draft",
+    active: status !== "draft",
     fileName: project.asset?.filename || fallbackFileName,
     label: detail.label,
     title: detail.title,
     caption: detail.caption,
     phase: detail.phase,
-    progress: progressByStatus[project.status],
+    progress: progressByStatus[status],
   };
 }
 
