@@ -4,6 +4,16 @@
 
 This document explains how Launchify should work technically as a product and how the system should scale when traffic, users, projects, and rendering jobs increase.
 
+Updated on July 17, 2026 using these public references:
+
+- Clueso getting started docs: https://help.clueso.io/getting-started
+- Clueso quickstart: https://help.clueso.io/getting-started/quickstart
+- Clueso video basics: https://help.clueso.io/getting-started/video-basics
+- Clueso article basics: https://help.clueso.io/getting-started/article-basics
+- Clueso documentation software page: https://www.clueso.io/solutions/documentation-software
+- `lukmaann/Clueso-Monorepo` README: https://github.com/lukmaann/Clueso-Monorepo
+- LinkedIn architecture summary by the repo author: https://www.linkedin.com/posts/lukmaann_building-is-one-thing-designing-it-end-to-end-activity-7406928773075439616-QoDB/
+
 The goal is not to over-engineer version one.
 The goal is to build a clean architecture that supports:
 
@@ -13,6 +23,29 @@ The goal is to build a clean architecture that supports:
 - AI orchestration
 - multi-tenant growth
 - large-scale job processing
+
+## External Product Signal
+
+The strongest public Clueso signal is not just "upload a video and get captions."
+
+It is this workflow:
+
+1. capture a rough screen recording
+2. turn it into a polished video
+3. derive an article from the same structured session
+4. let the user edit script, timing, sync points, highlights, and output
+
+The open-source clone repo makes the architecture claim more explicit:
+
+- browser extension captures media plus user interactions
+- backend fuses event data and transcript
+- AI generation is grounded by those captured events
+- frontend renders the structured output and lets users refine it
+
+Inference for Launchify:
+
+If we want Clueso-level output quality and reliability, our source of truth cannot be only raw pixels and transcript text.
+We need a structured session model.
 
 ## Core Product Architecture
 
@@ -38,6 +71,19 @@ Instead, the system creates a structured project containing:
 
 The rendered video is only one output of that structured project.
 
+## Non-Negotiable Product Principle
+
+Launchify should be a grounded walkthrough engine, not a best-effort video beautifier.
+
+That means:
+
+- the system should know what the user clicked, typed, opened, selected, and submitted
+- the system should know when those actions happened
+- AI should explain and polish the actions, not guess them from pixels alone
+- video, article, captions, sync points, and highlights should all come from the same project graph
+
+Without this, Launchify will keep being slower and less reliable than Clueso on the exact tasks we care about.
+
 ## High-Level System
 
 The platform should be split into these main layers:
@@ -50,6 +96,202 @@ The platform should be split into these main layers:
 6. Media processing layer
 7. Rendering worker layer
 8. Publishing and analytics layer
+
+## Clueso-Style Target Topology
+
+For Launchify, the target architecture should look like this:
+
+1. Capture layer
+2. Ingestion layer
+3. Grounding layer
+4. AI synthesis layer
+5. Structured editor layer
+6. Fast export layer
+7. Premium render layer
+8. Article and publishing layer
+
+### 1. Capture layer
+
+Inputs:
+
+- screen video
+- microphone audio
+- cursor path
+- clicks
+- keystrokes where safe
+- DOM metadata from the extension
+- viewport and page context
+
+This is the single most important gap between "rough AI video enhancer" and "Clueso-style product."
+
+### 2. Ingestion layer
+
+Responsibilities:
+
+- upload media
+- upload interaction events
+- store a unified session record
+- assign stable timestamps to all artifacts
+
+### 3. Grounding layer
+
+Responsibilities:
+
+- align transcript segments with event timestamps
+- align script scenes with product actions
+- detect important action clusters
+- create sync points from actual user actions
+
+### 4. AI synthesis layer
+
+Responsibilities:
+
+- rewrite the raw walkthrough into concise launch-ready narration
+- turn grounded actions into scene goals
+- generate article steps from the same structured session
+- propose highlight labels and zoom moments
+
+### 5. Structured editor layer
+
+Responsibilities:
+
+- transcript editing
+- script editing
+- sync-point editing
+- scene trimming
+- voiceover mode changes
+- highlight and zoom refinement
+
+### 6. Fast export layer
+
+Responsibilities:
+
+- deliver a trimmed highlight reel in 2 to 4 minutes
+- use deterministic cuts from grounded scenes
+- preserve original audio by default
+- avoid heavyweight premium rendering on the blocking path
+
+### 7. Premium render layer
+
+Responsibilities:
+
+- branded frame treatment
+- spotlight and darkened surroundings
+- pointer callouts
+- zoom easing
+- polished captions
+- optional AI voiceover
+
+### 8. Article and publishing layer
+
+Responsibilities:
+
+- generate a documentation article from the same session graph
+- produce screenshots and step cards
+- allow publishing and sharing of both outputs
+
+## What Launchify Already Has
+
+Current code already gives us part of this architecture:
+
+- FastAPI backend
+- background processing jobs
+- transcript generation
+- launch script generation
+- edit-plan generation
+- preview/final render outputs
+- voiceover support
+- quality and benchmark reporting
+
+This means the foundation is usable.
+The missing part is the grounding model, not the entire product.
+
+## Highest-Impact Missing Pieces
+
+These are the biggest remaining architecture gaps relative to Clueso-style behavior:
+
+### 1. Browser extension event capture
+
+We need first-party capture of:
+
+- clicks
+- typed values where allowed
+- active element labels
+- DOM selectors or semantic identifiers
+- cursor movement
+- viewport and scroll state
+
+This is more important than adding another vision heuristic.
+
+### 2. Unified session event log
+
+We need a session artifact that joins:
+
+- raw video
+- audio
+- transcript
+- event stream
+- scene boundaries
+- derived sync points
+
+### 3. Grounded scene planner
+
+Our current planner is still largely transcript-led.
+The target planner should prioritize:
+
+- action clusters
+- product state changes
+- key clicks
+- important forms
+- conversion moments
+
+### 4. Article pipeline
+
+Public Clueso workflow is video plus article.
+Launchify should eventually generate:
+
+- step title
+- description
+- screenshot
+- optional annotation
+
+from the same project source of truth.
+
+### 5. Explicit fast mode and premium mode
+
+This must stay architectural, not accidental.
+
+- fast mode should always optimize for turnaround and reliability
+- premium mode should always optimize for polish and branding
+
+## Launchify Stack Mapping
+
+We do not need the exact same implementation stack as the clone repo.
+
+A good Launchify mapping is:
+
+- Chrome extension or desktop recorder for capture
+- FastAPI for orchestration
+- Postgres plus object storage for persistence
+- OpenAI for script and structured reasoning
+- Deepgram for STT and optional TTS
+- FFmpeg for fast-mode export
+- Remotion or equivalent for premium render
+
+This is a valid stack as long as we preserve the architecture principle:
+
+grounded session data first, AI polish second.
+
+## Immediate System Decisions
+
+These should be treated as current architectural decisions for Launchify:
+
+1. Fast mode is the default customer-facing path.
+2. Visual-only guessing should not be the main planning source.
+3. OpenAI vision should be optional enrichment, not the blocking source of truth.
+4. Final customer value should come from trimmed, intentional scenes, not a full raw recording with overlays.
+5. Premium styling should be asynchronous or optional when needed.
+6. Video and article generation should share one structured project model.
 
 ## Frontend Layer
 

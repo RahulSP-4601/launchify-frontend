@@ -4,10 +4,16 @@ This document defines the practical parity target for Launchify against Clueso-s
 
 It is intentionally based on publicly observable behavior and public product messaging, not on any assumed proprietary internal algorithm.
 
-Reference sources used on July 16, 2026:
+Reference sources used on July 17, 2026:
 
 - Clueso homepage: https://www.clueso.io/
-- Clueso company overview: https://en.wikipedia.org/wiki/Clueso_%28Company%29
+- Clueso getting started docs: https://help.clueso.io/getting-started
+- Clueso quickstart: https://help.clueso.io/getting-started/quickstart
+- Clueso video basics: https://help.clueso.io/getting-started/video-basics
+- Clueso article basics: https://help.clueso.io/getting-started/article-basics
+- Clueso documentation software page: https://www.clueso.io/solutions/documentation-software
+- `lukmaann/Clueso-Monorepo` README: https://github.com/lukmaann/Clueso-Monorepo
+- LinkedIn architecture summary by the repo author: https://www.linkedin.com/posts/lukmaann_building-is-one-thing-designing-it-end-to-end-activity-7406928773075439616-QoDB/
 
 Publicly stated Clueso behaviors relevant to Launchify parity:
 
@@ -17,6 +23,14 @@ Publicly stated Clueso behaviors relevant to Launchify parity:
 - captions are visually polished
 - branded intros, outros, and templates are supported
 - documentation and SOP generation are part of the broader workflow
+- rough screen recordings are turned into polished videos
+- article output is treated as a first-class companion artifact
+
+Architecture inference from public sources:
+
+- a Clueso-like system should capture more than pixels
+- event grounding is likely a major quality advantage over transcript-only planning
+- fast customer-facing output and deeper editing capabilities both matter
 
 ## What "Parity" Means
 
@@ -32,6 +46,8 @@ It means that for the same rough screen recording, Launchify should produce an o
 6. brand polish
 7. export readiness
 8. end-to-end speed
+9. article generation readiness
+10. grounded action accuracy
 
 ## Parity Gate
 
@@ -43,6 +59,7 @@ Launchify can be considered Clueso-parity-ready only if all of the following are
 4. Zooms and highlights are judged helpful, not distracting, in at least 90% of scenes.
 5. Captions remain readable and well-timed in at least 95% of scenes.
 6. Side-by-side reviewer preference is at least tied with Clueso on average, or wins in a clearly defined subset such as launch videos.
+7. Generated article steps remain materially aligned with the video scenes on benchmark runs where article mode is enabled.
 
 ## Scoring Rubric
 
@@ -233,6 +250,40 @@ Pass checks for quality-first fast mode:
 Important:
 
 - speed cannot be treated as parity if output quality regresses
+
+### 10. Grounded Action Accuracy
+
+Target:
+
+- scene boundaries follow real product actions
+- instructions match the actual UI operation
+- highlights and zooms correspond to meaningful controls
+
+Pass checks:
+
+- no scene explains an action that did not happen
+- no major mismatch between narration and on-screen action
+- important clicks and state changes are captured at the right time
+
+Gap examples:
+
+- transcript says one thing while screen shows another
+- AI guesses the wrong control
+- the final video feels like a stylized recording instead of an intentional walkthrough
+
+### 11. Article Output Readiness
+
+Target:
+
+- the same source session can generate clean documentation steps
+- screenshots and step titles are reusable
+- article quality is high enough for internal docs with light editing
+
+Pass checks:
+
+- article steps follow the same story as the video
+- screenshots are attached to meaningful moments
+- no missing critical step in the article view
 
 ## Benchmark Suite
 

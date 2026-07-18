@@ -27,6 +27,37 @@ export type LaunchScriptScene = {
   estimated_duration_seconds: number;
 };
 
+export type SessionTargetRecord = {
+  selector: string;
+  label: string;
+  role: string;
+  text: string;
+  href: string;
+};
+
+export type SessionEventRecord = {
+  type: "click" | "input" | "scroll" | "hover" | "navigation" | "keypress" | "focus" | "custom";
+  timestamp: number;
+  x: number | null;
+  y: number | null;
+  value: string;
+  url: string;
+  title: string;
+  target: SessionTargetRecord;
+  metadata: Record<string, string>;
+};
+
+export type RecordingSessionRecord = {
+  source: string;
+  started_at: string;
+  ended_at: string;
+  viewport_width: number;
+  viewport_height: number;
+  page_title: string;
+  page_url: string;
+  events: SessionEventRecord[];
+};
+
 export type LaunchScriptRecord = {
   hook: string;
   summary: string;
@@ -192,6 +223,7 @@ export type ProjectDetail = ProjectSummary & {
   product_description: string;
   target_audience: string;
   error_message: string;
+  recording_session: RecordingSessionRecord | null;
   launch_script: LaunchScriptRecord | null;
   edit_plan: EditPlanRecord | null;
   template_config: TemplateConfigRecord | null;
@@ -231,6 +263,10 @@ export type UpdatePhaseFourInput = {
   template_config: TemplateConfigRecord;
   manual_overrides: ManualOverrideRecord;
   voiceover_mode: VoiceoverRecord["mode"];
+};
+
+export type UpdateRecordingSessionInput = {
+  recording_session: RecordingSessionRecord;
 };
 
 export type UsageSummary = {
