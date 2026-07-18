@@ -56,14 +56,14 @@ export function PreviewPlayer({
   voiceoverUrl: string;
 }) {
   return (
-    <div className="overflow-hidden rounded-[28px] border border-white/10 bg-black">
+    <div className="overflow-hidden rounded-[28px] border border-white/10 bg-black shadow-[0_20px_80px_rgba(2,6,23,0.35)]">
       <div className="flex items-center gap-2 border-b border-white/10 bg-white/5 px-4 py-3">
         <span className="h-3 w-3 rounded-full bg-rose-400" />
         <span className="h-3 w-3 rounded-full bg-amber-300" />
         <span className="h-3 w-3 rounded-full bg-emerald-400" />
         <p className="ml-3 text-xs uppercase tracking-[0.2em] text-slate-300">{project.product_name} polished preview</p>
       </div>
-      <div className="relative aspect-video overflow-hidden bg-slate-950">
+      <div className="relative aspect-video min-h-[340px] overflow-hidden bg-slate-950 sm:min-h-[420px] xl:min-h-[520px]">
         <PreviewPlayerBody
           activeHighlight={activeHighlight}
           activeScene={activeScene}
