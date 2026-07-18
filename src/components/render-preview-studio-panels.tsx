@@ -1,6 +1,6 @@
 "use client";
 
-import { Dispatch, RefObject, SetStateAction } from "react";
+import { Dispatch, RefObject, SetStateAction, useEffect, useState } from "react";
 
 import { EditPlanScene, ProjectDetail } from "@/lib/types";
 import {
@@ -104,20 +104,205 @@ function PreviewPlayerBody({
   const transform = activeZoom
     ? `translate(${(activeZoom.x_offset * 100).toFixed(2)}%, ${(activeZoom.y_offset * 100).toFixed(2)}%) scale(${activeZoom.scale.toFixed(3)})`
     : "scale(1)";
+  const controls = usePreviewPlayerState(videoRef, project, voiceoverUrl);
 
   if (!sourceUrl) {
     return <PreviewPlaceholder detail={sourceError || project.error_message || "Upload a walkthrough and Launchify will assemble the polished preview here."} title="Source video pending" />;
   }
   return (
     <>
-      <video ref={videoRef} className="h-full w-full object-cover transition-transform duration-500 ease-out" controls muted={Boolean(voiceoverUrl)} src={sourceUrl} style={{ transform }} />
+      <video ref={videoRef} className="h-full w-full object-cover transition-transform duration-500 ease-out" muted={Boolean(voiceoverUrl)} playsInline preload="metadata" src={sourceUrl} style={{ transform }} />
       {voiceoverUrl ? <audio ref={audioRef} preload="auto" src={voiceoverUrl} /> : null}
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(56,189,248,0.12),transparent_48%),linear-gradient(180deg,rgba(2,6,23,0.02),rgba(2,6,23,0.46))]" />
       {activeHighlight?.focus_box ? <FocusBoxOverlay focusBox={activeHighlight.focus_box} /> : null}
       {activeHighlight ? <HighlightBadge label={activeHighlight.ui_label || activeHighlight.label} /> : null}
       {activeScene ? <SceneLabel scene={activeScene} /> : null}
+      <PreviewControls
+        isPlaying={controls.isPlaying}
+        previewTime={controls.previewTime}
+        totalDuration={controls.totalDuration}
+        voiceoverEnabled={Boolean(voiceoverUrl)}
+        onSeek={(value) => seekPreview(videoRef.current, project, value)}
+        onTogglePlayback={() => togglePlayback(videoRef.current)}
+      />
     </>
   );
+}
+
+function usePreviewPlayerState(
+  videoRef: RefObject<HTMLVideoElement | null>,
+  project: ProjectDetail,
+  voiceoverUrl: string,
+) {
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [previewTime, setPreviewTime] = useState(0);
+  useSourceAudioLock(videoRef, voiceoverUrl);
+  usePreviewControls(videoRef, project, setIsPlaying, setPreviewTime);
+  return {
+    isPlaying,
+    previewTime,
+    totalDuration: project.edit_plan?.total_duration_seconds ?? 0,
+  };
+}
+
+function useSourceAudioLock(
+  videoRef: RefObject<HTMLVideoElement | null>,
+  voiceoverUrl: string,
+) {
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    if (!voiceoverUrl) return;
+    const previousState = {
+      defaultMuted: video.defaultMuted,
+      muted: video.muted,
+      volume: video.volume,
+    };
+    const enforceMute = () => {
+      video.defaultMuted = true;
+      video.muted = true;
+      video.volume = 0;
+    };
+    enforceMute();
+    video.addEventListener("volumechange", enforceMute);
+    return () => {
+      video.removeEventListener("volumechange", enforceMute);
+      video.defaultMuted = previousState.defaultMuted;
+      video.muted = previousState.muted;
+      video.volume = previousState.volume;
+    };
+  }, [videoRef, voiceoverUrl]);
+}
+
+function usePreviewControls(
+  videoRef: RefObject<HTMLVideoElement | null>,
+  project: ProjectDetail,
+  setIsPlaying: Dispatch<SetStateAction<boolean>>,
+  setPreviewTime: Dispatch<SetStateAction<number>>,
+) {
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    const sync = () => {
+      setIsPlaying(!video.paused && !video.ended);
+      setPreviewTime(projectPreviewTime(project, video.currentTime));
+    };
+    video.addEventListener("play", sync);
+    video.addEventListener("pause", sync);
+    video.addEventListener("ended", sync);
+    video.addEventListener("timeupdate", sync);
+    video.addEventListener("loadedmetadata", sync);
+    sync();
+    return () => {
+      video.removeEventListener("play", sync);
+      video.removeEventListener("pause", sync);
+      video.removeEventListener("ended", sync);
+      video.removeEventListener("timeupdate", sync);
+      video.removeEventListener("loadedmetadata", sync);
+    };
+  }, [project, setIsPlaying, setPreviewTime, videoRef]);
+}
+
+function togglePlayback(video: HTMLVideoElement | null) {
+  if (!video) return;
+  if (video.paused) {
+    void video.play().catch(() => undefined);
+    return;
+  }
+  video.pause();
+}
+
+function seekPreview(
+  video: HTMLVideoElement | null,
+  project: ProjectDetail,
+  previewTime: number,
+) {
+  if (!video) return;
+  video.currentTime = sourceTimeForPreview(project, previewTime);
+}
+
+function projectPreviewTime(project: ProjectDetail, sourceTime: number) {
+  const scenes = [...(project.edit_plan?.scenes ?? [])].sort((left, right) => left.start - right.start);
+  let elapsed = 0;
+  for (const scene of scenes) {
+    const duration = Math.max(scene.end - scene.start, 0);
+    if (sourceTime < scene.start) {
+      return elapsed;
+    }
+    if (sourceTime <= scene.end) {
+      return elapsed + Math.max(sourceTime - scene.start, 0);
+    }
+    elapsed += duration;
+  }
+  return elapsed;
+}
+
+function sourceTimeForPreview(project: ProjectDetail, previewTime: number) {
+  const scenes = [...(project.edit_plan?.scenes ?? [])].sort((left, right) => left.start - right.start);
+  let elapsed = 0;
+  for (const scene of scenes) {
+    const duration = Math.max(scene.end - scene.start, 0);
+    if (previewTime <= elapsed + duration) {
+      return scene.start + Math.max(previewTime - elapsed, 0);
+    }
+    elapsed += duration;
+  }
+  return scenes.at(-1)?.end ?? 0;
+}
+
+function PreviewControls({
+  isPlaying,
+  onTogglePlayback,
+  onSeek,
+  previewTime,
+  totalDuration,
+  voiceoverEnabled,
+}: {
+  isPlaying: boolean;
+  onTogglePlayback: () => void;
+  onSeek: (value: number) => void;
+  previewTime: number;
+  totalDuration: number;
+  voiceoverEnabled: boolean;
+}) {
+  const progress = totalDuration > 0 ? Math.min(previewTime / totalDuration, 1) : 0;
+  return (
+    <div className="absolute inset-x-4 bottom-4 rounded-[22px] border border-white/10 bg-slate-950/82 px-4 py-3 backdrop-blur">
+      <div className="flex items-center justify-between gap-4">
+        <button className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-slate-950 transition hover:scale-[1.03]" onClick={onTogglePlayback} type="button">
+          {isPlaying ? "Pause" : "Play"}
+        </button>
+        <div className="min-w-0 flex-1">
+          <div className="relative h-5">
+            <div className="pointer-events-none absolute inset-x-0 top-1/2 h-2 -translate-y-1/2 overflow-hidden rounded-full bg-white/10">
+              <div className="h-full rounded-full bg-cyan-300 transition-[width] duration-300" style={{ width: `${progress * 100}%` }} />
+            </div>
+            <input
+              aria-label="Seek preview timeline"
+              className="absolute inset-0 h-full w-full cursor-pointer appearance-none bg-transparent [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-white"
+              max={totalDuration || 0}
+              min={0}
+              onChange={(event) => onSeek(Number(event.target.value))}
+              step={0.1}
+              type="range"
+              value={Math.min(previewTime, totalDuration || previewTime)}
+            />
+          </div>
+          <div className="mt-2 flex items-center justify-between text-xs uppercase tracking-[0.18em] text-slate-300">
+            <span>{formatClock(previewTime)} / {formatClock(totalDuration)}</span>
+            <span>{voiceoverEnabled ? "AI voiceover preview" : "Source audio preview"}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function formatClock(seconds: number) {
+  const safeSeconds = Math.max(0, Math.floor(seconds));
+  const minutes = Math.floor(safeSeconds / 60);
+  const remainingSeconds = safeSeconds % 60;
+  return `${minutes.toString().padStart(2, "0")}:${remainingSeconds.toString().padStart(2, "0")}`;
 }
 
 export function PreviewInfoGrid({
