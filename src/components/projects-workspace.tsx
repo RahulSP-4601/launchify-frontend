@@ -33,7 +33,7 @@ const panelTabs: Array<{ key: HomePanel; label: string }> = [
   { key: "script", label: "Script" },
   { key: "edit-plan", label: "Edit Plan" },
   { key: "quality", label: "Quality" },
-  { key: "exports", label: "Exports" },
+  { key: "exports", label: "Preview" },
 ];
 
 export function ProjectsWorkspace({ section }: { section: DashboardSection }) {
@@ -159,7 +159,7 @@ function WorkspaceCanvas({ workspace }: { workspace: WorkspaceState }) {
     return <TranscriptCard transcript={workspace.transcript} />;
   }
   if (activeHomePanel === "script") {
-    return <LaunchScriptCard launchScript={workspace.selectedProject.launch_script} projectError={workspace.selectedProject.error_message} />;
+    return <LaunchScriptCard guide={workspace.selectedProject.guide} launchScript={workspace.selectedProject.launch_script} projectError={workspace.selectedProject.error_message} />;
   }
   if (activeHomePanel === "edit-plan") {
     return <EditPlanCard editPlan={workspace.selectedProject.edit_plan} projectError={workspace.selectedProject.error_message} />;
@@ -181,7 +181,7 @@ function OverviewPanel({ workspace }: { workspace: WorkspaceState }) {
   return (
     <div className="grid gap-4">
       <UploadCard workspace={workspace} />
-      <LaunchScriptCard launchScript={workspace.selectedProject?.launch_script ?? null} projectError={workspace.selectedProject?.error_message ?? ""} />
+      <LaunchScriptCard guide={workspace.selectedProject?.guide ?? null} launchScript={workspace.selectedProject?.launch_script ?? null} projectError={workspace.selectedProject?.error_message ?? ""} />
     </div>
   );
 }

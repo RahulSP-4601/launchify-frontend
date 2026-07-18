@@ -1,4 +1,4 @@
-import { LaunchScriptRecord, TranscriptResponse } from "@/lib/types";
+import { GuideRecord, LaunchScriptRecord, TranscriptResponse } from "@/lib/types";
 
 export function TranscriptCard({ transcript }: { transcript: TranscriptResponse["transcript"] }) {
   return (
@@ -12,27 +12,61 @@ export function TranscriptCard({ transcript }: { transcript: TranscriptResponse[
 }
 
 export function LaunchScriptCard({
+  guide,
   launchScript,
   projectError,
 }: {
+  guide: GuideRecord | null;
   launchScript: LaunchScriptRecord | null;
   projectError: string;
 }) {
   return (
     <div className="rounded-[28px] border border-black/6 bg-white p-5">
       <p className="text-sm font-semibold text-slate-900">Launch script</p>
-      {launchScript ? (
+      {guide || launchScript ? (
         <div className="mt-4 space-y-4">
-          <ScriptBlock label="Hook" value={launchScript.hook} />
-          <ScriptBlock label="Summary" value={launchScript.summary} />
-          <SceneList scenes={launchScript.scenes} />
-          <ScriptBlock label="CTA" value={launchScript.cta} />
-          {launchScript.title_options.length ? <ScriptBlock label="Title options" value={launchScript.title_options.join(" | ")} /> : null}
-          {launchScript.notes.length ? <ScriptBlock label="Notes" value={launchScript.notes.join(" | ")} /> : null}
+          {guide ? <GuideBlock guide={guide} /> : null}
+          {launchScript ? (
+            <>
+              <ScriptBlock label="Hook" value={launchScript.hook} />
+              <ScriptBlock label="Summary" value={launchScript.summary} />
+              <SceneList scenes={launchScript.scenes} />
+              <ScriptBlock label="CTA" value={launchScript.cta} />
+              {launchScript.title_options.length ? <ScriptBlock label="Title options" value={launchScript.title_options.join(" | ")} /> : null}
+              {launchScript.notes.length ? <ScriptBlock label="Notes" value={launchScript.notes.join(" | ")} /> : null}
+            </>
+          ) : null}
         </div>
       ) : (
         <p className="mt-3 text-sm text-slate-400">{projectError || "Structured launch script will appear here once transcript rewriting finishes."}</p>
       )}
+    </div>
+  );
+}
+
+function GuideBlock({ guide }: { guide: GuideRecord }) {
+  return (
+    <div className="rounded-[22px] border border-black/6 bg-[#fafbfc] p-4">
+      <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Grounded guide</p>
+      <p className="mt-2 text-sm font-semibold text-slate-900">{guide.title}</p>
+      <p className="mt-2 text-sm leading-7 text-slate-700">{guide.summary}</p>
+      <div className="mt-4 space-y-3">
+        {guide.steps.map((step) => (
+          <div key={step.step_index} className="rounded-[18px] border border-black/6 bg-white p-3">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm font-semibold text-slate-900">{step.title}</p>
+              <p className="text-xs uppercase tracking-[0.18em] text-slate-400">
+                {step.start.toFixed(2)}s - {step.end.toFixed(2)}s
+              </p>
+            </div>
+            <p className="mt-2 text-sm text-slate-700">{step.instruction}</p>
+            <p className="mt-2 text-sm text-[var(--launchify-accent)]">{step.on_screen_text}</p>
+            <p className="mt-2 text-xs text-slate-400">
+              {step.event_type} on {step.focus_label || step.focus_selector || "active element"}
+            </p>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

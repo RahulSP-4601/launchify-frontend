@@ -9,6 +9,7 @@ export type ProjectSummary = {
   created_at: string;
   updated_at: string;
   has_transcript: boolean;
+  has_guide: boolean;
   has_launch_script: boolean;
   has_edit_plan: boolean;
   has_quality_report: boolean;
@@ -56,6 +57,36 @@ export type RecordingSessionRecord = {
   page_title: string;
   page_url: string;
   events: SessionEventRecord[];
+};
+
+export type GuideStepRecord = {
+  step_index: number;
+  title: string;
+  instruction: string;
+  narration: string;
+  on_screen_text: string;
+  start: number;
+  end: number;
+  event_type: string;
+  focus_selector: string;
+  focus_label: string;
+  highlight_label: string;
+  source_excerpt: string;
+};
+
+export type ArticleStepRecord = {
+  step_index: number;
+  title: string;
+  body: string;
+};
+
+export type GuideRecord = {
+  title: string;
+  summary: string;
+  source: string;
+  steps: GuideStepRecord[];
+  article_steps: ArticleStepRecord[];
+  generation_notes: string[];
 };
 
 export type LaunchScriptRecord = {
@@ -224,6 +255,7 @@ export type ProjectDetail = ProjectSummary & {
   target_audience: string;
   error_message: string;
   recording_session: RecordingSessionRecord | null;
+  guide: GuideRecord | null;
   launch_script: LaunchScriptRecord | null;
   edit_plan: EditPlanRecord | null;
   template_config: TemplateConfigRecord | null;
@@ -257,6 +289,10 @@ export type CreateProjectInput = {
   product_description: string;
   target_audience: string;
   video_goal: string;
+};
+
+export type CreateRecordingSessionInput = {
+  recording_session: RecordingSessionRecord;
 };
 
 export type UpdatePhaseFourInput = {

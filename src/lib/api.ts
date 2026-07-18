@@ -1,4 +1,13 @@
-import { CreateProjectInput, ProjectDetail, ProjectSummary, TranscriptResponse, UpdatePhaseFourInput, UpdateRecordingSessionInput, UsageSummary } from "@/lib/types";
+import {
+  CreateProjectInput,
+  ProjectDetail,
+  ProjectSummary,
+  RecordingSessionRecord,
+  TranscriptResponse,
+  UpdatePhaseFourInput,
+  UpdateRecordingSessionInput,
+  UsageSummary,
+} from "@/lib/types";
 import { getAccessToken, refreshAccessToken } from "@/lib/supabase";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
@@ -52,9 +61,45 @@ async function uploadProjectVideoWithToken(
   return JSON.parse(responseText) as ProjectDetail;
 }
 
+async function uploadGroundedSessionWithToken(
+  projectId: string,
+  file: File,
+  recordingSession: RecordingSessionRecord,
+  token: string,
+  onProgress?: (progress: number) => void,
+): Promise<ProjectDetail> {
+  const formData = new FormData();
+  formData.set("file", file);
+  formData.set("filename", file.name);
+  formData.set("recording_session", JSON.stringify({ recording_session: recordingSession }));
+  const responseText = await sendUploadRequest(`/api/projects/${projectId}/sessions`, formData, token, onProgress);
+  return JSON.parse(responseText) as ProjectDetail;
+}
+
 export async function fetchProject(projectId: string): Promise<ProjectDetail> {
   const response = await apiFetch(`/api/projects/${projectId}`, { cache: "no-store" });
   return handleResponse<ProjectDetail>(response);
+}
+
+export async function uploadGroundedSession(
+  projectId: string,
+  file: File,
+  recordingSession: RecordingSessionRecord,
+  onProgress?: (progress: number) => void,
+): Promise<ProjectDetail> {
+  const token = await getAccessToken();
+  try {
+    return await uploadGroundedSessionWithToken(projectId, file, recordingSession, token, onProgress);
+  } catch (error) {
+    if (!shouldRetryUpload(error)) {
+      throw error;
+    }
+  }
+  const refreshedToken = await refreshAccessToken();
+  if (!refreshedToken) {
+    throw new Error("Your session is no longer valid. Please sign in again.");
+  }
+  return uploadGroundedSessionWithToken(projectId, file, recordingSession, refreshedToken, onProgress);
 }
 
 export async function updatePhaseFour(projectId: string, input: UpdatePhaseFourInput): Promise<ProjectDetail> {
@@ -89,6 +134,15 @@ export async function fetchRenderOutput(projectId: string, variant: "preview" | 
   if (!response.ok) {
     const detail = await response.text();
     throw new Error(detail || "Render output request failed");
+  }
+  return response.blob();
+}
+
+export async function fetchProjectAsset(projectId: string, variant: "source" | "voiceover"): Promise<Blob> {
+  const response = await apiFetch(`/api/projects/${projectId}/assets/${variant}`, { cache: "no-store" });
+  if (!response.ok) {
+    const detail = await response.text();
+    throw new Error(detail || "Asset request failed");
   }
   return response.blob();
 }

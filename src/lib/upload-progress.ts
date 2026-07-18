@@ -47,20 +47,20 @@ const detailByStatus: Record<ProjectStatus, { label: string; title: string; capt
   },
   planning: {
     label: "Planning",
-    title: "Building the edit plan",
-    caption: "Launchify is analyzing scenes, OCR, motion, and framing. This step can take around 2 to 5 minutes.",
+    title: "Building your polished preview",
+    caption: "Launchify is shaping captions, focus moves, highlights, pacing, and voiceover for the MVP preview.",
     phase: "processing",
   },
   rendering: {
-    label: "Rendering",
-    title: "Generating polished outputs",
-    caption: "The final preview and export are being rendered with the refined plan.",
+    label: "Compositing preview",
+    title: "Finishing your polished preview",
+    caption: "Launchify is finalizing the preview experience and any optional rendered reference output.",
     phase: "processing",
   },
   ready: {
     label: "Ready",
-    title: "Your launch video is ready",
-    caption: "Processing is complete and your generated outputs are now available.",
+    title: "Your polished preview is ready",
+    caption: "Processing is complete and your review-ready preview is now available.",
     phase: "complete",
   },
   failed: {
