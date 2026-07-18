@@ -9,7 +9,10 @@ export function RenderOutputCard({ project }: { project: ProjectDetail }) {
   const usesRenderedPreview = Boolean(project.preview_video && renderedPreviewUrl.objectUrl);
   const sourceError = renderedPreviewUrl.error || sourceAssetUrl.error;
   const sourceUrl = renderedPreviewUrl.objectUrl || sourceAssetUrl.objectUrl;
-  const voiceoverEnabled = !usesRenderedPreview && project.voiceover?.status === "ready" && project.voiceover?.mode !== "original";
+  const voiceoverEnabled =
+    !usesRenderedPreview &&
+    project.voiceover?.status === "ready" &&
+    project.voiceover?.mode !== "original";
   const voiceoverUrl = useAssetObjectUrl(project.id, "voiceover", voiceoverEnabled);
 
   return (

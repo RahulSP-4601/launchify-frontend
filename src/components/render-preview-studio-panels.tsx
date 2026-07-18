@@ -11,7 +11,13 @@ import {
   SceneLabel,
   voiceoverLabel,
 } from "@/components/render-preview-studio";
-import { formatPreviewRange, SceneTimelineEntry, seekScene } from "@/components/render-preview-studio-timeline";
+import {
+  formatPreviewRange,
+  previewTimeForSourceTime,
+  SceneTimelineEntry,
+  seekScene,
+  sourceTimeForPreviewTime,
+} from "@/components/render-preview-studio-timeline";
 
 export function PreviewStudioHeader({ project }: { project: ProjectDetail }) {
   return (
@@ -36,6 +42,7 @@ export function PreviewPlayer({
   project,
   sourceError,
   sourceUrl,
+  sceneTimeline,
   totalDuration,
   usesRenderedPreview,
   videoRef,
@@ -48,6 +55,7 @@ export function PreviewPlayer({
   project: ProjectDetail;
   sourceError: string;
   sourceUrl: string;
+  sceneTimeline: SceneTimelineEntry[];
   totalDuration: number;
   usesRenderedPreview: boolean;
   videoRef: RefObject<HTMLVideoElement | null>;
@@ -63,6 +71,7 @@ export function PreviewPlayer({
         project={project}
         sourceError={sourceError}
         sourceUrl={sourceUrl}
+        sceneTimeline={sceneTimeline}
         totalDuration={totalDuration}
         usesRenderedPreview={usesRenderedPreview}
         videoRef={videoRef}
@@ -80,6 +89,7 @@ type PreviewPlayerBodyProps = {
   project: ProjectDetail;
   sourceError: string;
   sourceUrl: string;
+  sceneTimeline: SceneTimelineEntry[];
   totalDuration: number;
   usesRenderedPreview: boolean;
   videoRef: RefObject<HTMLVideoElement | null>;
@@ -87,11 +97,11 @@ type PreviewPlayerBodyProps = {
 };
 
 function PreviewPlayerBody(props: PreviewPlayerBodyProps) {
-  const { activeHighlight, activeScene, activeZoom, audioRef, project, sourceError, sourceUrl, totalDuration, usesRenderedPreview, videoRef, voiceoverUrl } = props;
+  const { activeHighlight, activeScene, activeZoom, audioRef, project, sceneTimeline, sourceError, sourceUrl, totalDuration, usesRenderedPreview, videoRef, voiceoverUrl } = props;
   const transform = !usesRenderedPreview && activeZoom
     ? `translate(${(activeZoom.x_offset * 100).toFixed(2)}%, ${(activeZoom.y_offset * 100).toFixed(2)}%) scale(${activeZoom.scale.toFixed(3)})`
     : "scale(1)";
-  const controls = usePreviewPlayerState(videoRef, project, voiceoverUrl, usesRenderedPreview, totalDuration);
+  const controls = usePreviewPlayerState(videoRef, project, sceneTimeline, voiceoverUrl, usesRenderedPreview, totalDuration);
   const voiceoverEnabled = Boolean(voiceoverUrl) && !usesRenderedPreview;
 
   if (!sourceUrl) {
@@ -117,7 +127,7 @@ function PreviewPlayerBody(props: PreviewPlayerBodyProps) {
         previewTime={controls.previewTime}
         totalDuration={controls.totalDuration}
         voiceoverEnabled={voiceoverEnabled}
-        onSeek={(value) => seekPreview(videoRef.current, project, value, usesRenderedPreview)}
+        onSeek={(value) => seekPreview(videoRef.current, sceneTimeline, value, usesRenderedPreview)}
         usesRenderedPreview={usesRenderedPreview}
       />
     </>
@@ -194,6 +204,7 @@ function PreviewMotionOverlays({
 function usePreviewPlayerState(
   videoRef: RefObject<HTMLVideoElement | null>,
   project: ProjectDetail,
+  sceneTimeline: SceneTimelineEntry[],
   voiceoverUrl: string,
   usesRenderedPreview: boolean,
   totalDuration: number,
@@ -201,7 +212,7 @@ function usePreviewPlayerState(
   const [isPlaying, setIsPlaying] = useState(false);
   const [previewTime, setPreviewTime] = useState(0);
   useSourceAudioLock(videoRef, voiceoverUrl, usesRenderedPreview);
-  usePreviewControls(videoRef, project, setIsPlaying, setPreviewTime, usesRenderedPreview);
+  usePreviewControls(videoRef, project, sceneTimeline, setIsPlaying, setPreviewTime, usesRenderedPreview);
   return {
     isPlaying,
     previewTime,
@@ -242,6 +253,7 @@ function useSourceAudioLock(
 function usePreviewControls(
   videoRef: RefObject<HTMLVideoElement | null>,
   project: ProjectDetail,
+  sceneTimeline: SceneTimelineEntry[],
   setIsPlaying: Dispatch<SetStateAction<boolean>>,
   setPreviewTime: Dispatch<SetStateAction<number>>,
   usesRenderedPreview: boolean,
@@ -251,7 +263,7 @@ function usePreviewControls(
     if (!video) return;
     const sync = () => {
       setIsPlaying(!video.paused && !video.ended);
-      setPreviewTime(usesRenderedPreview ? video.currentTime : projectPreviewTime(project, video.currentTime));
+      setPreviewTime(usesRenderedPreview ? video.currentTime : previewTimeForSourceTime(sceneTimeline, video.currentTime));
     };
     video.addEventListener("play", sync);
     video.addEventListener("pause", sync);
@@ -266,7 +278,7 @@ function usePreviewControls(
       video.removeEventListener("timeupdate", sync);
       video.removeEventListener("loadedmetadata", sync);
     };
-  }, [project, setIsPlaying, setPreviewTime, usesRenderedPreview, videoRef]);
+  }, [project, sceneTimeline, setIsPlaying, setPreviewTime, usesRenderedPreview, videoRef]);
 }
 
 function togglePlayback(
@@ -290,41 +302,12 @@ function togglePlayback(
 
 function seekPreview(
   video: HTMLVideoElement | null,
-  project: ProjectDetail,
+  sceneTimeline: SceneTimelineEntry[],
   previewTime: number,
   usesRenderedPreview: boolean,
 ) {
   if (!video) return;
-  video.currentTime = usesRenderedPreview ? previewTime : sourceTimeForPreview(project, previewTime);
-}
-
-function projectPreviewTime(project: ProjectDetail, sourceTime: number) {
-  const scenes = [...(project.edit_plan?.scenes ?? [])].sort((left, right) => left.start - right.start);
-  let elapsed = 0;
-  for (const scene of scenes) {
-    const duration = Math.max(scene.end - scene.start, 0);
-    if (sourceTime < scene.start) {
-      return elapsed;
-    }
-    if (sourceTime <= scene.end) {
-      return elapsed + Math.max(sourceTime - scene.start, 0);
-    }
-    elapsed += duration;
-  }
-  return elapsed;
-}
-
-function sourceTimeForPreview(project: ProjectDetail, previewTime: number) {
-  const scenes = [...(project.edit_plan?.scenes ?? [])].sort((left, right) => left.start - right.start);
-  let elapsed = 0;
-  for (const scene of scenes) {
-    const duration = Math.max(scene.end - scene.start, 0);
-    if (previewTime <= elapsed + duration) {
-      return scene.start + Math.max(previewTime - elapsed, 0);
-    }
-    elapsed += duration;
-  }
-  return scenes.at(-1)?.end ?? 0;
+  video.currentTime = usesRenderedPreview ? previewTime : sourceTimeForPreviewTime(sceneTimeline, previewTime);
 }
 
 function PreviewControls({

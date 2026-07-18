@@ -44,6 +44,7 @@ export function PreviewStudioCard(props: PreviewStudioProps) {
             activeZoom={preview.activeZoom}
             audioRef={preview.audioRef}
             project={props.project}
+            sceneTimeline={preview.sceneTimeline}
             sourceError={props.sourceError}
             sourceUrl={props.sourceUrl}
             totalDuration={preview.totalDuration}
@@ -109,7 +110,10 @@ function usePreviewPlayback(project: ProjectDetail, voiceoverUrl: string, usesRe
   const [currentTime, setCurrentTime] = useState(0);
   const [selectedScene, setSelectedScene] = useState<number | null>(project.edit_plan?.scenes[0]?.scene_number ?? null);
   const scenes = useMemo(() => project.edit_plan?.scenes ?? [], [project.edit_plan?.scenes]);
-  const sceneTimeline = useMemo(() => buildSceneTimeline(scenes), [scenes]);
+  const sceneTimeline = useMemo(
+    () => buildSceneTimeline(scenes, project.recording_session),
+    [project.recording_session, scenes],
+  );
   const activeScene = (
     usesRenderedPreview
       ? activeSceneForPreviewTime(sceneTimeline, currentTime)

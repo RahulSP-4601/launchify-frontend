@@ -72,11 +72,14 @@ const detailByStatus: Record<ProjectStatus, { label: string; title: string; capt
 };
 
 function displayStatus(project: ProjectDetail): ProjectStatus {
-  if (project.status === "ready" || project.status === "failed" || project.status === "draft") {
+  if (project.status === "ready" || project.status === "failed" || project.status === "draft" || project.status === "rendering") {
     return project.status;
   }
-  if (project.preview_video || project.edit_plan || project.quality_report || project.benchmark_report) {
+  if (project.preview_video) {
     return "rendering";
+  }
+  if (project.edit_plan || project.quality_report || project.benchmark_report) {
+    return "planning";
   }
   if (project.launch_script) {
     return "planning";

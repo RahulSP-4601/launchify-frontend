@@ -2,7 +2,7 @@
 
 import { Dispatch, SetStateAction } from "react";
 
-import { EditPlanScene } from "@/lib/types";
+import { EditPlanScene, RecordingSessionRecord } from "@/lib/types";
 
 export type SceneTimelineEntry = EditPlanScene & {
   sourceStart: number;
@@ -15,6 +15,13 @@ type PlaybackState = {
   time: number;
   shouldEndPlayback: boolean;
 };
+
+const MIN_CLIP_DURATION_SECONDS = 0.45;
+const CLIP_PADDING_SECONDS = 0.1;
+const MAX_CLIP_DURATION_SECONDS = 3.4;
+const MERGE_GAP_SECONDS = 0.18;
+const MIN_ACTION_REEL_SECONDS = 12;
+const MIN_SOURCE_COVERAGE_RATIO = 0.6;
 
 export function activeSceneForSourceTime(scenes: EditPlanScene[], currentTime: number) {
   return scenes.find((scene) => currentTime >= scene.start && currentTime <= scene.end) ?? null;
@@ -37,18 +44,21 @@ export function seekScene(
   void video.play().catch(() => undefined);
 }
 
-export function buildSceneTimeline(scenes: EditPlanScene[]): SceneTimelineEntry[] {
+export function buildSceneTimeline(
+  scenes: EditPlanScene[],
+  recordingSession: RecordingSessionRecord | null,
+): SceneTimelineEntry[] {
+  const sortedScenes = [...scenes].filter((scene) => scene.end > scene.start).sort((left, right) => left.start - right.start);
+  const sourceBounds = sceneSourceBounds(sortedScenes, recordingSession);
+  const sceneWindows = shouldUseContextualSceneWindows(sortedScenes, sourceBounds)
+    ? contextualSceneWindows(sortedScenes, sourceBounds)
+    : actionSceneWindows(sortedScenes);
   let previewCursor = 0;
-  let previousEnd = 0;
-  return [...scenes].filter((scene) => scene.end > scene.start).sort((left, right) => left.start - right.start).flatMap((scene) => {
-    const windows = clipWindowsForScene(scene, previousEnd);
-    return windows.map(([sourceStart, sourceEnd]) => {
-      const duration = sourceEnd - sourceStart;
-      const entry = { ...scene, sourceStart, sourceEnd, previewStart: previewCursor, previewEnd: previewCursor + duration };
-      previewCursor += duration;
-      previousEnd = sourceEnd;
-      return entry;
-    });
+  return sceneWindows.map(({ scene, sourceStart, sourceEnd }) => {
+    const duration = sourceEnd - sourceStart;
+    const entry = { ...scene, sourceStart, sourceEnd, previewStart: previewCursor, previewEnd: previewCursor + duration };
+    previewCursor += duration;
+    return entry;
   });
 }
 
@@ -61,6 +71,35 @@ export function sourceTimeForRenderedPreview(sceneTimeline: SceneTimelineEntry[]
   const sourceDuration = Math.max(scene.sourceEnd - scene.sourceStart, 0.001);
   const progress = Math.min(Math.max((previewTime - scene.previewStart) / previewDuration, 0), 1);
   return scene.sourceStart + sourceDuration * progress;
+}
+
+export function previewTimeForSourceTime(sceneTimeline: SceneTimelineEntry[], sourceTime: number) {
+  if (!sceneTimeline.length) {
+    return sourceTime;
+  }
+  const active = sceneTimeline.find((entry) => sourceTime >= entry.sourceStart && sourceTime <= entry.sourceEnd);
+  if (active) {
+    const sourceDuration = Math.max(active.sourceEnd - active.sourceStart, 0.001);
+    const previewDuration = Math.max(active.previewEnd - active.previewStart, 0.001);
+    const progress = Math.min(Math.max((sourceTime - active.sourceStart) / sourceDuration, 0), 1);
+    return active.previewStart + previewDuration * progress;
+  }
+  if (sourceTime <= sceneTimeline[0].sourceStart) {
+    return sceneTimeline[0].previewStart;
+  }
+  const previous = [...sceneTimeline].reverse().find((entry) => sourceTime >= entry.sourceEnd);
+  return previous?.previewEnd ?? sceneTimeline.at(-1)?.previewEnd ?? 0;
+}
+
+export function sourceTimeForPreviewTime(sceneTimeline: SceneTimelineEntry[], previewTime: number) {
+  const active = sceneTimeline.find((entry) => previewTime >= entry.previewStart && previewTime <= entry.previewEnd);
+  if (!active) {
+    return sceneTimeline.at(-1)?.sourceEnd ?? 0;
+  }
+  const previewDuration = Math.max(active.previewEnd - active.previewStart, 0.001);
+  const sourceDuration = Math.max(active.sourceEnd - active.sourceStart, 0.001);
+  const progress = Math.min(Math.max((previewTime - active.previewStart) / previewDuration, 0), 1);
+  return active.sourceStart + sourceDuration * progress;
 }
 
 export function clampSourceTimeToScenes(sceneTimeline: SceneTimelineEntry[], sourceTime: number) {
@@ -118,6 +157,72 @@ function gapPlaybackState(
   return null;
 }
 
+function actionSceneWindows(scenes: EditPlanScene[]) {
+  const windows: Array<{ scene: EditPlanScene; sourceStart: number; sourceEnd: number }> = [];
+  let previousEnd = 0;
+  for (const scene of scenes) {
+    for (const [sourceStart, sourceEnd] of clipWindowsForScene(scene, previousEnd)) {
+      windows.push({ scene, sourceStart, sourceEnd });
+      previousEnd = sourceEnd;
+    }
+  }
+  return windows;
+}
+
+function shouldUseContextualSceneWindows(
+  scenes: EditPlanScene[],
+  sourceBounds: { start: number; end: number },
+) {
+  if (!scenes.length) {
+    return false;
+  }
+  const actionDuration = actionSceneWindows(scenes).reduce((sum, window) => sum + (window.sourceEnd - window.sourceStart), 0);
+  const sourceDuration = Math.max(sourceBounds.end - sourceBounds.start, 0);
+  return actionDuration < Math.max(MIN_ACTION_REEL_SECONDS, sourceDuration * MIN_SOURCE_COVERAGE_RATIO);
+}
+
+function contextualSceneWindows(
+  scenes: EditPlanScene[],
+  sourceBounds: { start: number; end: number },
+) {
+  if (!scenes.length) {
+    return [];
+  }
+  const windows: Array<{ scene: EditPlanScene; sourceStart: number; sourceEnd: number }> = [];
+  let previousEnd = sourceBounds.start;
+  for (let index = 0; index < scenes.length; index += 1) {
+    const scene = scenes[index];
+    const nextScene = scenes[index + 1] ?? null;
+    const sourceStart = previousEnd;
+    const sourceEnd = nextScene ? Math.max((scene.end + nextScene.start) / 2, scene.end) : sourceBounds.end;
+    if (sourceEnd - sourceStart < MIN_CLIP_DURATION_SECONDS) {
+      continue;
+    }
+    windows.push({ scene, sourceStart, sourceEnd });
+    previousEnd = sourceEnd;
+  }
+  return windows;
+}
+
+function sceneSourceBounds(
+  scenes: EditPlanScene[],
+  recordingSession: RecordingSessionRecord | null,
+) {
+  const sessionStart = parseTimestamp(recordingSession?.started_at);
+  const sessionEnd = parseTimestamp(recordingSession?.ended_at);
+  const fallbackStart = scenes[0]?.start ?? 0;
+  const fallbackEnd = scenes.at(-1)?.end ?? 0;
+  const hasSessionStart = recordingSession !== null && recordingSession.started_at.trim() !== "";
+  const start = hasSessionStart ? Math.min(sessionStart, fallbackStart) : fallbackStart;
+  const end = sessionEnd > start ? sessionEnd : fallbackEnd;
+  return { start: Math.max(start, 0), end: Math.max(end, fallbackEnd) };
+}
+
+function parseTimestamp(value: string | undefined) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? Math.max(parsed, 0) : 0;
+}
+
 function clipWindowsForScene(scene: EditPlanScene, previousEnd: number): Array<[number, number]> {
   const windows = mergeClipWindows(candidateClipWindows(scene));
   const clips: Array<[number, number]> = [];
@@ -149,7 +254,7 @@ function mergeClipWindows(windows: Array<[number, number]>): Array<[number, numb
   for (const [start, end] of [...windows].sort((left, right) => left[0] - right[0])) {
     if (end - start <= 0.05) continue;
     const previous = merged.at(-1);
-    if (!previous || start - previous[1] > 0.18) {
+    if (!previous || start - previous[1] > MERGE_GAP_SECONDS) {
       merged.push([start, end]);
       continue;
     }
@@ -164,15 +269,15 @@ function boundedClipWindow(
   end: number,
   previousEnd: number,
 ): [number, number] | null {
-  let clipStart = Math.max(scene.start, start - 0.1, previousEnd);
-  let clipEnd = Math.min(scene.end, end + 0.1);
-  if (clipEnd - clipStart > 3.4) {
+  let clipStart = Math.max(scene.start, start - CLIP_PADDING_SECONDS, previousEnd);
+  let clipEnd = Math.min(scene.end, end + CLIP_PADDING_SECONDS);
+  if (clipEnd - clipStart > MAX_CLIP_DURATION_SECONDS) {
     [clipStart, clipEnd] = centeredClipWindow(scene, start, end, clipStart, clipEnd);
   }
-  if (clipEnd - clipStart < 0.45) {
-    clipEnd = Math.min(scene.end, Math.max(clipEnd, clipStart + 0.45));
+  if (clipEnd - clipStart < MIN_CLIP_DURATION_SECONDS) {
+    clipEnd = Math.min(scene.end, Math.max(clipEnd, clipStart + MIN_CLIP_DURATION_SECONDS));
   }
-  return clipEnd - clipStart >= 0.45 ? [clipStart, clipEnd] : null;
+  return clipEnd - clipStart >= MIN_CLIP_DURATION_SECONDS ? [clipStart, clipEnd] : null;
 }
 
 function centeredClipWindow(
@@ -183,10 +288,10 @@ function centeredClipWindow(
   clipEnd: number,
 ): [number, number] {
   const anchor = clipActionAnchor(scene, start, end);
-  let centeredStart = Math.max(clipStart, anchor - 3.4 * 0.45);
-  let centeredEnd = Math.min(clipEnd, Math.max(anchor + 3.4 * 0.55, centeredStart + 3.4));
-  centeredStart = Math.max(clipStart, centeredEnd - 3.4);
-  centeredEnd = Math.min(clipEnd, centeredStart + 3.4);
+  let centeredStart = Math.max(clipStart, anchor - MAX_CLIP_DURATION_SECONDS * 0.45);
+  let centeredEnd = Math.min(clipEnd, Math.max(anchor + MAX_CLIP_DURATION_SECONDS * 0.55, centeredStart + MAX_CLIP_DURATION_SECONDS));
+  centeredStart = Math.max(clipStart, centeredEnd - MAX_CLIP_DURATION_SECONDS);
+  centeredEnd = Math.min(clipEnd, centeredStart + MAX_CLIP_DURATION_SECONDS);
   return [centeredStart, centeredEnd];
 }
 
