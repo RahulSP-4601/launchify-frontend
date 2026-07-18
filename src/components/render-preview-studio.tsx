@@ -41,7 +41,6 @@ export function PreviewStudioCard(props: PreviewStudioProps) {
       <div className="mt-5 grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_360px]">
         <div className="space-y-4">
           <PreviewPlayer
-            activeCaption={preview.activeCaption}
             activeHighlight={preview.activeHighlight}
             activeScene={preview.activeScene}
             activeZoom={preview.activeZoom}
@@ -112,7 +111,6 @@ function usePreviewPlayback(project: ProjectDetail, voiceoverUrl: string) {
   const scenes = useMemo(() => project.edit_plan?.scenes ?? [], [project.edit_plan?.scenes]);
   const sceneTimeline = useMemo(() => buildSceneTimeline(scenes), [scenes]);
   const activeScene = activeSceneForTime(scenes, currentTime) ?? scenes.find((scene) => scene.scene_number === selectedScene) ?? null;
-  const activeCaption = activeCaptionForTime(activeScene, currentTime);
   const activeHighlight = activeHighlightForTime(activeScene, currentTime);
   const activeZoom = activeZoomForTime(activeScene, currentTime);
 
@@ -121,7 +119,6 @@ function usePreviewPlayback(project: ProjectDetail, voiceoverUrl: string) {
   useTrimmedPlayback(sceneTimeline, videoRef, setCurrentTime);
 
   return {
-    activeCaption,
     activeHighlight,
     activeScene,
     activeZoom,
@@ -260,10 +257,6 @@ function syncPlaybackFrame(
 
 function activeSceneForTime(scenes: EditPlanScene[], currentTime: number) {
   return scenes.find((scene) => currentTime >= scene.start && currentTime <= scene.end) ?? null;
-}
-
-function activeCaptionForTime(scene: EditPlanScene | null, currentTime: number) {
-  return scene?.captions.find((caption) => currentTime >= caption.start && currentTime <= caption.end) ?? null;
 }
 
 function activeHighlightForTime(scene: EditPlanScene | null, currentTime: number) {

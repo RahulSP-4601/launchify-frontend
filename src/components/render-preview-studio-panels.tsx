@@ -4,7 +4,6 @@ import { Dispatch, RefObject, SetStateAction } from "react";
 
 import { EditPlanScene, ProjectDetail } from "@/lib/types";
 import {
-  CaptionOverlay,
   FocusBoxOverlay,
   formatPreviewRange,
   HighlightBadge,
@@ -36,7 +35,6 @@ export function PreviewStudioHeader({ project }: { project: ProjectDetail }) {
 }
 
 export function PreviewPlayer({
-  activeCaption,
   activeHighlight,
   activeScene,
   activeZoom,
@@ -47,7 +45,6 @@ export function PreviewPlayer({
   videoRef,
   voiceoverUrl,
 }: {
-  activeCaption: { text: string } | null;
   activeHighlight: EditPlanScene["highlights"][number] | null;
   activeScene: EditPlanScene | null;
   activeZoom: EditPlanScene["zooms"][number] | null;
@@ -68,7 +65,6 @@ export function PreviewPlayer({
       </div>
       <div className="relative aspect-video overflow-hidden bg-slate-950">
         <PreviewPlayerBody
-          activeCaption={activeCaption}
           activeHighlight={activeHighlight}
           activeScene={activeScene}
           activeZoom={activeZoom}
@@ -85,7 +81,6 @@ export function PreviewPlayer({
 }
 
 function PreviewPlayerBody({
-  activeCaption,
   activeHighlight,
   activeScene,
   activeZoom,
@@ -96,7 +91,6 @@ function PreviewPlayerBody({
   videoRef,
   voiceoverUrl,
 }: {
-  activeCaption: { text: string } | null;
   activeHighlight: EditPlanScene["highlights"][number] | null;
   activeScene: EditPlanScene | null;
   activeZoom: EditPlanScene["zooms"][number] | null;
@@ -121,7 +115,6 @@ function PreviewPlayerBody({
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(56,189,248,0.08),transparent_45%),linear-gradient(180deg,rgba(2,6,23,0.02),rgba(2,6,23,0.4))]" />
       {activeHighlight?.focus_box ? <FocusBoxOverlay focusBox={activeHighlight.focus_box} /> : null}
       {activeHighlight ? <HighlightBadge label={activeHighlight.ui_label || activeHighlight.label} /> : null}
-      {activeCaption ? <CaptionOverlay text={activeCaption.text} /> : null}
       {activeScene ? <SceneLabel scene={activeScene} /> : null}
     </>
   );
