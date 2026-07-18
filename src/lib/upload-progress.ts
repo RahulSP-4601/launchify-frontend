@@ -47,20 +47,20 @@ const detailByStatus: Record<ProjectStatus, { label: string; title: string; capt
   },
   planning: {
     label: "Planning",
-    title: "Building your polished preview",
-    caption: "Launchify is shaping captions, focus moves, highlights, pacing, and voiceover for the MVP preview.",
+    title: "Building your grounded walkthrough",
+    caption: "Launchify is preparing the guide, scene timing, focus moments, and AI voiceover for the Clueso-style preview.",
     phase: "processing",
   },
   rendering: {
-    label: "Compositing preview",
-    title: "Finishing your polished preview",
-    caption: "Launchify is finalizing the single polished preview video for MVP review.",
+    label: "Publishing preview",
+    title: "Finalizing your grounded preview",
+    caption: "Launchify is linking the original walkthrough with synced guide timing and AI voiceover for review.",
     phase: "processing",
   },
   ready: {
     label: "Ready",
-    title: "Your polished preview is ready",
-    caption: "Processing is complete and your review-ready preview is now available.",
+    title: "Your grounded preview is ready",
+    caption: "Processing is complete and your Clueso-style review preview is now available.",
     phase: "complete",
   },
   failed: {

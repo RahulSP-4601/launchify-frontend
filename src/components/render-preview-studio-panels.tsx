@@ -26,7 +26,7 @@ export function PreviewStudioHeader({ project }: { project: ProjectDetail }) {
         <p className="text-xs font-semibold uppercase tracking-[0.28em] text-cyan-300">Preview Studio</p>
         <h3 className="mt-3 text-2xl font-black tracking-[-0.04em] text-white">Polished launch preview</h3>
         <p className="mt-2 max-w-2xl text-sm leading-7 text-slate-300">
-          Review the trimmed pacing, captions, focus moments, and AI voiceover in one place before export work is added.
+          Review the grounded pacing, focus moments, timeline, and AI voiceover in one place before export work is added.
         </p>
       </div>
       {project.guide ? <div className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs uppercase tracking-[0.2em] text-cyan-200">{project.guide.steps.length} grounded steps</div> : null}
