@@ -146,29 +146,83 @@ function useVoiceoverSync(
   videoRef: RefObject<HTMLVideoElement | null>,
   audioRef: RefObject<HTMLAudioElement | null>,
 ) {
+  const waitingForCueRef = useRef(false);
+  const lockPauseRef = useRef(false);
+
   useEffect(() => {
     const video = videoRef.current;
     const audio = audioRef.current;
     if (!video || !audio || !voiceoverUrl) {
       return;
     }
-    const syncAudio = () => {
-      const cueTime = cueTimeForVideoTime(project, video.currentTime);
-      if (cueTime !== null && Math.abs(audio.currentTime - cueTime) > 0.2) {
-        audio.currentTime = cueTime;
-      }
-    };
-    const syncRate = () => {
-      audio.playbackRate = video.playbackRate;
-    };
-    const playAudio = () => {
-      syncAudio();
-      void audio.play().catch(() => undefined);
-    };
-    const pauseAudio = () => audio.pause();
-    addPlayerListeners(video, playAudio, pauseAudio, syncAudio, syncRate);
-    return () => removePlayerListeners(video, playAudio, pauseAudio, syncAudio, syncRate);
+    const handlers = createVoiceoverSyncHandlers(project, video, audio, waitingForCueRef, lockPauseRef);
+    addPlayerListeners(video, handlers.playAudio, handlers.pauseAudio, handlers.syncAudio, handlers.syncRate, handlers.handleSeek, handlers.handleVideoTimeUpdate);
+    audio.addEventListener("timeupdate", handlers.handleAudioTimeUpdate);
+    audio.addEventListener("ended", handlers.handleAudioEnded);
+    return () => cleanupVoiceoverSync(video, audio, handlers);
   }, [audioRef, project, videoRef, voiceoverUrl]);
+}
+
+function createVoiceoverSyncHandlers(
+  project: ProjectDetail,
+  video: HTMLVideoElement,
+  audio: HTMLAudioElement,
+  waitingForCueRef: RefObject<boolean>,
+  lockPauseRef: RefObject<boolean>,
+) {
+  const syncAudio = () => syncVoiceoverTrack(project, video, audio);
+  const syncRate = () => {
+    audio.playbackRate = video.playbackRate;
+  };
+  return {
+    syncAudio,
+    syncRate,
+    playAudio: () => playVoiceoverAudio(audio, syncAudio),
+    pauseAudio: () => pauseVoiceoverAudio(audio, waitingForCueRef, lockPauseRef),
+    handleVideoTimeUpdate: () => syncAudioLock(project, video, audio, waitingForCueRef, lockPauseRef),
+    handleAudioTimeUpdate: () => releaseAudioLock(project, video, audio, waitingForCueRef),
+    handleSeek: () => {
+      waitingForCueRef.current = false;
+      lockPauseRef.current = false;
+    },
+    handleAudioEnded: () => releaseWaitingVideo(video, waitingForCueRef),
+  };
+}
+
+function cleanupVoiceoverSync(
+  video: HTMLVideoElement,
+  audio: HTMLAudioElement,
+  handlers: ReturnType<typeof createVoiceoverSyncHandlers>,
+) {
+  removePlayerListeners(video, handlers.playAudio, handlers.pauseAudio, handlers.syncAudio, handlers.syncRate, handlers.handleSeek, handlers.handleVideoTimeUpdate);
+  audio.removeEventListener("timeupdate", handlers.handleAudioTimeUpdate);
+  audio.removeEventListener("ended", handlers.handleAudioEnded);
+}
+
+function syncVoiceoverTrack(project: ProjectDetail, video: HTMLVideoElement, audio: HTMLAudioElement) {
+  const cueTime = cueTimeForVideoTime(project, video.currentTime);
+  if (cueTime !== null && Math.abs(audio.currentTime - cueTime) > 0.2) audio.currentTime = cueTime;
+}
+
+function playVoiceoverAudio(audio: HTMLAudioElement, syncAudio: () => void) {
+  syncAudio();
+  void audio.play().catch(() => undefined);
+}
+
+function pauseVoiceoverAudio(
+  audio: HTMLAudioElement,
+  waitingForCueRef: RefObject<boolean>,
+  lockPauseRef: RefObject<boolean>,
+) {
+  if (consumeLockPause(lockPauseRef)) return;
+  waitingForCueRef.current = false;
+  audio.pause();
+}
+
+function consumeLockPause(lockPauseRef: RefObject<boolean>) {
+  if (!lockPauseRef.current) return false;
+  lockPauseRef.current = false;
+  return true;
 }
 
 function useTrimmedPlayback(
@@ -201,11 +255,15 @@ function addPlayerListeners(
   pauseAudio: () => void,
   syncAudio: () => void,
   syncRate: () => void,
+  handleSeek: () => void,
+  handleVideoTimeUpdate: () => void,
 ) {
   video.addEventListener("play", playAudio);
   video.addEventListener("pause", pauseAudio);
   video.addEventListener("seeking", syncAudio);
+  video.addEventListener("seeking", handleSeek);
   video.addEventListener("timeupdate", syncAudio);
+  video.addEventListener("timeupdate", handleVideoTimeUpdate);
   video.addEventListener("ratechange", syncRate);
 }
 
@@ -215,12 +273,57 @@ function removePlayerListeners(
   pauseAudio: () => void,
   syncAudio: () => void,
   syncRate: () => void,
+  handleSeek: () => void,
+  handleVideoTimeUpdate: () => void,
 ) {
   video.removeEventListener("play", playAudio);
   video.removeEventListener("pause", pauseAudio);
   video.removeEventListener("seeking", syncAudio);
+  video.removeEventListener("seeking", handleSeek);
   video.removeEventListener("timeupdate", syncAudio);
+  video.removeEventListener("timeupdate", handleVideoTimeUpdate);
   video.removeEventListener("ratechange", syncRate);
+}
+
+function syncAudioLock(
+  project: ProjectDetail,
+  video: HTMLVideoElement,
+  audio: HTMLAudioElement,
+  waitingForCueRef: RefObject<boolean>,
+  lockPauseRef: RefObject<boolean>,
+) {
+  const cue = cueForVideoTime(project, video.currentTime);
+  if (!cue) {
+    waitingForCueRef.current = false;
+    lockPauseRef.current = false;
+    return;
+  }
+  const videoRemaining = cue.scene.end - video.currentTime;
+  const audioRemaining = cue.cue.end - audio.currentTime;
+  if (videoRemaining <= 0.2 && audioRemaining > 0.12 && !audio.paused) {
+    waitingForCueRef.current = true;
+    lockPauseRef.current = true;
+    video.pause();
+  }
+}
+
+function releaseAudioLock(
+  project: ProjectDetail,
+  video: HTMLVideoElement,
+  audio: HTMLAudioElement,
+  waitingForCueRef: RefObject<boolean>,
+) {
+  const cue = cueForVideoTime(project, video.currentTime);
+  if (!cue || audio.currentTime >= cue.cue.end - 0.05) releaseWaitingVideo(video, waitingForCueRef);
+}
+
+function releaseWaitingVideo(video: HTMLVideoElement, waitingForCueRef: RefObject<boolean>) {
+  if (!waitingForCueRef.current || !video.paused) {
+    waitingForCueRef.current = false;
+    return;
+  }
+  waitingForCueRef.current = false;
+  void video.play().catch(() => undefined);
 }
 
 function initializeTrimmedPlayback(
@@ -269,26 +372,28 @@ function seekScene(
   scene: EditPlanScene,
   setSelectedScene: Dispatch<SetStateAction<number | null>>,
 ) {
-  if (!video) {
-    return;
-  }
+  if (!video) return;
   video.currentTime = scene.start;
   setSelectedScene(scene.scene_number);
   void video.play().catch(() => undefined);
 }
 
 function cueTimeForVideoTime(project: ProjectDetail, videoTime: number): number | null {
+  const cueMatch = cueForVideoTime(project, videoTime);
+  if (!cueMatch) return null;
+  const { cue, scene } = cueMatch;
+  const sceneDuration = Math.max(scene.end - scene.start, 0.001);
+  const cueDuration = Math.max(cue.end - cue.start, 0.001);
+  const progress = Math.min(Math.max((videoTime - scene.start) / sceneDuration, 0), 1);
+  return cue.start + cueDuration * progress;
+}
+
+function cueForVideoTime(project: ProjectDetail, videoTime: number) {
   const cues = project.voiceover?.cues ?? [];
   const scenes = project.edit_plan?.scenes ?? [];
   const currentScene = scenes.find((scene) => videoTime >= scene.start && videoTime <= scene.end);
   const cue = cues.find((item) => item.scene_number === currentScene?.scene_number);
-  if (!currentScene || !cue) {
-    return null;
-  }
-  const sceneDuration = Math.max(currentScene.end - currentScene.start, 0.001);
-  const cueDuration = Math.max(cue.end - cue.start, 0.001);
-  const progress = Math.min(Math.max((videoTime - currentScene.start) / sceneDuration, 0), 1);
-  return cue.start + cueDuration * progress;
+  return currentScene && cue ? { cue, scene: currentScene } : null;
 }
 
 function buildSceneTimeline(scenes: EditPlanScene[]): SceneTimelineEntry[] {
