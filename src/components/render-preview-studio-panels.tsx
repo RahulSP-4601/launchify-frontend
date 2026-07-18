@@ -123,7 +123,7 @@ function PreviewPlayerBody({
         totalDuration={controls.totalDuration}
         voiceoverEnabled={Boolean(voiceoverUrl)}
         onSeek={(value) => seekPreview(videoRef.current, project, value)}
-        onTogglePlayback={() => togglePlayback(videoRef.current)}
+        onTogglePlayback={() => togglePlayback(videoRef.current, audioRef.current, Boolean(voiceoverUrl))}
       />
     </>
   );
@@ -203,13 +203,23 @@ function usePreviewControls(
   }, [project, setIsPlaying, setPreviewTime, videoRef]);
 }
 
-function togglePlayback(video: HTMLVideoElement | null) {
+function togglePlayback(
+  video: HTMLVideoElement | null,
+  audio: HTMLAudioElement | null,
+  voiceoverEnabled: boolean,
+) {
   if (!video) return;
   if (video.paused) {
     void video.play().catch(() => undefined);
+    if (voiceoverEnabled && audio) {
+      void audio.play().catch(() => undefined);
+    }
     return;
   }
   video.pause();
+  if (audio) {
+    audio.pause();
+  }
 }
 
 function seekPreview(
