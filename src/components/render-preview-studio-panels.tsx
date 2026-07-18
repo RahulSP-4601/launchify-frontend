@@ -110,9 +110,9 @@ function PreviewPlayerBody({
   }
   return (
     <>
-      <video ref={videoRef} className="h-full w-full object-cover transition-transform duration-300 ease-out" controls muted={Boolean(voiceoverUrl)} src={sourceUrl} style={{ transform }} />
+      <video ref={videoRef} className="h-full w-full object-cover transition-transform duration-500 ease-out" controls muted={Boolean(voiceoverUrl)} src={sourceUrl} style={{ transform }} />
       {voiceoverUrl ? <audio ref={audioRef} preload="auto" src={voiceoverUrl} /> : null}
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(56,189,248,0.08),transparent_45%),linear-gradient(180deg,rgba(2,6,23,0.02),rgba(2,6,23,0.4))]" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(56,189,248,0.12),transparent_48%),linear-gradient(180deg,rgba(2,6,23,0.02),rgba(2,6,23,0.46))]" />
       {activeHighlight?.focus_box ? <FocusBoxOverlay focusBox={activeHighlight.focus_box} /> : null}
       {activeHighlight ? <HighlightBadge label={activeHighlight.ui_label || activeHighlight.label} /> : null}
       {activeScene ? <SceneLabel scene={activeScene} /> : null}

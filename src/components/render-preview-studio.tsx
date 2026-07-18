@@ -34,9 +34,9 @@ export function PreviewStudioCard(props: PreviewStudioProps) {
   const preview = usePreviewPlayback(props.project, props.voiceoverUrl);
 
   return (
-    <section className="rounded-[30px] border border-black/6 bg-[linear-gradient(180deg,#0f172a_0%,#111827_100%)] p-5 text-white shadow-[0_30px_100px_rgba(15,23,42,0.28)]">
+    <section className="rounded-[30px] border border-black/6 bg-[linear-gradient(180deg,#0f172a_0%,#111827_100%)] p-6 lg:p-7 text-white shadow-[0_30px_100px_rgba(15,23,42,0.28)]">
       <PreviewStudioHeader project={props.project} />
-      <div className="mt-5 grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_360px]">
+      <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1.35fr)_320px]">
         <div className="space-y-4">
           <PreviewPlayer
             activeHighlight={preview.activeHighlight}
