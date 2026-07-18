@@ -137,10 +137,6 @@ export function PreviewInfoGrid({
   );
 }
 
-export function RenderedReferenceCard({ finalRenderUrl }: { finalRenderUrl: string }) {
-  return <div className="rounded-[24px] border border-white/10 bg-white/5 p-4"><p className="text-xs uppercase tracking-[0.2em] text-slate-300">Rendered Reference</p><video className="mt-3 w-full rounded-[20px] border border-white/10 bg-black" controls src={finalRenderUrl} /></div>;
-}
-
 export function PreviewSidebar({
   activeSceneNumber,
   project,

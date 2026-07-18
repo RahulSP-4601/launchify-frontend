@@ -54,7 +54,7 @@ const detailByStatus: Record<ProjectStatus, { label: string; title: string; capt
   rendering: {
     label: "Compositing preview",
     title: "Finishing your polished preview",
-    caption: "Launchify is finalizing the preview experience and any optional rendered reference output.",
+    caption: "Launchify is finalizing the single polished preview video for MVP review.",
     phase: "processing",
   },
   ready: {
@@ -75,7 +75,7 @@ function displayStatus(project: ProjectDetail): ProjectStatus {
   if (project.status === "ready" || project.status === "failed" || project.status === "draft") {
     return project.status;
   }
-  if (project.final_video || project.preview_video || project.edit_plan || project.quality_report || project.benchmark_report) {
+  if (project.preview_video || project.edit_plan || project.quality_report || project.benchmark_report) {
     return "rendering";
   }
   if (project.launch_script) {

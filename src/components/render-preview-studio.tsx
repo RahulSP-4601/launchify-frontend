@@ -10,11 +10,9 @@ import {
   PreviewSidebar,
   PreviewStudioHeader,
   PreviewInfoGrid,
-  RenderedReferenceCard,
 } from "@/components/render-preview-studio-panels";
 
 type PreviewStudioProps = {
-  finalRenderUrl: string;
   project: ProjectDetail;
   sourceError: string;
   sourceUrl: string;
@@ -52,7 +50,6 @@ export function PreviewStudioCard(props: PreviewStudioProps) {
             voiceoverUrl={props.voiceoverUrl}
           />
           <PreviewInfoGrid project={props.project} voiceoverUrl={props.voiceoverUrl} activeScene={preview.activeScene} />
-          {props.finalRenderUrl ? <RenderedReferenceCard finalRenderUrl={props.finalRenderUrl} /> : null}
         </div>
         <PreviewSidebar
           activeSceneNumber={preview.activeScene?.scene_number ?? null}
@@ -70,7 +67,7 @@ export function PreviewStudioCard(props: PreviewStudioProps) {
 
 export function useAssetObjectUrl(
   projectId: string,
-  key: "source" | "voiceover" | "final-render",
+  key: "source" | "voiceover",
   enabled: boolean,
   renderVariant?: "preview" | "final",
 ) {
@@ -80,7 +77,7 @@ export function useAssetObjectUrl(
       if (renderVariant) {
         return fetchRenderOutput(projectId, renderVariant);
       }
-      return fetchProjectAsset(projectId, key === "final-render" ? "source" : key);
+      return fetchProjectAsset(projectId, key);
     },
     enabled,
     staleTime: 60_000,

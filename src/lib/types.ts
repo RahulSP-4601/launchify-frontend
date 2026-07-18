@@ -16,7 +16,6 @@ export type ProjectSummary = {
   has_benchmark_report: boolean;
   has_voiceover: boolean;
   has_preview_video: boolean;
-  has_final_video: boolean;
 };
 
 export type LaunchScriptScene = {
@@ -264,7 +263,6 @@ export type ProjectDetail = ProjectSummary & {
   benchmark_report: BenchmarkReportRecord | null;
   voiceover: VoiceoverRecord | null;
   preview_video: RenderedVideoRecord | null;
-  final_video: RenderedVideoRecord | null;
   asset: {
     filename: string;
     content_type: string;

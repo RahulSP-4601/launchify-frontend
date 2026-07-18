@@ -7,12 +7,10 @@ export function RenderOutputCard({ project }: { project: ProjectDetail }) {
   const sourceUrl = useAssetObjectUrl(project.id, "source", Boolean(project.asset));
   const voiceoverEnabled = project.voiceover?.status === "ready" && project.voiceover?.mode !== "original";
   const voiceoverUrl = useAssetObjectUrl(project.id, "voiceover", voiceoverEnabled);
-  const finalUrl = useAssetObjectUrl(project.id, "final-render", Boolean(project.has_final_video), "final");
 
   return (
     <div className="space-y-4">
       <PreviewStudioCard
-        finalRenderUrl={finalUrl.objectUrl}
         project={project}
         sourceError={sourceUrl.error}
         sourceUrl={sourceUrl.objectUrl}
