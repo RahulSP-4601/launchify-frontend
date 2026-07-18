@@ -6,6 +6,15 @@ import { Dispatch, RefObject, SetStateAction, useEffect, useMemo, useRef, useSta
 import { fetchProjectAsset, fetchRenderOutput } from "@/lib/api";
 import { EditPlanScene, ProjectDetail } from "@/lib/types";
 import {
+  activeSceneForPreviewTime,
+  activeSceneForSourceTime,
+  buildSceneTimeline,
+  clampSourceTimeToScenes,
+  normalizeScenePlaybackTime,
+  SceneTimelineEntry,
+  sourceTimeForRenderedPreview,
+} from "@/components/render-preview-studio-timeline";
+import {
   PreviewPlayer,
   PreviewSidebar,
   PreviewStudioHeader,
@@ -16,22 +25,13 @@ type PreviewStudioProps = {
   project: ProjectDetail;
   sourceError: string;
   sourceUrl: string;
+  usesRenderedPreview: boolean;
   voiceoverError: string;
   voiceoverUrl: string;
 };
 
-type SceneTimelineEntry = EditPlanScene & {
-  previewStart: number;
-  previewEnd: number;
-};
-
-type PlaybackState = {
-  time: number;
-  shouldEndPlayback: boolean;
-};
-
 export function PreviewStudioCard(props: PreviewStudioProps) {
-  const preview = usePreviewPlayback(props.project, props.voiceoverUrl);
+  const preview = usePreviewPlayback(props.project, props.voiceoverUrl, props.usesRenderedPreview);
 
   return (
     <section className="rounded-[30px] border border-black/6 bg-[linear-gradient(180deg,#0f172a_0%,#111827_100%)] p-6 lg:p-7 text-white shadow-[0_30px_100px_rgba(15,23,42,0.28)]">
@@ -46,6 +46,8 @@ export function PreviewStudioCard(props: PreviewStudioProps) {
             project={props.project}
             sourceError={props.sourceError}
             sourceUrl={props.sourceUrl}
+            totalDuration={preview.totalDuration}
+            usesRenderedPreview={props.usesRenderedPreview}
             videoRef={preview.videoRef}
             voiceoverUrl={props.voiceoverUrl}
           />
@@ -56,6 +58,7 @@ export function PreviewStudioCard(props: PreviewStudioProps) {
           project={props.project}
           sceneTimeline={preview.sceneTimeline}
           scenes={preview.scenes}
+          usesRenderedPreview={props.usesRenderedPreview}
           setSelectedScene={preview.setSelectedScene}
           videoRef={preview.videoRef}
           voiceoverError={props.voiceoverError}
@@ -100,20 +103,25 @@ export function useAssetObjectUrl(
   };
 }
 
-function usePreviewPlayback(project: ProjectDetail, voiceoverUrl: string) {
+function usePreviewPlayback(project: ProjectDetail, voiceoverUrl: string, usesRenderedPreview: boolean) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [currentTime, setCurrentTime] = useState(0);
   const [selectedScene, setSelectedScene] = useState<number | null>(project.edit_plan?.scenes[0]?.scene_number ?? null);
   const scenes = useMemo(() => project.edit_plan?.scenes ?? [], [project.edit_plan?.scenes]);
   const sceneTimeline = useMemo(() => buildSceneTimeline(scenes), [scenes]);
-  const activeScene = activeSceneForTime(scenes, currentTime) ?? scenes.find((scene) => scene.scene_number === selectedScene) ?? null;
-  const activeHighlight = activeHighlightForTime(activeScene, currentTime);
-  const activeZoom = activeZoomForTime(activeScene, currentTime);
+  const activeScene = (
+    usesRenderedPreview
+      ? activeSceneForPreviewTime(sceneTimeline, currentTime)
+      : activeSceneForSourceTime(scenes, currentTime)
+  ) ?? scenes.find((scene) => scene.scene_number === selectedScene) ?? null;
+  const motionTime = usesRenderedPreview ? sourceTimeForRenderedPreview(sceneTimeline, currentTime) : currentTime;
+  const activeHighlight = activeHighlightForTime(activeScene, motionTime);
+  const activeZoom = activeZoomForTime(activeScene, motionTime);
 
   useSelectedScene(activeScene, setSelectedScene);
-  useVoiceoverSync(project, voiceoverUrl, videoRef, audioRef);
-  useTrimmedPlayback(sceneTimeline, videoRef, setCurrentTime);
+  useVoiceoverSync(project, voiceoverUrl, videoRef, audioRef, usesRenderedPreview);
+  usePlaybackTracking(sceneTimeline, videoRef, setCurrentTime, usesRenderedPreview);
 
   return {
     activeHighlight,
@@ -124,6 +132,7 @@ function usePreviewPlayback(project: ProjectDetail, voiceoverUrl: string) {
     scenes,
     selectedScene,
     setSelectedScene,
+    totalDuration: sceneTimeline.at(-1)?.previewEnd ?? project.edit_plan?.total_duration_seconds ?? 0,
     videoRef,
   };
 }
@@ -145,6 +154,7 @@ function useVoiceoverSync(
   voiceoverUrl: string,
   videoRef: RefObject<HTMLVideoElement | null>,
   audioRef: RefObject<HTMLAudioElement | null>,
+  usesRenderedPreview: boolean,
 ) {
   const waitingForCueRef = useRef(false);
   const lockPauseRef = useRef(false);
@@ -152,7 +162,7 @@ function useVoiceoverSync(
   useEffect(() => {
     const video = videoRef.current;
     const audio = audioRef.current;
-    if (!video || !audio || !voiceoverUrl) {
+    if (!video || !audio || !voiceoverUrl || usesRenderedPreview) {
       return;
     }
     const handlers = createVoiceoverSyncHandlers(project, video, audio, waitingForCueRef, lockPauseRef);
@@ -160,7 +170,7 @@ function useVoiceoverSync(
     audio.addEventListener("timeupdate", handlers.handleAudioTimeUpdate);
     audio.addEventListener("ended", handlers.handleAudioEnded);
     return () => cleanupVoiceoverSync(video, audio, handlers);
-  }, [audioRef, project, videoRef, voiceoverUrl]);
+  }, [audioRef, project, usesRenderedPreview, videoRef, voiceoverUrl]);
 }
 
 function createVoiceoverSyncHandlers(
@@ -225,15 +235,28 @@ function consumeLockPause(lockPauseRef: RefObject<boolean>) {
   return true;
 }
 
-function useTrimmedPlayback(
+function usePlaybackTracking(
   sceneTimeline: SceneTimelineEntry[],
   videoRef: RefObject<HTMLVideoElement | null>,
   setCurrentTime: Dispatch<SetStateAction<number>>,
+  usesRenderedPreview: boolean,
 ) {
   useEffect(() => {
     const video = videoRef.current;
     if (!video || !sceneTimeline.length) {
       return;
+    }
+    if (usesRenderedPreview) {
+      const syncRenderedPlayback = () => setCurrentTime(video.currentTime);
+      video.addEventListener("loadedmetadata", syncRenderedPlayback);
+      video.addEventListener("seeking", syncRenderedPlayback);
+      video.addEventListener("timeupdate", syncRenderedPlayback);
+      syncRenderedPlayback();
+      return () => {
+        video.removeEventListener("loadedmetadata", syncRenderedPlayback);
+        video.removeEventListener("seeking", syncRenderedPlayback);
+        video.removeEventListener("timeupdate", syncRenderedPlayback);
+      };
     }
     const seekToSceneStart = () => initializeTrimmedPlayback(video, sceneTimeline, setCurrentTime);
     const syncTrimmedPlayback = () => syncPlaybackFrame(video, sceneTimeline, setCurrentTime);
@@ -246,7 +269,7 @@ function useTrimmedPlayback(
       video.removeEventListener("seeking", syncTrimmedPlayback);
       video.removeEventListener("timeupdate", syncTrimmedPlayback);
     };
-  }, [sceneTimeline, setCurrentTime, videoRef]);
+  }, [sceneTimeline, setCurrentTime, usesRenderedPreview, videoRef]);
 }
 
 function addPlayerListeners(
@@ -355,27 +378,12 @@ function syncPlaybackFrame(
   setCurrentTime(playbackState.time);
 }
 
-function activeSceneForTime(scenes: EditPlanScene[], currentTime: number) {
-  return scenes.find((scene) => currentTime >= scene.start && currentTime <= scene.end) ?? null;
-}
-
 function activeHighlightForTime(scene: EditPlanScene | null, currentTime: number) {
   return scene?.highlights.find((highlight) => currentTime >= highlight.start && currentTime <= highlight.end) ?? null;
 }
 
 function activeZoomForTime(scene: EditPlanScene | null, currentTime: number) {
   return scene?.zooms.find((zoom) => currentTime >= zoom.start && currentTime <= zoom.end) ?? null;
-}
-
-function seekScene(
-  video: HTMLVideoElement | null,
-  scene: EditPlanScene,
-  setSelectedScene: Dispatch<SetStateAction<number | null>>,
-) {
-  if (!video) return;
-  video.currentTime = scene.start;
-  setSelectedScene(scene.scene_number);
-  void video.play().catch(() => undefined);
 }
 
 function cueTimeForVideoTime(project: ProjectDetail, videoTime: number): number | null {
@@ -396,71 +404,6 @@ function cueForVideoTime(project: ProjectDetail, videoTime: number) {
   return currentScene && cue ? { cue, scene: currentScene } : null;
 }
 
-function buildSceneTimeline(scenes: EditPlanScene[]): SceneTimelineEntry[] {
-  let previewCursor = 0;
-  return [...scenes]
-    .filter((scene) => scene.end > scene.start)
-    .sort((left, right) => left.start - right.start)
-    .map((scene) => {
-      const duration = scene.end - scene.start;
-      const entry = { ...scene, previewStart: previewCursor, previewEnd: previewCursor + duration };
-      previewCursor += duration;
-      return entry;
-    });
-}
-
-function clampSourceTimeToScenes(sceneTimeline: SceneTimelineEntry[], sourceTime: number) {
-  if (!sceneTimeline.length) {
-    return sourceTime;
-  }
-  const activeScene = sceneTimeline.find((scene) => sourceTime >= scene.start && sourceTime <= scene.end);
-  if (activeScene) {
-    return sourceTime;
-  }
-  if (sourceTime < sceneTimeline[0].start) {
-    return sceneTimeline[0].start;
-  }
-  return [...sceneTimeline].reverse().find((scene) => sourceTime > scene.end)?.end ?? sceneTimeline.at(-1)!.end;
-}
-
-function normalizeScenePlaybackTime(
-  sceneTimeline: SceneTimelineEntry[],
-  sourceTime: number,
-  isPlaying: boolean,
-): PlaybackState {
-  if (!sceneTimeline.length) {
-    return { time: sourceTime, shouldEndPlayback: false };
-  }
-  const activeScene = sceneTimeline.find((scene) => sourceTime >= scene.start && sourceTime <= scene.end);
-  if (activeScene) {
-    return { time: sourceTime, shouldEndPlayback: false };
-  }
-  if (sourceTime < sceneTimeline[0].start) {
-    return { time: sceneTimeline[0].start, shouldEndPlayback: false };
-  }
-  const gapState = gapPlaybackState(sceneTimeline, sourceTime, isPlaying);
-  return gapState ?? { time: sceneTimeline.at(-1)!.end, shouldEndPlayback: isPlaying };
-}
-
-function gapPlaybackState(
-  sceneTimeline: SceneTimelineEntry[],
-  sourceTime: number,
-  isPlaying: boolean,
-): PlaybackState | null {
-  for (let index = 0; index < sceneTimeline.length - 1; index += 1) {
-    const currentScene = sceneTimeline[index];
-    const nextScene = sceneTimeline[index + 1];
-    if (sourceTime > currentScene.end && sourceTime < nextScene.start) {
-      return { time: isPlaying ? nextScene.start : currentScene.end, shouldEndPlayback: false };
-    }
-  }
-  return null;
-}
-
-function formatPreviewRange(sceneTimeline: SceneTimelineEntry[], scene: EditPlanScene) {
-  const entry = sceneTimeline.find((item) => item.scene_number === scene.scene_number);
-  return entry ? `${entry.previewStart.toFixed(1)}s - ${entry.previewEnd.toFixed(1)}s` : `${scene.start.toFixed(1)}s - ${scene.end.toFixed(1)}s`;
-}
 
 export function FocusBoxOverlay({ focusBox }: { focusBox: NonNullable<EditPlanScene["highlights"][number]["focus_box"]> }) {
   return <div className="pointer-events-none absolute rounded-[22px] border-2 border-cyan-300 shadow-[0_0_0_9999px_rgba(2,6,23,0.45),0_0_50px_rgba(34,211,238,0.35)]" style={{ left: `${focusBox.x * 100}%`, top: `${focusBox.y * 100}%`, width: `${focusBox.width * 100}%`, height: `${focusBox.height * 100}%` }} />;
@@ -492,5 +435,3 @@ export function voiceoverLabel(project: ProjectDetail, voiceoverUrl: string) {
   }
   return project.voiceover?.script ? "Script prepared, audio asset unavailable." : "Original audio only.";
 }
-
-export { formatPreviewRange, seekScene };

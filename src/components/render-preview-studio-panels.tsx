@@ -1,23 +1,17 @@
 "use client";
 
-import { Dispatch, RefObject, SetStateAction, useEffect, useState } from "react";
+import { Dispatch, ReactNode, RefObject, SetStateAction, useEffect, useState } from "react";
 
 import { EditPlanScene, ProjectDetail } from "@/lib/types";
 import {
   FocusBoxOverlay,
-  formatPreviewRange,
   HighlightBadge,
   InfoCard,
   PreviewPlaceholder,
   SceneLabel,
-  seekScene,
   voiceoverLabel,
 } from "@/components/render-preview-studio";
-
-type TimelineScene = EditPlanScene & {
-  previewStart: number;
-  previewEnd: number;
-};
+import { formatPreviewRange, SceneTimelineEntry, seekScene } from "@/components/render-preview-studio-timeline";
 
 export function PreviewStudioHeader({ project }: { project: ProjectDetail }) {
   return (
@@ -42,6 +36,8 @@ export function PreviewPlayer({
   project,
   sourceError,
   sourceUrl,
+  totalDuration,
+  usesRenderedPreview,
   videoRef,
   voiceoverUrl,
 }: {
@@ -52,45 +48,31 @@ export function PreviewPlayer({
   project: ProjectDetail;
   sourceError: string;
   sourceUrl: string;
+  totalDuration: number;
+  usesRenderedPreview: boolean;
   videoRef: RefObject<HTMLVideoElement | null>;
   voiceoverUrl: string;
 }) {
   return (
-    <div className="w-full max-w-full overflow-hidden rounded-[28px] border border-white/10 bg-black shadow-[0_20px_80px_rgba(2,6,23,0.35)]">
-      <div className="flex items-center gap-2 border-b border-white/10 bg-white/5 px-4 py-3">
-        <span className="h-3 w-3 rounded-full bg-rose-400" />
-        <span className="h-3 w-3 rounded-full bg-amber-300" />
-        <span className="h-3 w-3 rounded-full bg-emerald-400" />
-        <p className="ml-3 text-xs uppercase tracking-[0.2em] text-slate-300">{project.product_name} polished preview</p>
-      </div>
-      <div className="relative aspect-[16/9] w-full max-w-full overflow-hidden bg-slate-950">
-        <PreviewPlayerBody
-          activeHighlight={activeHighlight}
-          activeScene={activeScene}
-          activeZoom={activeZoom}
-          audioRef={audioRef}
-          project={project}
-          sourceError={sourceError}
-          sourceUrl={sourceUrl}
-          videoRef={videoRef}
-          voiceoverUrl={voiceoverUrl}
-        />
-      </div>
-    </div>
+    <PlayerShell productName={project.product_name}>
+      <PreviewPlayerBody
+        activeHighlight={activeHighlight}
+        activeScene={activeScene}
+        activeZoom={activeZoom}
+        audioRef={audioRef}
+        project={project}
+        sourceError={sourceError}
+        sourceUrl={sourceUrl}
+        totalDuration={totalDuration}
+        usesRenderedPreview={usesRenderedPreview}
+        videoRef={videoRef}
+        voiceoverUrl={voiceoverUrl}
+      />
+    </PlayerShell>
   );
 }
 
-function PreviewPlayerBody({
-  activeHighlight,
-  activeScene,
-  activeZoom,
-  audioRef,
-  project,
-  sourceError,
-  sourceUrl,
-  videoRef,
-  voiceoverUrl,
-}: {
+type PreviewPlayerBodyProps = {
   activeHighlight: EditPlanScene["highlights"][number] | null;
   activeScene: EditPlanScene | null;
   activeZoom: EditPlanScene["zooms"][number] | null;
@@ -98,33 +80,113 @@ function PreviewPlayerBody({
   project: ProjectDetail;
   sourceError: string;
   sourceUrl: string;
+  totalDuration: number;
+  usesRenderedPreview: boolean;
   videoRef: RefObject<HTMLVideoElement | null>;
   voiceoverUrl: string;
-}) {
-  const transform = activeZoom
+};
+
+function PreviewPlayerBody(props: PreviewPlayerBodyProps) {
+  const { activeHighlight, activeScene, activeZoom, audioRef, project, sourceError, sourceUrl, totalDuration, usesRenderedPreview, videoRef, voiceoverUrl } = props;
+  const transform = !usesRenderedPreview && activeZoom
     ? `translate(${(activeZoom.x_offset * 100).toFixed(2)}%, ${(activeZoom.y_offset * 100).toFixed(2)}%) scale(${activeZoom.scale.toFixed(3)})`
     : "scale(1)";
-  const controls = usePreviewPlayerState(videoRef, project, voiceoverUrl);
+  const controls = usePreviewPlayerState(videoRef, project, voiceoverUrl, usesRenderedPreview, totalDuration);
+  const voiceoverEnabled = Boolean(voiceoverUrl) && !usesRenderedPreview;
 
   if (!sourceUrl) {
     return <PreviewPlaceholder detail={sourceError || project.error_message || "Upload a walkthrough and Launchify will assemble the polished preview here."} title="Source video pending" />;
   }
   return (
     <>
-      <video ref={videoRef} className="h-full w-full object-cover transition-transform duration-500 ease-out" muted={Boolean(voiceoverUrl)} playsInline preload="metadata" src={sourceUrl} style={{ transform }} />
-      {voiceoverUrl ? <audio ref={audioRef} preload="auto" src={voiceoverUrl} /> : null}
+      <PreviewMedia
+        audioRef={audioRef}
+        sourceUrl={sourceUrl}
+        transform={transform}
+        videoRef={videoRef}
+        voiceoverEnabled={voiceoverEnabled}
+        voiceoverUrl={voiceoverUrl}
+      />
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(56,189,248,0.12),transparent_48%),linear-gradient(180deg,rgba(2,6,23,0.02),rgba(2,6,23,0.46))]" />
+      <PreviewMotionOverlays
+        activeHighlight={activeHighlight}
+        activeScene={activeScene}
+        usesRenderedPreview={usesRenderedPreview}
+      />
+      <PreviewControls
+        previewTime={controls.previewTime}
+        totalDuration={controls.totalDuration}
+        voiceoverEnabled={voiceoverEnabled}
+        onSeek={(value) => seekPreview(videoRef.current, project, value, usesRenderedPreview)}
+        usesRenderedPreview={usesRenderedPreview}
+      />
+    </>
+  );
+}
+
+function PlayerShell({ children, productName }: { children: ReactNode; productName: string }) {
+  return (
+    <div className="w-full max-w-full overflow-hidden rounded-[28px] border border-white/10 bg-black shadow-[0_20px_80px_rgba(2,6,23,0.35)]">
+      <div className="flex items-center gap-2 border-b border-white/10 bg-white/5 px-4 py-3">
+        <span className="h-3 w-3 rounded-full bg-rose-400" />
+        <span className="h-3 w-3 rounded-full bg-amber-300" />
+        <span className="h-3 w-3 rounded-full bg-emerald-400" />
+        <p className="ml-3 text-xs uppercase tracking-[0.2em] text-slate-300">{productName} polished preview</p>
+      </div>
+      <div className="relative aspect-[16/9] w-full max-w-full overflow-hidden bg-slate-950">{children}</div>
+    </div>
+  );
+}
+
+function PreviewMedia({
+  audioRef,
+  sourceUrl,
+  transform,
+  videoRef,
+  voiceoverEnabled,
+  voiceoverUrl,
+}: {
+  audioRef: RefObject<HTMLAudioElement | null>;
+  sourceUrl: string;
+  transform: string;
+  videoRef: RefObject<HTMLVideoElement | null>;
+  voiceoverEnabled: boolean;
+  voiceoverUrl: string;
+}) {
+  return (
+    <>
+      <video
+        ref={videoRef}
+        className="h-full w-full cursor-pointer object-cover transition-transform duration-500 ease-out"
+        muted={voiceoverEnabled}
+        onClick={() => togglePlayback(videoRef.current, audioRef.current, voiceoverEnabled)}
+        playsInline
+        preload="metadata"
+        src={sourceUrl}
+        style={{ transform }}
+      />
+      {voiceoverEnabled ? <audio ref={audioRef} preload="auto" src={voiceoverUrl} /> : null}
+    </>
+  );
+}
+
+function PreviewMotionOverlays({
+  activeHighlight,
+  activeScene,
+  usesRenderedPreview,
+}: {
+  activeHighlight: EditPlanScene["highlights"][number] | null;
+  activeScene: EditPlanScene | null;
+  usesRenderedPreview: boolean;
+}) {
+  if (usesRenderedPreview) {
+    return null;
+  }
+  return (
+    <>
       {activeHighlight?.focus_box ? <FocusBoxOverlay focusBox={activeHighlight.focus_box} /> : null}
       {activeHighlight ? <HighlightBadge label={activeHighlight.ui_label || activeHighlight.label} /> : null}
       {activeScene ? <SceneLabel scene={activeScene} /> : null}
-      <PreviewControls
-        isPlaying={controls.isPlaying}
-        previewTime={controls.previewTime}
-        totalDuration={controls.totalDuration}
-        voiceoverEnabled={Boolean(voiceoverUrl)}
-        onSeek={(value) => seekPreview(videoRef.current, project, value)}
-        onTogglePlayback={() => togglePlayback(videoRef.current, audioRef.current, Boolean(voiceoverUrl))}
-      />
     </>
   );
 }
@@ -133,26 +195,29 @@ function usePreviewPlayerState(
   videoRef: RefObject<HTMLVideoElement | null>,
   project: ProjectDetail,
   voiceoverUrl: string,
+  usesRenderedPreview: boolean,
+  totalDuration: number,
 ) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [previewTime, setPreviewTime] = useState(0);
-  useSourceAudioLock(videoRef, voiceoverUrl);
-  usePreviewControls(videoRef, project, setIsPlaying, setPreviewTime);
+  useSourceAudioLock(videoRef, voiceoverUrl, usesRenderedPreview);
+  usePreviewControls(videoRef, project, setIsPlaying, setPreviewTime, usesRenderedPreview);
   return {
     isPlaying,
     previewTime,
-    totalDuration: project.edit_plan?.total_duration_seconds ?? 0,
+    totalDuration,
   };
 }
 
 function useSourceAudioLock(
   videoRef: RefObject<HTMLVideoElement | null>,
   voiceoverUrl: string,
+  usesRenderedPreview: boolean,
 ) {
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
-    if (!voiceoverUrl) return;
+    if (!voiceoverUrl || usesRenderedPreview) return;
     const previousState = {
       defaultMuted: video.defaultMuted,
       muted: video.muted,
@@ -171,7 +236,7 @@ function useSourceAudioLock(
       video.muted = previousState.muted;
       video.volume = previousState.volume;
     };
-  }, [videoRef, voiceoverUrl]);
+  }, [usesRenderedPreview, videoRef, voiceoverUrl]);
 }
 
 function usePreviewControls(
@@ -179,13 +244,14 @@ function usePreviewControls(
   project: ProjectDetail,
   setIsPlaying: Dispatch<SetStateAction<boolean>>,
   setPreviewTime: Dispatch<SetStateAction<number>>,
+  usesRenderedPreview: boolean,
 ) {
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
     const sync = () => {
       setIsPlaying(!video.paused && !video.ended);
-      setPreviewTime(projectPreviewTime(project, video.currentTime));
+      setPreviewTime(usesRenderedPreview ? video.currentTime : projectPreviewTime(project, video.currentTime));
     };
     video.addEventListener("play", sync);
     video.addEventListener("pause", sync);
@@ -200,7 +266,7 @@ function usePreviewControls(
       video.removeEventListener("timeupdate", sync);
       video.removeEventListener("loadedmetadata", sync);
     };
-  }, [project, setIsPlaying, setPreviewTime, videoRef]);
+  }, [project, setIsPlaying, setPreviewTime, usesRenderedPreview, videoRef]);
 }
 
 function togglePlayback(
@@ -226,9 +292,10 @@ function seekPreview(
   video: HTMLVideoElement | null,
   project: ProjectDetail,
   previewTime: number,
+  usesRenderedPreview: boolean,
 ) {
   if (!video) return;
-  video.currentTime = sourceTimeForPreview(project, previewTime);
+  video.currentTime = usesRenderedPreview ? previewTime : sourceTimeForPreview(project, previewTime);
 }
 
 function projectPreviewTime(project: ProjectDetail, sourceTime: number) {
@@ -261,47 +328,40 @@ function sourceTimeForPreview(project: ProjectDetail, previewTime: number) {
 }
 
 function PreviewControls({
-  isPlaying,
-  onTogglePlayback,
   onSeek,
   previewTime,
   totalDuration,
+  usesRenderedPreview,
   voiceoverEnabled,
 }: {
-  isPlaying: boolean;
-  onTogglePlayback: () => void;
   onSeek: (value: number) => void;
   previewTime: number;
   totalDuration: number;
+  usesRenderedPreview: boolean;
   voiceoverEnabled: boolean;
 }) {
   const progress = totalDuration > 0 ? Math.min(previewTime / totalDuration, 1) : 0;
   return (
     <div className="absolute inset-x-3 bottom-3 rounded-[20px] border border-white/10 bg-slate-950/84 px-3 py-3 backdrop-blur sm:inset-x-4 sm:bottom-4 sm:px-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-        <button className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-slate-950 transition hover:scale-[1.03]" onClick={onTogglePlayback} type="button">
-          {isPlaying ? "Pause" : "Play"}
-        </button>
-        <div className="min-w-0 flex-1">
-          <div className="relative h-5">
-            <div className="pointer-events-none absolute inset-x-0 top-1/2 h-2 -translate-y-1/2 overflow-hidden rounded-full bg-white/10">
-              <div className="h-full rounded-full bg-cyan-300 transition-[width] duration-300" style={{ width: `${progress * 100}%` }} />
-            </div>
-            <input
-              aria-label="Seek preview timeline"
-              className="absolute inset-0 h-full w-full cursor-pointer appearance-none bg-transparent [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-white"
-              max={totalDuration || 0}
-              min={0}
-              onChange={(event) => onSeek(Number(event.target.value))}
-              step={0.1}
-              type="range"
-              value={Math.min(previewTime, totalDuration || previewTime)}
-            />
+      <div className="min-w-0">
+        <div className="relative h-5">
+          <div className="pointer-events-none absolute inset-x-0 top-1/2 h-2 -translate-y-1/2 overflow-hidden rounded-full bg-white/10">
+            <div className="h-full rounded-full bg-cyan-300 transition-[width] duration-300" style={{ width: `${progress * 100}%` }} />
           </div>
-          <div className="mt-2 flex flex-col gap-1 text-[11px] uppercase tracking-[0.18em] text-slate-300 sm:flex-row sm:items-center sm:justify-between sm:text-xs">
-            <span>{formatClock(previewTime)} / {formatClock(totalDuration)}</span>
-            <span>{voiceoverEnabled ? "AI voiceover preview" : "Source audio preview"}</span>
-          </div>
+          <input
+            aria-label="Seek preview timeline"
+            className="absolute inset-0 h-full w-full cursor-pointer appearance-none bg-transparent [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-white"
+            max={totalDuration || 0}
+            min={0}
+            onChange={(event) => onSeek(Number(event.target.value))}
+            step={0.1}
+            type="range"
+            value={Math.min(previewTime, totalDuration || previewTime)}
+          />
+        </div>
+        <div className="mt-2 flex flex-col gap-1 text-[11px] uppercase tracking-[0.18em] text-slate-300 sm:flex-row sm:items-center sm:justify-between sm:text-xs">
+          <span>{formatClock(previewTime)} / {formatClock(totalDuration)}</span>
+          <span>{usesRenderedPreview ? "Rendered preview" : voiceoverEnabled ? "AI voiceover preview" : "Source audio preview"}</span>
         </div>
       </div>
     </div>
@@ -337,14 +397,16 @@ export function PreviewSidebar({
   project,
   sceneTimeline,
   scenes,
+  usesRenderedPreview,
   setSelectedScene,
   videoRef,
   voiceoverError,
 }: {
   activeSceneNumber: number | null;
   project: ProjectDetail;
-  sceneTimeline: TimelineScene[];
+  sceneTimeline: SceneTimelineEntry[];
   scenes: EditPlanScene[];
+  usesRenderedPreview: boolean;
   setSelectedScene: Dispatch<SetStateAction<number | null>>;
   videoRef: RefObject<HTMLVideoElement | null>;
   voiceoverError: string;
@@ -359,7 +421,7 @@ export function PreviewSidebar({
       <div className="rounded-[24px] border border-white/10 bg-white/5 p-4">
         <p className="text-xs uppercase tracking-[0.2em] text-slate-300">Scene Timeline</p>
         <div className="mt-4 space-y-3">
-          {scenes.length ? scenes.map((scene) => <button key={scene.scene_number} className={`w-full rounded-[20px] border px-4 py-4 text-left transition ${activeSceneNumber === scene.scene_number ? "border-cyan-300/60 bg-cyan-400/10" : "border-white/10 bg-black/10 hover:border-white/20 hover:bg-white/5"}`} onClick={() => seekScene(videoRef.current, scene, setSelectedScene)} type="button"><div className="flex items-center justify-between gap-3"><p className="text-sm font-semibold text-white">{scene.title}</p><p className="text-xs uppercase tracking-[0.2em] text-slate-400">{formatPreviewRange(sceneTimeline, scene)}</p></div><p className="mt-2 text-sm text-slate-300">{scene.purpose}</p><p className="mt-2 text-xs text-cyan-200">{scene.on_screen_text}</p></button>) : <p className="text-sm text-slate-400">The scene timeline will appear once the preview plan is ready.</p>}
+          {scenes.length ? scenes.map((scene) => <button key={scene.scene_number} className={`w-full rounded-[20px] border px-4 py-4 text-left transition ${activeSceneNumber === scene.scene_number ? "border-cyan-300/60 bg-cyan-400/10" : "border-white/10 bg-black/10 hover:border-white/20 hover:bg-white/5"}`} onClick={() => seekScene(videoRef.current, scene, sceneTimeline, usesRenderedPreview, setSelectedScene)} type="button"><div className="flex items-center justify-between gap-3"><p className="text-sm font-semibold text-white">{scene.title}</p><p className="text-xs uppercase tracking-[0.2em] text-slate-400">{formatPreviewRange(sceneTimeline, scene)}</p></div><p className="mt-2 text-sm text-slate-300">{scene.purpose}</p><p className="mt-2 text-xs text-cyan-200">{scene.on_screen_text}</p></button>) : <p className="text-sm text-slate-400">The scene timeline will appear once the preview plan is ready.</p>}
         </div>
       </div>
       <div className="rounded-[24px] border border-white/10 bg-white/5 p-4">
