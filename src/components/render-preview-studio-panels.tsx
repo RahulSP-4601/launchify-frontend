@@ -56,14 +56,14 @@ export function PreviewPlayer({
   voiceoverUrl: string;
 }) {
   return (
-    <div className="overflow-hidden rounded-[28px] border border-white/10 bg-black shadow-[0_20px_80px_rgba(2,6,23,0.35)]">
+    <div className="w-full max-w-full overflow-hidden rounded-[28px] border border-white/10 bg-black shadow-[0_20px_80px_rgba(2,6,23,0.35)]">
       <div className="flex items-center gap-2 border-b border-white/10 bg-white/5 px-4 py-3">
         <span className="h-3 w-3 rounded-full bg-rose-400" />
         <span className="h-3 w-3 rounded-full bg-amber-300" />
         <span className="h-3 w-3 rounded-full bg-emerald-400" />
         <p className="ml-3 text-xs uppercase tracking-[0.2em] text-slate-300">{project.product_name} polished preview</p>
       </div>
-      <div className="relative aspect-video min-h-[340px] overflow-hidden bg-slate-950 sm:min-h-[420px] xl:min-h-[520px]">
+      <div className="relative aspect-[16/9] w-full max-w-full overflow-hidden bg-slate-950">
         <PreviewPlayerBody
           activeHighlight={activeHighlight}
           activeScene={activeScene}
@@ -267,8 +267,8 @@ function PreviewControls({
 }) {
   const progress = totalDuration > 0 ? Math.min(previewTime / totalDuration, 1) : 0;
   return (
-    <div className="absolute inset-x-4 bottom-4 rounded-[22px] border border-white/10 bg-slate-950/82 px-4 py-3 backdrop-blur">
-      <div className="flex items-center justify-between gap-4">
+    <div className="absolute inset-x-3 bottom-3 rounded-[20px] border border-white/10 bg-slate-950/84 px-3 py-3 backdrop-blur sm:inset-x-4 sm:bottom-4 sm:px-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
         <button className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-slate-950 transition hover:scale-[1.03]" onClick={onTogglePlayback} type="button">
           {isPlaying ? "Pause" : "Play"}
         </button>
@@ -288,7 +288,7 @@ function PreviewControls({
               value={Math.min(previewTime, totalDuration || previewTime)}
             />
           </div>
-          <div className="mt-2 flex items-center justify-between text-xs uppercase tracking-[0.18em] text-slate-300">
+          <div className="mt-2 flex flex-col gap-1 text-[11px] uppercase tracking-[0.18em] text-slate-300 sm:flex-row sm:items-center sm:justify-between sm:text-xs">
             <span>{formatClock(previewTime)} / {formatClock(totalDuration)}</span>
             <span>{voiceoverEnabled ? "AI voiceover preview" : "Source audio preview"}</span>
           </div>
