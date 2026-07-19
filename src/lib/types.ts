@@ -196,6 +196,15 @@ export type VoiceoverCueRecord = {
   duration_seconds: number;
 };
 
+export type VoiceoverClipRecord = {
+  scene_number: number;
+  start: number;
+  end: number;
+  text: string;
+  duration_seconds: number;
+  audio_storage_path: string;
+};
+
 export type VoiceoverRecord = {
   provider: string;
   model: string;
@@ -203,6 +212,7 @@ export type VoiceoverRecord = {
   status: "disabled" | "script_only" | "ready";
   script: string;
   cues: VoiceoverCueRecord[];
+  clips: VoiceoverClipRecord[];
   audio_storage_path: string;
   duration_seconds: number;
 };
@@ -213,6 +223,7 @@ export type EditPlanScene = {
   purpose: string;
   start: number;
   end: number;
+  render_duration_seconds: number | null;
   confidence: number;
   camera_mode: "static" | "focus";
   decision_summary: string;

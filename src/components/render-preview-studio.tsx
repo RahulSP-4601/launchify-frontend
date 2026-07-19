@@ -136,7 +136,9 @@ function usePreviewPlayback(project: ProjectDetail, voiceoverUrl: string, usesRe
     scenes,
     selectedScene,
     setSelectedScene,
-    totalDuration: sceneTimeline.at(-1)?.previewEnd ?? project.edit_plan?.total_duration_seconds ?? 0,
+    totalDuration: usesRenderedPreview
+      ? sceneTimeline.at(-1)?.renderedEnd ?? project.edit_plan?.total_duration_seconds ?? 0
+      : sceneTimeline.at(-1)?.previewEnd ?? project.edit_plan?.total_duration_seconds ?? 0,
     videoRef,
   };
 }

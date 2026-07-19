@@ -9,6 +9,8 @@ export type SceneTimelineEntry = EditPlanScene & {
   sourceEnd: number;
   previewStart: number;
   previewEnd: number;
+  renderedStart: number;
+  renderedEnd: number;
 };
 
 type PlaybackState = {
@@ -28,7 +30,7 @@ export function activeSceneForSourceTime(scenes: EditPlanScene[], currentTime: n
 }
 
 export function activeSceneForPreviewTime(sceneTimeline: SceneTimelineEntry[], currentTime: number) {
-  return sceneTimeline.find((scene) => currentTime >= scene.previewStart && currentTime <= scene.previewEnd) ?? null;
+  return sceneTimeline.find((scene) => currentTime >= scene.renderedStart && currentTime <= scene.renderedEnd) ?? null;
 }
 
 export function seekScene(
@@ -39,7 +41,7 @@ export function seekScene(
   setSelectedScene: Dispatch<SetStateAction<number | null>>,
 ) {
   if (!video) return;
-  video.currentTime = usesRenderedPreview ? sceneTimeline.find((entry) => entry.scene_number === scene.scene_number)?.previewStart ?? 0 : scene.start;
+  video.currentTime = usesRenderedPreview ? sceneTimeline.find((entry) => entry.scene_number === scene.scene_number)?.renderedStart ?? 0 : scene.start;
   setSelectedScene(scene.scene_number);
   void video.play().catch(() => undefined);
 }
@@ -54,22 +56,46 @@ export function buildSceneTimeline(
     ? contextualSceneWindows(sortedScenes, sourceBounds)
     : actionSceneWindows(sortedScenes);
   let previewCursor = 0;
-  return sceneWindows.map(({ scene, sourceStart, sourceEnd }) => {
-    const duration = sourceEnd - sourceStart;
-    const entry = { ...scene, sourceStart, sourceEnd, previewStart: previewCursor, previewEnd: previewCursor + duration };
-    previewCursor += duration;
-    return entry;
-  });
+  let renderedCursor = 0;
+  const entries: SceneTimelineEntry[] = [];
+  for (const windows of groupedSceneWindows(sceneWindows)) {
+    const renderedStart = renderedCursor;
+    const renderedDuration = renderedSceneDuration(windows[0].scene);
+    const previewDuration = windows.reduce((sum, window) => sum + (window.sourceEnd - window.sourceStart), 0);
+    let scenePreviewCursor = previewCursor;
+    let sceneRenderedCursor = renderedStart;
+    windows.forEach((window, index) => {
+      const sourceDuration = window.sourceEnd - window.sourceStart;
+      const isLastWindow = index === windows.length - 1;
+      const renderedWindowDuration = isLastWindow
+        ? renderedStart + renderedDuration - sceneRenderedCursor
+        : (sourceDuration / Math.max(previewDuration, 0.001)) * renderedDuration;
+      entries.push({
+        ...window.scene,
+        sourceStart: window.sourceStart,
+        sourceEnd: window.sourceEnd,
+        previewStart: scenePreviewCursor,
+        previewEnd: scenePreviewCursor + sourceDuration,
+        renderedStart: sceneRenderedCursor,
+        renderedEnd: sceneRenderedCursor + renderedWindowDuration,
+      });
+      scenePreviewCursor += sourceDuration;
+      sceneRenderedCursor += renderedWindowDuration;
+    });
+    previewCursor = scenePreviewCursor;
+    renderedCursor = renderedStart + renderedDuration;
+  }
+  return entries;
 }
 
 export function sourceTimeForRenderedPreview(sceneTimeline: SceneTimelineEntry[], previewTime: number) {
-  const scene = sceneTimeline.find((entry) => previewTime >= entry.previewStart && previewTime <= entry.previewEnd);
+  const scene = sceneTimeline.find((entry) => previewTime >= entry.renderedStart && previewTime <= entry.renderedEnd);
   if (!scene) {
     return sceneTimeline.at(-1)?.sourceEnd ?? 0;
   }
-  const previewDuration = Math.max(scene.previewEnd - scene.previewStart, 0.001);
+  const previewDuration = Math.max(scene.renderedEnd - scene.renderedStart, 0.001);
   const sourceDuration = Math.max(scene.sourceEnd - scene.sourceStart, 0.001);
-  const progress = Math.min(Math.max((previewTime - scene.previewStart) / previewDuration, 0), 1);
+  const progress = Math.min(Math.max((previewTime - scene.renderedStart) / previewDuration, 0), 1);
   return scene.sourceStart + sourceDuration * progress;
 }
 
@@ -134,12 +160,24 @@ export function normalizeScenePlaybackTime(
   return gapPlaybackState(sceneTimeline, sourceTime, isPlaying) ?? { time: sceneTimeline.at(-1)!.end, shouldEndPlayback: isPlaying };
 }
 
-export function formatPreviewRange(sceneTimeline: SceneTimelineEntry[], scene: EditPlanScene) {
+export function formatPreviewRange(sceneTimeline: SceneTimelineEntry[], scene: EditPlanScene, usesRenderedPreview: boolean) {
   const entries = sceneTimeline.filter((item) => item.scene_number === scene.scene_number);
   if (!entries.length) {
-    return `${scene.start.toFixed(1)}s - ${scene.end.toFixed(1)}s`;
+    const end = usesRenderedPreview ? renderedSceneEnd(scene) : scene.end;
+    return `${scene.start.toFixed(1)}s - ${end.toFixed(1)}s`;
+  }
+  if (usesRenderedPreview) {
+    return `${entries[0].renderedStart.toFixed(1)}s - ${entries.at(-1)!.renderedEnd.toFixed(1)}s`;
   }
   return `${entries[0].previewStart.toFixed(1)}s - ${entries.at(-1)!.previewEnd.toFixed(1)}s`;
+}
+
+export function renderedSceneDuration(scene: EditPlanScene) {
+  return Math.max(scene.render_duration_seconds ?? (scene.end - scene.start), 0.001);
+}
+
+export function renderedSceneEnd(scene: EditPlanScene) {
+  return scene.start + renderedSceneDuration(scene);
 }
 
 function gapPlaybackState(
@@ -167,6 +205,21 @@ function actionSceneWindows(scenes: EditPlanScene[]) {
     }
   }
   return windows;
+}
+
+function groupedSceneWindows(
+  sceneWindows: Array<{ scene: EditPlanScene; sourceStart: number; sourceEnd: number }>,
+) {
+  const grouped: Array<Array<{ scene: EditPlanScene; sourceStart: number; sourceEnd: number }>> = [];
+  for (const window of sceneWindows) {
+    const current = grouped.at(-1);
+    if (!current || current[0].scene.scene_number !== window.scene.scene_number) {
+      grouped.push([window]);
+      continue;
+    }
+    current.push(window);
+  }
+  return grouped;
 }
 
 function shouldUseContextualSceneWindows(
