@@ -62,7 +62,7 @@ export function PreviewPlayer({
   voiceoverUrl: string;
 }) {
   return (
-    <PlayerShell productName={project.product_name}>
+    <PlayerShell productName={project.project_name}>
       <PreviewPlayerBody
         activeHighlight={activeHighlight}
         activeScene={activeScene}

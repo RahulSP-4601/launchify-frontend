@@ -3,8 +3,6 @@ export type ProjectStatus = "draft" | "queued" | "uploading" | "transcribing" | 
 export type ProjectSummary = {
   id: string;
   project_name: string;
-  product_name: string;
-  video_goal: string;
   status: ProjectStatus;
   created_at: string;
   updated_at: string;
@@ -261,8 +259,6 @@ export type RenderedVideoRecord = {
 };
 
 export type ProjectDetail = ProjectSummary & {
-  product_description: string;
-  target_audience: string;
   error_message: string;
   recording_session: RecordingSessionRecord | null;
   guide: GuideRecord | null;
@@ -294,10 +290,6 @@ export type TranscriptResponse = {
 
 export type CreateProjectInput = {
   project_name: string;
-  product_name: string;
-  product_description: string;
-  target_audience: string;
-  video_goal: string;
 };
 
 export type CreateRecordingSessionInput = {

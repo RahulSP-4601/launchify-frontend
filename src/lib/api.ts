@@ -81,6 +81,17 @@ export async function fetchProject(projectId: string): Promise<ProjectDetail> {
   return handleResponse<ProjectDetail>(response);
 }
 
+export async function updateProject(projectId: string, input: CreateProjectInput): Promise<ProjectDetail> {
+  const response = await apiFetch(`/api/projects/${projectId}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(input),
+  });
+  return handleResponse<ProjectDetail>(response);
+}
+
 export async function uploadGroundedSession(
   projectId: string,
   file: File,
