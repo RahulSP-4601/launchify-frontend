@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import type { Session } from "@supabase/supabase-js";
@@ -9,8 +10,11 @@ import { fetchUsageSummary, isAuthenticationError } from "@/lib/api";
 import { signOutUser } from "@/lib/supabase";
 import { DashboardSection, useDashboardStore } from "@/lib/dashboard-store";
 
-const navItems: Array<{ key: DashboardSection; label: string; short: string }> = [
+const navItems: Array<{ key: DashboardSection; label: string; short: string; locked?: boolean }> = [
   { key: "projects", label: "Projects", short: "PR" },
+  { key: "templates", label: "Templates", short: "TM", locked: true },
+  { key: "analytics", label: "Analytics", short: "AN", locked: true },
+  { key: "settings", label: "Settings", short: "ST" },
 ];
 
 export function DashboardShell({ session }: { session: Session }) {
@@ -30,7 +34,7 @@ export function DashboardShell({ session }: { session: Session }) {
           onSectionChange={setActiveSection}
         />
         <section className="overflow-hidden rounded-[34px] border border-black/6 bg-white shadow-[0_24px_70px_rgba(15,23,42,0.08)]">
-          <ProjectsWorkspace section="projects" />
+          <DashboardContent section={activeSection} />
         </section>
       </div>
     </main>
@@ -73,29 +77,98 @@ function SidebarNav({
           className={`flex w-full items-center gap-3 rounded-[18px] px-4 py-3 text-left text-sm font-medium transition ${
             activeSection === item.key
               ? "bg-white text-slate-950 shadow-[0_10px_30px_rgba(15,23,42,0.08)]"
-              : "text-slate-500 hover:bg-white/70"
+              : item.locked
+                ? "text-slate-400"
+                : "text-slate-500 hover:bg-white/70"
           }`}
-          onClick={() => onSectionChange(item.key)}
+          onClick={() => {
+            if (item.locked) {
+              return;
+            }
+            onSectionChange(item.key);
+          }}
           type="button"
         >
           <span
             className={`grid h-9 w-9 place-items-center rounded-2xl ${
-              activeSection === item.key ? "bg-[var(--launchify-accent)] text-white" : "bg-white text-slate-500"
+              activeSection === item.key
+                ? "bg-[var(--launchify-accent)] text-white"
+                : item.locked
+                  ? "bg-white text-slate-300"
+                  : "bg-white text-slate-500"
             }`}
           >
             {item.short}
           </span>
           <span>{item.label}</span>
+          {item.locked ? <span className="ml-auto rounded-full border border-slate-200 bg-white px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400">Soon</span> : null}
         </button>
       ))}
     </nav>
   );
 }
 
+function DashboardContent({ section }: { section: DashboardSection }) {
+  if (section === "templates" || section === "analytics") {
+    return <ComingSoonView section={section} />;
+  }
+  if (section === "settings") {
+    return <SettingsView />;
+  }
+  return <ProjectsWorkspace section="projects" />;
+}
+
+function ComingSoonView({ section }: { section: "templates" | "analytics" }) {
+  return (
+    <div className="grid min-h-[calc(100vh-10rem)] place-items-center p-5">
+      <section className="w-full max-w-3xl rounded-[34px] border border-black/6 bg-[linear-gradient(135deg,#fff6f7_0%,#ffffff_52%,#f6f8fb_100%)] p-8 text-center shadow-[0_30px_100px_rgba(15,23,42,0.08)] lg:p-12">
+        <p className="text-xs font-semibold uppercase tracking-[0.35em] text-[var(--launchify-accent)]">Coming soon</p>
+        <h2 className="mt-5 text-4xl font-black tracking-[-0.05em] text-slate-950 capitalize">{section}</h2>
+        <p className="mx-auto mt-4 max-w-2xl text-base leading-8 text-slate-500">
+          We are polishing this area right now. For now, use Projects to create and manage launch-ready videos.
+        </p>
+      </section>
+    </div>
+  );
+}
+
+function SettingsView() {
+  return (
+    <div className="grid gap-4 p-5 lg:grid-cols-2">
+      <SettingsCard
+        body="Later we’ll place branding, export defaults, providers, and workspace-level configuration here."
+        title="Workspace settings"
+      />
+      <SettingsCard
+        body="Trial usage, export limits, and subscription surfaces will live here once the payment system is added."
+        title="Usage and billing"
+      />
+    </div>
+  );
+}
+
+function SettingsCard({ body, title }: { body: string; title: string }) {
+  return (
+    <article className="rounded-[28px] border border-black/6 bg-[#fafbfc] p-5">
+      <p className="text-lg font-bold text-slate-950">{title}</p>
+      <p className="mt-3 text-sm leading-7 text-slate-500">{body}</p>
+    </article>
+  );
+}
+
 function SidebarHeader() {
   return (
     <div className="flex items-center gap-3 px-2 pt-2">
-      <div className="grid h-11 w-11 place-items-center rounded-[18px] bg-[var(--launchify-accent)] text-base font-black text-white">L</div>
+      <div className="grid h-12 w-12 place-items-center overflow-hidden rounded-[18px] bg-white shadow-[0_10px_24px_rgba(15,23,42,0.08)]">
+        <Image
+          alt="Launchify logo"
+          className="h-9 w-9 object-contain"
+          height={36}
+          priority
+          src="/logo.png"
+          width={36}
+        />
+      </div>
       <div>
         <p className="text-xl font-bold">Launchify</p>
         <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Product video studio</p>
