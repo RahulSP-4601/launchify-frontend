@@ -1,5 +1,8 @@
 import {
   CreateProjectInput,
+  RegenerateProjectEditorSceneInput,
+  ProjectEditorState,
+  ProjectEditorStateRecord,
   ProjectDetail,
   ProjectSummary,
   RecordingSessionRecord,
@@ -90,6 +93,39 @@ export async function updateProject(projectId: string, input: CreateProjectInput
     body: JSON.stringify(input),
   });
   return handleResponse<ProjectDetail>(response);
+}
+
+export async function fetchProjectEditorState(projectId: string): Promise<ProjectEditorStateRecord | null> {
+  const response = await apiFetch(`/api/projects/${projectId}/editor`, { cache: "no-store" });
+  return handleResponse<ProjectEditorStateRecord | null>(response);
+}
+
+export async function saveProjectEditorState(
+  projectId: string,
+  input: ProjectEditorState,
+): Promise<ProjectEditorStateRecord> {
+  const response = await apiFetch(`/api/projects/${projectId}/editor`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(input),
+  });
+  return handleResponse<ProjectEditorStateRecord>(response);
+}
+
+export async function regenerateProjectEditorScene(
+  projectId: string,
+  input: RegenerateProjectEditorSceneInput,
+): Promise<ProjectEditorStateRecord> {
+  const response = await apiFetch(`/api/projects/${projectId}/editor/regenerate-scene`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(input),
+  });
+  return handleResponse<ProjectEditorStateRecord>(response);
 }
 
 export async function uploadGroundedSession(

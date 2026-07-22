@@ -306,6 +306,48 @@ export type UpdateRecordingSessionInput = {
   recording_session: RecordingSessionRecord;
 };
 
+export type EditorAspectRatio = "16:9" | "9:16" | "1:1";
+
+export type EditorSceneSource = "edit_plan" | "launch_script" | "transcript" | "fallback";
+
+export type ProjectEditorScene = {
+  id: string;
+  scene_number: number;
+  title: string;
+  spoken_line: string;
+  on_screen_text: string;
+  start: number;
+  end: number;
+  source: EditorSceneSource;
+};
+
+export type ProjectEditorCaption = {
+  id: string;
+  start: number;
+  end: number;
+  text: string;
+  scene_id: string | null;
+};
+
+export type ProjectEditorState = {
+  aspect_ratio: EditorAspectRatio;
+  selected_scene_id: string;
+  show_captions: boolean;
+  scenes: ProjectEditorScene[];
+  captions: ProjectEditorCaption[];
+};
+
+export type ProjectEditorStateRecord = {
+  project_id: string;
+  editor_state: ProjectEditorState;
+  updated_at: string;
+};
+
+export type RegenerateProjectEditorSceneInput = {
+  scene_id: string;
+  editor_state: ProjectEditorState;
+};
+
 export type UsageSummary = {
   limit_seconds: number;
   used_seconds: number;
