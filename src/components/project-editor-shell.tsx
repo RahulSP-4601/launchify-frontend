@@ -104,7 +104,7 @@ function ProjectEditorLayout({
 }) {
   return (
     <div className="h-screen overflow-hidden bg-[#0d0d0d] px-[22px] pb-[14px] pt-6 text-white">
-      <div className="mx-auto grid h-full max-w-[2048px] grid-rows-[52px_19px_minmax(0,1fr)_14px_267px]">
+      <div className="mx-auto grid h-full max-w-[2048px] grid-rows-[52px_18px_minmax(0,1fr)_12px_241px]">
         <EditorHeader editor={editor} project={project} />
         <div />
         <ProjectEditorGrid
@@ -117,10 +117,7 @@ function ProjectEditorLayout({
           setActiveTab={setActiveTab}
         />
         <div />
-        <EditorTimelineSection
-          editor={editor}
-          preview={preview}
-        />
+        <EditorTimelineSection editor={editor} preview={preview} />
       </div>
     </div>
   );
@@ -183,7 +180,7 @@ function ProjectEditorGrid({
   setActiveTab: (tab: EditorTab) => void;
 }) {
   return (
-    <div className="grid min-h-0 grid-cols-[57px_11px_552px_minmax(0,1fr)_343px] gap-y-0">
+    <div className="grid min-h-0 grid-cols-[57px_10px_minmax(500px,548px)_minmax(0,1fr)_318px] gap-y-0 2xl:grid-cols-[57px_10px_572px_minmax(0,1fr)_336px]">
       <EditorRail activeTab={activeTab} setActiveTab={setActiveTab} />
       <div />
       <EditorLeftPanel
@@ -202,10 +199,7 @@ function ProjectEditorGrid({
       <EditorInspector
         draft={editor.draft}
         onAspectRatioChange={editor.setAspectRatio}
-        onRegenerateScene={onRegenerateScene}
-        onSceneUpdate={editor.updateScene}
         onToggleCaptions={editor.setShowCaptions}
-        regeneratePending={regeneratePending}
         selectedScene={selectedScene}
       />
     </div>

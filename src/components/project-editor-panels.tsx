@@ -31,7 +31,7 @@ export function EditorTopBar({
   return (
     <header className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4">
       <ProjectCompactGroup project={project} />
-      <div className="flex items-center gap-2">
+      <div className="flex shrink-0 items-center gap-[10px]">
         <SaveStatusPill label={saveLabel} />
         <AvatarButton />
         <ToolbarButton>
@@ -61,14 +61,11 @@ export function EditorInspector({
 }: {
   draft: ProjectEditorDraft;
   onAspectRatioChange: (aspectRatio: EditorAspectRatio) => void;
-  onRegenerateScene: (sceneId: string) => void;
-  onSceneUpdate: (sceneId: string, patch: Partial<EditorSceneDraft>) => void;
   onToggleCaptions: (value: boolean) => void;
-  regeneratePending: boolean;
   selectedScene: EditorSceneDraft | null;
 }) {
   return (
-    <aside className="flex h-full min-h-0 flex-col overflow-hidden rounded-[8px] border border-white/7 bg-[#1f1f1f]">
+    <aside className="flex h-full min-h-0 flex-col overflow-hidden rounded-[8px] border border-white/7 bg-[#221f1f]">
       <InspectorToolbar />
       <InspectorSection title="Project">
         <ToggleRow checked={draft.showCaptions} label="Show Transcript" onChange={onToggleCaptions} />
@@ -85,12 +82,12 @@ export function EditorInspector({
 
 function ProjectCompactGroup({ project }: { project: ProjectDetail }) {
   return (
-    <div className="flex min-w-0 items-center gap-3">
-      <div className="flex min-w-0 items-center gap-3 rounded-[8px] border border-white/7 bg-[#1d1d1d] px-2.5 py-2">
-        <span className="grid h-8 w-8 place-items-center rounded-[6px] border border-white/8 bg-[#151515] text-[#747474]">
+    <div className="flex min-w-0 items-center gap-2">
+      <div className="flex min-w-0 items-center gap-2 rounded-[8px] border border-white/7 bg-[#1d1d1d] px-2.5 py-2">
+        <span className="grid h-8 w-8 place-items-center rounded-[6px] border border-white/8 bg-[#161616] text-[#747474]">
           <CloudArrowIcon />
         </span>
-        <p className="max-w-[330px] truncate text-[14px] font-medium text-[#f0f0f0]">{project.project_name}</p>
+        <p className="max-w-[320px] truncate text-[14px] font-medium text-[#f0f0f0]">{project.project_name}</p>
         <button className="text-[#7f7f7f] transition hover:text-white" type="button">
           <CloudArrowIcon />
         </button>
@@ -102,9 +99,9 @@ function ProjectCompactGroup({ project }: { project: ProjectDetail }) {
 
 function ViewSwitcher() {
   return (
-    <div className="flex items-center rounded-[8px] border border-white/7 bg-[#1d1d1d] p-1 text-[14px] text-[#838383]">
-      <span className="rounded-[6px] bg-[#2b2b2b] px-4 py-1.5 text-[#f0f0f0]">Video</span>
-      <span className="px-4 py-1.5">Article</span>
+    <div className="flex items-center rounded-[8px] border border-white/7 bg-[#1d1d1d] p-1 text-[13px] text-[#838383]">
+      <span className="rounded-[6px] bg-[#2b2b2b] px-5 py-1.5 text-[#f0f0f0]">Video</span>
+      <span className="px-5 py-1.5">Article</span>
     </div>
   );
 }
@@ -124,7 +121,7 @@ function SaveStatusPill({ label }: { label: string }) {
 
 function InspectorToolbar() {
   return (
-    <div className="flex items-center gap-2 border-b border-white/7 px-4 py-3">
+    <div className="flex items-center gap-2 border-b border-white/7 px-4 py-2.5">
       <AvatarButton compact />
       <ToolbarButton compact>
         <HeadphoneIcon />
@@ -146,8 +143,8 @@ function InspectorSection({
   title: string;
 }) {
   return (
-    <section className="border-b border-white/7 px-4 py-4 last:border-b-0">
-      <p className="text-[13px] font-medium text-[#f0f0f0]">{title}</p>
+    <section className="border-b border-white/7 px-4 py-5 last:border-b-0">
+      <p className="text-[12px] font-medium text-[#dedede]">{title}</p>
       <div className="mt-4">{children}</div>
     </section>
   );
@@ -166,7 +163,7 @@ function ToggleRow({
     <div className="flex items-center justify-between gap-4">
       <span className="text-[14px] text-[#e7e7e7]">{label}</span>
       <button
-        className={`flex h-5 w-10 items-center rounded-full p-[2px] transition ${checked ? "bg-[#d46ccc]" : "bg-[#3a3a3a]"}`}
+        className={`flex h-[22px] w-[42px] items-center rounded-full p-[2px] transition ${checked ? "bg-[#d46ccc]" : "bg-[#3a3a3a]"}`}
         onClick={() => onChange(!checked)}
         type="button"
       >
@@ -186,7 +183,7 @@ function AspectRatioField({
   return (
     <label className="block">
       <select
-        className="h-9 w-full rounded-[6px] border border-white/8 bg-[#1a1a1a] px-3 text-[14px] text-[#ededed] outline-none"
+        className="h-[48px] w-full rounded-[6px] border border-white/8 bg-[#1a1a1a] px-3 text-[14px] text-[#ededed] outline-none"
         onChange={(event) => onChange(event.target.value as EditorAspectRatio)}
         value={aspectRatio}
       >
@@ -205,7 +202,7 @@ function SceneDetails({ scene }: { scene: EditorSceneDraft | null }) {
   return (
     <div className="space-y-3 text-[13px] leading-6 text-[#b8b8b8]">
       <div>
-        <p className="text-[11px] uppercase tracking-[0.18em] text-[#727272]">{`Scene ${scene.sceneNumber}`}</p>
+        <p className="text-[11px] uppercase tracking-[0.3em] text-[#727272]">{`Scene ${scene.sceneNumber}`}</p>
         <p className="mt-1 text-[16px] font-medium text-white">{scene.title}</p>
       </div>
       <p className="line-clamp-5">{scene.spokenLine}</p>
@@ -215,7 +212,7 @@ function SceneDetails({ scene }: { scene: EditorSceneDraft | null }) {
 }
 
 function AvatarButton({ compact }: { compact?: boolean }) {
-  const shape = compact ? "h-9 w-9 rounded-[6px] text-[18px]" : "h-10 w-10 rounded-[8px] text-[18px]";
+  const shape = compact ? "h-10 w-10 rounded-[6px] text-[18px]" : "h-10 w-10 rounded-[8px] text-[18px]";
   return (
     <button className={`grid place-items-center bg-[#4a7cff] font-medium text-white ${shape}`} type="button">
       R
@@ -234,7 +231,7 @@ function ToolbarButton({
   disabled?: boolean;
   onClick?: () => void;
 }) {
-  const shape = compact ? "h-9 w-9 rounded-[6px]" : "h-10 w-10 rounded-[8px]";
+  const shape = compact ? "h-10 w-10 rounded-[6px]" : "h-10 w-10 rounded-[8px]";
   return (
     <button
       className={`grid place-items-center border border-white/8 bg-[#1d1d1d] text-[#bdbdbd] transition hover:text-white disabled:opacity-40 ${shape}`}
@@ -254,7 +251,7 @@ function WideButton({
   children: ReactNode;
   compact?: boolean;
 }) {
-  const shape = compact ? "h-9 rounded-[6px] px-3 text-[14px]" : "h-10 rounded-[8px] px-4 text-[14px]";
+  const shape = compact ? "h-10 rounded-[6px] px-3 text-[14px]" : "h-10 rounded-[8px] px-4 text-[14px]";
   return <button className={`flex items-center gap-2 border border-white/8 bg-[#1d1d1d] text-[#d1d1d1] ${shape}`}>{children}</button>;
 }
 
@@ -265,6 +262,6 @@ function ShareButton({
   children: ReactNode;
   compact?: boolean;
 }) {
-  const shape = compact ? "h-9 rounded-[6px] px-4 text-[14px]" : "h-10 rounded-[8px] px-5 text-[14px]";
+  const shape = compact ? "h-10 rounded-[6px] px-4 text-[14px]" : "h-10 rounded-[8px] px-5 text-[14px]";
   return <button className={`bg-[#91458a] font-medium text-white ${shape}`}>{children}</button>;
 }

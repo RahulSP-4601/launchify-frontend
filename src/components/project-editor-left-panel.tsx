@@ -30,8 +30,8 @@ export function EditorRail({
   setActiveTab: (tab: EditorTab) => void;
 }) {
   return (
-    <aside className="flex h-full flex-col items-center rounded-[8px] bg-[#181818] py-2">
-      <div className="flex flex-col gap-1.5">
+    <aside className="flex h-full flex-col items-center rounded-[8px] bg-[#181818] py-[10px]">
+      <div className="flex flex-col gap-2">
         {toolbarItems().map((item) => (
           <RailButton
             key={item.id}
@@ -102,7 +102,7 @@ export function EditorLeftPanel({
 function PanelScrollFrame({ children }: { children: ReactNode }) {
   return (
     <div className="mt-3 min-h-0 flex-1 overflow-hidden rounded-[8px] border border-white/6 bg-[#222222]">
-      <div className="h-full overflow-y-auto px-3 py-3">{children}</div>
+      <div className="h-full overflow-y-auto px-2 py-2.5">{children}</div>
     </div>
   );
 }
@@ -116,7 +116,7 @@ function SearchRow({
 }) {
   return (
     <div className="flex items-center gap-2">
-      <label className="flex h-10 flex-1 items-center rounded-[6px] border border-white/8 bg-[#232323] px-3">
+      <label className="flex h-[38px] flex-1 items-center rounded-[6px] border border-white/8 bg-[#232323] px-3">
         <input
           className="w-full bg-transparent text-[14px] text-[#d6d6d6] outline-none placeholder:text-[#777]"
           onChange={(event) => setQuery(event.target.value)}
@@ -124,7 +124,7 @@ function SearchRow({
           value={query}
         />
       </label>
-      <button className="grid h-10 w-10 place-items-center rounded-[6px] border border-white/8 bg-[#232323] text-[#a1a1a1]" type="button">
+      <button className="grid h-[38px] w-[38px] place-items-center rounded-[6px] border border-white/8 bg-[#232323] text-[#a1a1a1]" type="button">
         <FilterIcon />
       </button>
     </div>
@@ -133,7 +133,7 @@ function SearchRow({
 
 function PanelModeBar({ activeTab }: { activeTab: EditorTab }) {
   return (
-    <div className="mt-3 flex items-center gap-2 rounded-[6px] bg-[#232323] p-2">
+    <div className="mt-3 flex items-center gap-2 rounded-[6px] bg-[#232323] p-[9px]">
       <ModeChip subtle>1</ModeChip>
       <ModeChip>Video</ModeChip>
       <ModeChip accent>{tabLabel(activeTab)}</ModeChip>
@@ -183,9 +183,8 @@ function TranscriptPanel({
   }
 
   return (
-    <article className="rounded-[8px] border border-white/6 bg-[#262626] px-4 py-3">
-      <TranscriptPanelHeader />
-      <div className="space-y-7">
+    <article className="rounded-[8px] border border-white/6 bg-[#262626] px-3 py-3">
+      <div className="space-y-6">
         {scenes.map((scene, sceneIndex) => (
           <TranscriptSceneBlock
             key={scene.id}
@@ -198,19 +197,6 @@ function TranscriptPanel({
         ))}
       </div>
     </article>
-  );
-}
-
-function TranscriptPanelHeader() {
-  return (
-    <div className="mb-4 flex items-center gap-2">
-      <ModeChip subtle>1</ModeChip>
-      <ModeChip>Video</ModeChip>
-      <ModeChip accent>Casual Mark</ModeChip>
-      <button className="ml-auto grid h-8 w-8 place-items-center rounded-[6px] border border-white/8 text-[#9c9c9c]" type="button">
-        <WaveIcon />
-      </button>
-    </div>
   );
 }
 
@@ -232,17 +218,17 @@ function TranscriptSceneBlock({
 
   return (
     <button
-      className={`block w-full rounded-[6px] px-2 py-1 text-left transition ${isActive ? "bg-white/[0.03]" : ""}`}
+      className={`block w-full rounded-[6px] px-2 py-1.5 text-left transition ${isActive ? "bg-white/[0.03]" : ""}`}
       onClick={() => onSceneSelect(scene.id)}
       type="button"
     >
       {paragraphs.map((paragraph, index) => (
-        <p key={`${scene.id}-${index}`} className="mb-6 text-[17px] leading-[1.58] text-[#ededed] last:mb-0">
+        <p key={`${scene.id}-${index}`} className="mb-6 text-[16px] leading-[1.58] text-[#ededed] last:mb-0">
           {paragraph}
           {syncPoints[index] ? <SyncChip index={sceneIndex + index + 1} /> : null}
         </p>
       ))}
-      <p className="text-[17px] leading-[1.58] text-[#ededed]">{scene.onScreenText || scene.title}</p>
+      <p className="text-[16px] leading-[1.58] text-[#ededed]">{scene.onScreenText || scene.title}</p>
     </button>
   );
 }
@@ -344,7 +330,7 @@ function ModeChip({
     : subtle
       ? "border-white/6 bg-[#2e2e2e] text-[#c9c9c9]"
       : "border-white/6 bg-[#2a2a2a] text-[#d6d6d6]";
-  return <span className={`rounded-[6px] border px-2.5 py-1 text-[13px] ${tone}`}>{children}</span>;
+  return <span className={`rounded-[6px] border px-2.5 py-1 text-[12px] ${tone}`}>{children}</span>;
 }
 
 function RailButton({
@@ -396,7 +382,7 @@ function MiniButton({
 
 function SyncChip({ index }: { index: number }) {
   return (
-    <span className="ml-3 inline-flex items-center rounded-[7px] border border-white/10 bg-[#171717] px-2 py-1 text-[12px] text-[#cfcfcf] align-middle">
+    <span className="ml-3 inline-flex items-center rounded-[7px] border border-white/10 bg-[#171717] px-2 py-[4px] text-[11px] text-[#cfcfcf] align-middle">
       {`Sync Point ${index}`}
     </span>
   );
