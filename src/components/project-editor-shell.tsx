@@ -20,10 +20,9 @@ import {
 import { editorDraftToApiState } from "@/components/project-editor-persistence";
 import {
   EditorInspector,
-  EditorLeftPanel,
-  EditorRail,
   EditorTopBar,
 } from "@/components/project-editor-panels";
+import { EditorLeftPanel, EditorRail } from "@/components/project-editor-left-panel";
 import {
   EditorPreviewStage,
   EditorTimeline,
@@ -109,7 +108,7 @@ function ProjectEditorLayout({
 }) {
   return (
     <div className="h-screen overflow-hidden bg-[#121212] px-6 py-4 text-white">
-      <div className="mx-auto flex h-full max-w-[1960px] flex-col gap-3">
+      <div className="mx-auto flex h-full max-w-[1940px] flex-col gap-4">
         <EditorHeader editor={editor} project={project} />
         <ProjectEditorGrid activeTab={activeTab} editor={editor} onRegenerateScene={onRegenerateScene} preview={preview} regeneratePending={regeneratePending} selectedScene={selectedScene} setActiveTab={setActiveTab} />
         <EditorTimelineSection editor={editor} onRegenerateScene={onRegenerateScene} preview={preview} regeneratePending={regeneratePending} />
@@ -176,7 +175,7 @@ function ProjectEditorGrid({
   setActiveTab: (tab: EditorTab) => void;
 }) {
   return (
-    <div className="grid min-h-0 flex-1 gap-3 lg:grid-cols-[56px_minmax(420px,500px)_minmax(0,1fr)] 2xl:grid-cols-[56px_540px_minmax(760px,1fr)_320px]">
+    <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[56px_530px_minmax(0,1fr)] 2xl:grid-cols-[56px_530px_minmax(0,1fr)_300px]">
       <EditorRail activeTab={activeTab} setActiveTab={setActiveTab} />
       <EditorLeftPanel
         activeTab={activeTab}
@@ -194,7 +193,7 @@ function ProjectEditorGrid({
       <div className="lg:col-span-2 2xl:hidden">
         <ResponsiveInspector editor={editor} onRegenerateScene={onRegenerateScene} regeneratePending={regeneratePending} selectedScene={selectedScene} />
       </div>
-      <div className="hidden 2xl:block">
+      <div className="hidden 2xl:block min-h-0">
         <ResponsiveInspector editor={editor} onRegenerateScene={onRegenerateScene} regeneratePending={regeneratePending} selectedScene={selectedScene} />
       </div>
     </div>

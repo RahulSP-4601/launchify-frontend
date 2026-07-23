@@ -20,12 +20,7 @@ import {
 } from "@/components/project-editor-icons";
 
 type EditorTab = "script" | "captions" | "scenes";
-type RailTool = {
-  icon: ReactNode;
-  id: string;
-  label: string;
-  tab?: EditorTab;
-};
+type RailTool = { icon: ReactNode; id: string; label: string; tab?: EditorTab };
 
 export function EditorRail({
   activeTab,
@@ -35,7 +30,7 @@ export function EditorRail({
   setActiveTab: (tab: EditorTab) => void;
 }) {
   return (
-    <aside className="flex h-full flex-col items-center rounded-[14px] border border-white/6 bg-[#171717] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
+    <aside className="flex h-full flex-col items-center rounded-[14px] border border-white/7 bg-[#151515] p-2">
       <div className="flex flex-col gap-3">
         {toolbarItems().map((item) => (
           <RailButton
@@ -43,7 +38,7 @@ export function EditorRail({
             active={item.tab === activeTab}
             disabled={!item.tab}
             label={item.label}
-            onClick={railButtonHandler(item, setActiveTab)}
+            onClick={railButtonHandler(item.tab, setActiveTab)}
           >
             {item.icon}
           </RailButton>
@@ -77,25 +72,34 @@ export function EditorLeftPanel({
   selectedSceneId: string;
 }) {
   const [query, setQuery] = useState("");
-  const scenes = useMemo(() => filterScenes(draft.scenes, query), [draft.scenes, query]);
   const selectedScene = sceneForPanel(draft.scenes, selectedSceneId);
+  const scenes = useMemo(() => filterScenes(draft.scenes, query), [draft.scenes, query]);
   const transcriptScene = transcriptSceneForPanel(query, scenes, selectedScene);
-
   return (
-    <section className="flex h-full min-h-0 flex-col rounded-[14px] border border-white/6 bg-[#1d1d1d] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
-      <SearchBar query={query} setQuery={setQuery} />
-      <ModeBar activeTab={activeTab} />
-      <PanelViewport>
-        {activeTab === "script" ? <TranscriptPanel captions={draft.captions} onSceneSelect={onSceneSelect} scene={transcriptScene} /> : null}
-        {activeTab === "captions" ? <CaptionPanel captions={draft.captions} onCaptionSelect={onCaptionSelect} onCaptionUpdate={onCaptionUpdate} /> : null}
-        {activeTab === "scenes" ? <ScenePanel onMoveScene={onMoveScene} onRegenerateScene={onRegenerateScene} onSceneSelect={onSceneSelect} onSceneUpdate={onSceneUpdate} regeneratePending={regeneratePending} scenes={scenes} /> : null}
-      </PanelViewport>
+    <section className="flex h-full min-h-0 flex-col rounded-[14px] border border-white/7 bg-[#1b1b1b] p-3">
+      <SearchRow query={query} setQuery={setQuery} />
+      <PanelModeBar activeTab={activeTab} />
+      <div className="mt-3 min-h-0 flex-1 overflow-y-auto pr-1">
+        <PanelContent
+          activeTab={activeTab}
+          captions={draft.captions}
+          onCaptionSelect={onCaptionSelect}
+          onCaptionUpdate={onCaptionUpdate}
+          onMoveScene={onMoveScene}
+          onRegenerateScene={onRegenerateScene}
+          onSceneSelect={onSceneSelect}
+          onSceneUpdate={onSceneUpdate}
+          regeneratePending={regeneratePending}
+          scene={transcriptScene}
+          scenes={scenes}
+        />
+      </div>
       <FooterActions onRegenerateScene={() => onRegenerateScene(selectedScene?.id ?? selectedSceneId)} regeneratePending={regeneratePending} />
     </section>
   );
 }
 
-function SearchBar({
+function SearchRow({
   query,
   setQuery,
 }: {
@@ -104,32 +108,54 @@ function SearchBar({
 }) {
   return (
     <div className="flex items-center gap-3">
-      <label className="flex h-10 flex-1 items-center rounded-[8px] border border-white/8 bg-[#1a1a1a] px-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
+      <label className="flex h-10 flex-1 items-center rounded-[8px] border border-white/8 bg-[#181818] px-4">
         <input
-          className="w-full bg-transparent text-[14px] font-medium text-slate-300 outline-none placeholder:text-slate-500"
+          className="w-full bg-transparent text-[15px] text-[#bfc5d5] outline-none placeholder:text-[#6f7789]"
           onChange={(event) => setQuery(event.target.value)}
           placeholder="Search in transcript"
           value={query}
         />
       </label>
-      <button className="grid h-10 w-10 place-items-center rounded-[8px] border border-white/8 bg-[#1a1a1a] text-slate-500 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]" type="button">
+      <button className="grid h-10 w-10 place-items-center rounded-[8px] border border-white/8 bg-[#181818] text-[#8b93a7]" type="button">
         <FilterIcon />
       </button>
     </div>
   );
 }
 
-function ModeBar({ activeTab }: { activeTab: EditorTab }) {
+function PanelModeBar({ activeTab }: { activeTab: EditorTab }) {
   return (
-    <div className="mt-3 flex items-center gap-2 rounded-[10px] bg-[#191919] p-3 text-[15px] shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
-      <Chip strong>1</Chip>
-      <Chip>Video</Chip>
-      <Chip accent>{tabLabel(activeTab)}</Chip>
-      <button className="ml-auto grid h-8 w-8 place-items-center rounded-[8px] border border-white/8 text-slate-500" type="button">
+    <div className="mt-3 flex items-center gap-2 rounded-[11px] bg-[#202020] p-3">
+      <ModeChip filled>1</ModeChip>
+      <ModeChip>Video</ModeChip>
+      <ModeChip accent>{tabLabel(activeTab)}</ModeChip>
+      <button className="ml-auto grid h-8 w-8 place-items-center rounded-[8px] border border-white/8 text-[#8791a7]" type="button">
         <WaveIcon />
       </button>
     </div>
   );
+}
+
+function PanelContent(props: {
+  activeTab: EditorTab;
+  captions: EditorCaptionDraft[];
+  onCaptionSelect: (sceneId: string) => void;
+  onCaptionUpdate: (captionId: string, text: string) => void;
+  onMoveScene: (sceneId: string, direction: "backward" | "forward") => void;
+  onRegenerateScene: (sceneId: string) => void;
+  onSceneSelect: (sceneId: string) => void;
+  onSceneUpdate: (sceneId: string, patch: Partial<EditorSceneDraft>) => void;
+  regeneratePending: boolean;
+  scene: EditorSceneDraft | null;
+  scenes: EditorSceneDraft[];
+}) {
+  if (props.activeTab === "captions") {
+    return <CaptionPanel captions={props.captions} onCaptionSelect={props.onCaptionSelect} onCaptionUpdate={props.onCaptionUpdate} />;
+  }
+  if (props.activeTab === "scenes") {
+    return <ScenePanel onMoveScene={props.onMoveScene} onRegenerateScene={props.onRegenerateScene} onSceneSelect={props.onSceneSelect} onSceneUpdate={props.onSceneUpdate} regeneratePending={props.regeneratePending} scenes={props.scenes} />;
+  }
+  return <TranscriptPanel captions={props.captions} onSceneSelect={props.onSceneSelect} scene={props.scene} />;
 }
 
 function TranscriptPanel({
@@ -145,17 +171,18 @@ function TranscriptPanel({
     return <PanelEmptyState message="Select a scene to review the transcript." />;
   }
   return (
-    <article className="rounded-[12px] border border-white/6 bg-[#222222] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
+    <article className="rounded-[12px] border border-white/6 bg-[#222222] p-4">
       <button className="w-full text-left" onClick={() => onSceneSelect(scene.id)} type="button">
-        <p className="text-[18px] leading-[3rem] tracking-[-0.01em] text-slate-100">{scene.spokenLine}</p>
+        <p className="text-[17px] leading-[1.95] tracking-[-0.01em] text-[#f3f4f7]">{scene.spokenLine}</p>
       </button>
-      <div className="mt-5 flex flex-wrap gap-2">
+      <div className="mt-4 flex flex-wrap gap-2">
         {captionsForScene(captions, scene.id).slice(0, 3).map((caption, index) => (
-          <span key={caption.id} className="rounded-[8px] border border-white/10 bg-[#2a2a2a] px-3 py-1.5 text-[12px] text-slate-300">
+          <span key={caption.id} className="rounded-[8px] border border-white/10 bg-[#2b2b2b] px-3 py-1.5 text-[12px] text-[#cfd5df]">
             Sync Point {index + 1}
           </span>
         ))}
       </div>
+      <p className="mt-6 text-[16px] leading-8 text-[#d7d9df]">{scene.onScreenText || scene.title}</p>
     </article>
   );
 }
@@ -173,10 +200,10 @@ function CaptionPanel({
     <div className="space-y-3">
       {captions.map((caption) => (
         <article key={caption.id} className="rounded-[12px] border border-white/6 bg-[#222222] p-4">
-          <button className="text-xs uppercase tracking-[0.18em] text-slate-500" onClick={() => caption.sceneId ? onCaptionSelect(caption.sceneId) : undefined} type="button">
+          <button className="text-xs uppercase tracking-[0.18em] text-[#8490a3]" onClick={() => caption.sceneId ? onCaptionSelect(caption.sceneId) : undefined} type="button">
             {formatRange(caption.start, caption.end)}
           </button>
-          <textarea className="mt-3 min-h-24 w-full resize-none bg-transparent text-sm leading-7 text-slate-300 outline-none" onChange={(event) => onCaptionUpdate(caption.id, event.target.value)} value={caption.text} />
+          <textarea className="mt-3 min-h-24 w-full resize-none bg-transparent text-[15px] leading-7 text-[#edf0f5] outline-none" onChange={(event) => onCaptionUpdate(caption.id, event.target.value)} value={caption.text} />
         </article>
       ))}
     </div>
@@ -227,12 +254,12 @@ function SceneCard({
   scene: EditorSceneDraft;
 }) {
   return (
-    <article className="rounded-[12px] border border-white/6 bg-[#202020] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
+    <article className="rounded-[12px] border border-white/6 bg-[#222222] p-4">
       <button className="w-full text-left" onClick={() => onSceneSelect(scene.id)} type="button">
-        <p className="text-xs uppercase tracking-[0.2em] text-slate-500">{`Scene ${scene.sceneNumber}`}</p>
-        <p className="mt-2 text-lg font-semibold text-white">{scene.title}</p>
+        <p className="text-xs uppercase tracking-[0.22em] text-[#8a94a8]">{`Scene ${scene.sceneNumber}`}</p>
+        <p className="mt-2 text-[20px] font-semibold text-white">{scene.title}</p>
       </button>
-      <textarea className="mt-3 min-h-16 w-full resize-none bg-transparent text-sm leading-7 text-slate-300 outline-none" onChange={(event) => onSceneUpdate(scene.id, { spokenLine: event.target.value })} value={scene.spokenLine} />
+      <textarea className="mt-3 min-h-16 w-full resize-none bg-transparent text-[15px] leading-7 text-[#e8ebef] outline-none" onChange={(event) => onSceneUpdate(scene.id, { spokenLine: event.target.value })} value={scene.spokenLine} />
       <div className="mt-3 flex flex-wrap gap-2">
         <MiniButton disabled={!canMoveUp} label="Move up" onClick={() => onMoveScene(scene.id, "backward")} />
         <MiniButton disabled={!canMoveDown} label="Move down" onClick={() => onMoveScene(scene.id, "forward")} />
@@ -250,16 +277,16 @@ function FooterActions({
   regeneratePending: boolean;
 }) {
   return (
-    <div className="mt-4 flex items-center justify-between border-t border-white/8 pt-4">
+    <div className="mt-3 flex items-center justify-between border-t border-white/8 pt-4">
       <div className="flex items-center gap-2">
         <FooterIcon>...</FooterIcon>
         <FooterIcon>+</FooterIcon>
       </div>
       <div className="flex items-center gap-3">
-        <button className="rounded-[10px] border border-white/8 bg-[#1a1a1a] px-4 py-2.5 text-sm text-slate-300" disabled={regeneratePending} onClick={onRegenerateScene} type="button">
+        <button className="rounded-[8px] border border-white/8 bg-[#191919] px-4 py-2.5 text-[14px] text-[#d9dde5]" disabled={regeneratePending} onClick={onRegenerateScene} type="button">
           AI Rewrite
         </button>
-        <button className="rounded-[10px] bg-white px-4 py-2.5 text-sm font-medium text-black" type="button">
+        <button className="rounded-[8px] bg-white px-4 py-2.5 text-[14px] font-medium text-black" type="button">
           Regenerate speech
         </button>
       </div>
@@ -267,29 +294,21 @@ function FooterActions({
   );
 }
 
-function PanelViewport({ children }: { children: ReactNode }) {
-  return <div className="mt-3 min-h-0 flex-1 overflow-y-auto pr-1">{children}</div>;
-}
-
-function PanelEmptyState({ message }: { message: string }) {
-  return <div className="rounded-[12px] border border-white/6 bg-[#202020] p-5 text-sm text-slate-400">{message}</div>;
-}
-
-function Chip({
+function ModeChip({
   accent,
   children,
-  strong,
+  filled,
 }: {
   accent?: boolean;
   children: ReactNode;
-  strong?: boolean;
+  filled?: boolean;
 }) {
-  const className = accent
-    ? "border border-fuchsia-400/25 bg-fuchsia-500/12 text-fuchsia-200"
-    : strong
-      ? "border border-white/10 bg-[#2a2a2a] text-white"
-      : "border border-white/10 text-slate-300";
-  return <span className={`rounded-[10px] px-3 py-1.5 ${className}`}>{children}</span>;
+  const tone = accent
+    ? "border-fuchsia-400/30 bg-fuchsia-500/12 text-fuchsia-200"
+    : filled
+      ? "border-white/10 bg-[#2a2a2a] text-white"
+      : "border-white/10 text-[#cbd2df]";
+  return <span className={`rounded-[10px] border px-3 py-1.5 text-[14px] ${tone}`}>{children}</span>;
 }
 
 function RailButton({
@@ -309,9 +328,7 @@ function RailButton({
     <button
       aria-disabled={disabled}
       aria-label={label}
-      className={`grid h-12 w-12 place-items-center rounded-[12px] border border-transparent transition ${
-        active ? "bg-white text-black" : "text-slate-500 hover:text-slate-300"
-      } ${disabled ? "cursor-default opacity-45 hover:text-slate-500" : ""}`}
+      className={`grid h-12 w-12 place-items-center rounded-[12px] border border-transparent transition ${active ? "bg-white text-black" : "text-[#74819d] hover:text-white"} ${disabled ? "cursor-default opacity-45 hover:text-[#74819d]" : ""}`}
       disabled={disabled}
       onClick={onClick}
       type="button"
@@ -321,8 +338,12 @@ function RailButton({
   );
 }
 
+function PanelEmptyState({ message }: { message: string }) {
+  return <div className="rounded-[12px] border border-white/6 bg-[#222222] p-5 text-[14px] text-[#939db0]">{message}</div>;
+}
+
 function FooterIcon({ children }: { children: ReactNode }) {
-  return <button className="grid h-10 w-10 place-items-center rounded-[10px] border border-white/8 bg-[#1a1a1a] text-slate-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">{children}</button>;
+  return <button className="grid h-10 w-10 place-items-center rounded-[8px] border border-white/8 bg-[#181818] text-[#d5dae4]">{children}</button>;
 }
 
 function MiniButton({
@@ -334,7 +355,7 @@ function MiniButton({
   label: string;
   onClick: () => void;
 }) {
-  return <button className="rounded-[10px] border border-white/8 px-3 py-2 text-xs uppercase tracking-[0.16em] text-slate-300 disabled:opacity-40" disabled={disabled} onClick={onClick} type="button">{label}</button>;
+  return <button className="rounded-[8px] border border-white/8 px-3 py-2 text-[11px] uppercase tracking-[0.18em] text-[#d5dae4] disabled:opacity-40" disabled={disabled} onClick={onClick} type="button">{label}</button>;
 }
 
 function toolbarItems(): RailTool[] {
@@ -353,13 +374,10 @@ function toolbarItems(): RailTool[] {
 }
 
 function railButtonHandler(
-  item: RailTool,
+  tab: EditorTab | undefined,
   setActiveTab: (tab: EditorTab) => void,
 ) {
-  const { tab } = item;
-  if (!tab) {
-    return undefined;
-  }
+  if (!tab) return undefined;
   return () => setActiveTab(tab);
 }
 
@@ -377,17 +395,9 @@ function sceneForPanel(scenes: EditorSceneDraft[], selectedSceneId: string) {
   return scenes.find((scene) => scene.id === selectedSceneId) ?? scenes[0] ?? null;
 }
 
-function transcriptSceneForPanel(
-  query: string,
-  scenes: EditorSceneDraft[],
-  selectedScene: EditorSceneDraft | null,
-) {
-  if (!query.trim()) {
-    return selectedScene;
-  }
-  if (!selectedScene) {
-    return null;
-  }
+function transcriptSceneForPanel(query: string, scenes: EditorSceneDraft[], selectedScene: EditorSceneDraft | null) {
+  if (!query.trim()) return selectedScene;
+  if (!selectedScene) return null;
   return scenes.some((scene) => scene.id === selectedScene.id) ? selectedScene : null;
 }
 
