@@ -2,7 +2,11 @@
 
 import type { ReactNode } from "react";
 
-import type { EditorAspectRatio, EditorSceneDraft, ProjectEditorDraft } from "@/components/project-editor-draft";
+import type {
+  EditorAspectRatio,
+  EditorSceneDraft,
+  ProjectEditorDraft,
+} from "@/components/project-editor-draft";
 import {
   CloudArrowIcon,
   FileDocIcon,
@@ -12,7 +16,10 @@ import {
   TranslateIcon,
   UndoIcon,
 } from "@/components/project-editor-icons";
-export { EditorLeftPanel, EditorRail } from "@/components/project-editor-left-panel";
+export {
+  EditorLeftPanel,
+  EditorRail,
+} from "@/components/project-editor-left-panel";
 import { ProjectDetail } from "@/lib/types";
 
 export function EditorTopBar({
@@ -33,7 +40,13 @@ export function EditorTopBar({
   return (
     <header className="flex items-center justify-between gap-4">
       <HeaderGroup project={project} />
-      <ActionGroup canRedo={canRedo} canUndo={canUndo} onRedo={onRedo} onUndo={onUndo} saveLabel={saveLabel} />
+      <ActionGroup
+        canRedo={canRedo}
+        canUndo={canUndo}
+        onRedo={onRedo}
+        onUndo={onUndo}
+        saveLabel={saveLabel}
+      />
     </header>
   );
 }
@@ -56,8 +69,15 @@ export function EditorInspector({
       <InspectorToolbar />
       <SectionTitle>Project</SectionTitle>
       <InspectorBody>
-        <ToggleRow checked={draft.showCaptions} label="Show Transcript" onChange={onToggleCaptions} />
-        <AspectRatioField aspectRatio={draft.aspectRatio} onChange={onAspectRatioChange} />
+        <ToggleRow
+          checked={draft.showCaptions}
+          label="Show Transcript"
+          onChange={onToggleCaptions}
+        />
+        <AspectRatioField
+          aspectRatio={draft.aspectRatio}
+          onChange={onAspectRatioChange}
+        />
       </InspectorBody>
     </aside>
   );
@@ -78,8 +98,13 @@ function TitleChip({ projectName }: { projectName: string }) {
       <ProjectMark>
         <FileDocIcon />
       </ProjectMark>
-      <p className="max-w-[340px] truncate text-[18px] font-medium tracking-[-0.01em] text-white">{projectName}</p>
-      <button className="grid h-8 w-8 place-items-center text-slate-500 transition hover:text-slate-300" type="button">
+      <p className="max-w-[340px] truncate text-[18px] font-medium tracking-[-0.01em] text-white">
+        {projectName}
+      </p>
+      <button
+        className="grid h-8 w-8 place-items-center text-slate-500 transition hover:text-slate-300"
+        type="button"
+      >
         <CloudArrowIcon />
       </button>
     </div>
@@ -89,7 +114,9 @@ function TitleChip({ projectName }: { projectName: string }) {
 function SegmentedView() {
   return (
     <div className="flex items-center rounded-[12px] border border-white/8 bg-[#151515] p-1 text-[15px] text-slate-500 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
-      <span className="rounded-[10px] bg-[#2a2a2a] px-8 py-2.5 text-white">Video</span>
+      <span className="rounded-[10px] bg-[#2a2a2a] px-8 py-2.5 text-white">
+        Video
+      </span>
       <span className="px-8 py-2.5">Article</span>
     </div>
   );
@@ -135,9 +162,14 @@ function SavePill({ saveLabel }: { saveLabel: string }) {
     <div className="flex w-[min(42vw,440px)] min-w-[250px] shrink items-center justify-between rounded-[14px] bg-white px-4 py-3 text-black shadow-[0_10px_30px_rgba(0,0,0,0.28)] xl:px-5">
       <div className="flex min-w-0 items-center gap-3">
         <SpinnerIcon />
-        <span className="truncate text-[16px] font-medium tracking-[-0.01em]">{saveLabel}</span>
+        <span className="truncate text-[16px] font-medium tracking-[-0.01em]">
+          {saveLabel}
+        </span>
       </div>
-      <button className="shrink-0 pl-4 text-[15px] text-slate-700" type="button">
+      <button
+        className="shrink-0 pl-4 text-[15px] text-slate-700"
+        type="button"
+      >
         Cancel
       </button>
     </div>
@@ -151,7 +183,9 @@ function InspectorBody({ children }: { children: ReactNode }) {
 function SectionTitle({ children }: { children: ReactNode }) {
   return (
     <div className="border-b border-white/8 px-4 py-4">
-      <p className="text-[15px] font-medium tracking-[-0.01em] text-slate-400">{children}</p>
+      <p className="text-[15px] font-medium tracking-[-0.01em] text-slate-400">
+        {children}
+      </p>
     </div>
   );
 }
@@ -173,7 +207,9 @@ function ToggleRow({
         onClick={() => onChange(!checked)}
         type="button"
       >
-        <span className={`h-6 w-6 rounded-full bg-white transition ${checked ? "translate-x-3" : ""}`} />
+        <span
+          className={`h-6 w-6 rounded-full bg-white transition ${checked ? "translate-x-3" : ""}`}
+        />
       </button>
     </div>
   );
@@ -219,11 +255,17 @@ function InspectorToolbar() {
 }
 
 function ProjectMark({ children }: { children: ReactNode }) {
-  return <span className="grid h-10 w-10 place-items-center rounded-[10px] border border-white/8 bg-[#171717] text-slate-500">{children}</span>;
+  return (
+    <span className="grid h-10 w-10 place-items-center rounded-[10px] border border-white/8 bg-[#171717] text-slate-500">
+      {children}
+    </span>
+  );
 }
 
 function AvatarButton({ compact }: { compact?: boolean }) {
-  const sizeClass = compact ? "h-10 w-10 rounded-[10px] text-[18px]" : "h-12 w-12 rounded-[12px] text-[22px]";
+  const sizeClass = compact
+    ? "h-10 w-10 rounded-[10px] text-[18px]"
+    : "h-12 w-12 rounded-[12px] text-[22px]";
   return (
     <button
       className={`grid place-items-center border border-[#4668ff]/50 bg-[#3a63f3] font-medium text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.18)] ${sizeClass}`}
@@ -247,7 +289,9 @@ function RoundButton({
   disabled?: boolean;
   onClick?: () => void;
 }) {
-  const sizeClass = compact ? "h-10 w-10 rounded-[10px]" : "h-12 w-12 rounded-[12px]";
+  const sizeClass = compact
+    ? "h-10 w-10 rounded-[10px]"
+    : "h-12 w-12 rounded-[12px]";
   return (
     <button
       className={`grid place-items-center border border-white/8 text-[17px] transition ${sizeClass} ${active ? "bg-[#3b67f4] text-white" : "bg-[#1b1b1b] text-slate-300"} disabled:opacity-40`}
@@ -267,8 +311,16 @@ function GhostButton({
   children: ReactNode;
   compact?: boolean;
 }) {
-  const sizeClass = compact ? "h-10 rounded-[10px] px-4 text-[15px]" : "h-12 rounded-[12px] px-5 text-[16px]";
-  return <button className={`flex items-center gap-2 border border-white/8 bg-[#1b1b1b] text-slate-300 ${sizeClass}`}>{children}</button>;
+  const sizeClass = compact
+    ? "h-10 rounded-[10px] px-4 text-[15px]"
+    : "h-12 rounded-[12px] px-5 text-[16px]";
+  return (
+    <button
+      className={`flex items-center gap-2 border border-white/8 bg-[#1b1b1b] text-slate-300 ${sizeClass}`}
+    >
+      {children}
+    </button>
+  );
 }
 
 function PrimaryButton({
@@ -278,6 +330,14 @@ function PrimaryButton({
   children: ReactNode;
   compact?: boolean;
 }) {
-  const sizeClass = compact ? "h-10 rounded-[10px] px-4 text-[15px]" : "h-12 rounded-[12px] px-6 text-[16px]";
-  return <button className={`bg-[#9b448f] font-medium text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] ${sizeClass}`}>{children}</button>;
+  const sizeClass = compact
+    ? "h-10 rounded-[10px] px-4 text-[15px]"
+    : "h-12 rounded-[12px] px-6 text-[16px]";
+  return (
+    <button
+      className={`bg-[#9b448f] font-medium text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] ${sizeClass}`}
+    >
+      {children}
+    </button>
+  );
 }
