@@ -29,6 +29,8 @@ import { regenerateProjectEditorScene } from "@/lib/api";
 import { ProjectDetail, ProjectEditorState, ProjectEditorStateRecord, TranscriptResponse } from "@/lib/types";
 
 type EditorTab = "script" | "captions" | "scenes";
+const EDITOR_BASE_WIDTH = 1860;
+const EDITOR_BASE_HEIGHT = 1040;
 
 export function ProjectEditorShell({
   project,
@@ -102,22 +104,50 @@ function ProjectEditorLayout({
   selectedScene: EditorSceneDraft | null;
   setActiveTab: (tab: EditorTab) => void;
 }) {
+  const workspaceScale = useWorkspaceScale();
   return (
-    <div className="h-screen overflow-hidden bg-[#0b0b0b] px-[20px] pb-[14px] pt-7 text-white">
-      <div className="mx-auto grid h-full max-w-[2048px] grid-rows-[52px_18px_minmax(0,1fr)_14px_246px]">
-        <EditorHeader editor={editor} project={project} />
-        <div />
-        <ProjectEditorGrid
-          activeTab={activeTab}
-          editor={editor}
-          onRegenerateScene={onRegenerateScene}
-          preview={preview}
-          regeneratePending={regeneratePending}
-          selectedScene={selectedScene}
-          setActiveTab={setActiveTab}
-        />
-        <div />
-        <EditorTimelineSection editor={editor} preview={preview} />
+    <div className="h-screen overflow-auto bg-[#0b0b0b] px-4 pb-4 pt-5 text-white">
+      <ScaledWorkspaceFrame workspaceScale={workspaceScale}>
+          <EditorHeader editor={editor} project={project} />
+          <div />
+          <ProjectEditorGrid
+            activeTab={activeTab}
+            editor={editor}
+            onRegenerateScene={onRegenerateScene}
+            preview={preview}
+            regeneratePending={regeneratePending}
+            selectedScene={selectedScene}
+            setActiveTab={setActiveTab}
+          />
+          <div />
+          <EditorTimelineSection editor={editor} preview={preview} />
+      </ScaledWorkspaceFrame>
+    </div>
+  );
+}
+
+function ScaledWorkspaceFrame({
+  children,
+  workspaceScale,
+}: {
+  children: React.ReactNode;
+  workspaceScale: number;
+}) {
+  return (
+    <div
+      className="mx-auto"
+      style={{ height: `${EDITOR_BASE_HEIGHT * workspaceScale}px`, width: `${EDITOR_BASE_WIDTH * workspaceScale}px` }}
+    >
+      <div
+        className="grid grid-rows-[52px_18px_minmax(0,1fr)_14px_246px]"
+        style={{
+          height: `${EDITOR_BASE_HEIGHT}px`,
+          transform: `scale(${workspaceScale})`,
+          transformOrigin: "top left",
+          width: `${EDITOR_BASE_WIDTH}px`,
+        }}
+      >
+        {children}
       </div>
     </div>
   );
@@ -204,6 +234,24 @@ function ProjectEditorGrid({
       />
     </div>
   );
+}
+
+function useWorkspaceScale() {
+  const [scale, setScale] = useState(1);
+
+  useEffect(() => {
+    const updateScale = () => {
+      const widthScale = (window.innerWidth - 32) / EDITOR_BASE_WIDTH;
+      const heightScale = (window.innerHeight - 28) / EDITOR_BASE_HEIGHT;
+      setScale(Math.min(1, widthScale, heightScale));
+    };
+
+    updateScale();
+    window.addEventListener("resize", updateScale);
+    return () => window.removeEventListener("resize", updateScale);
+  }, []);
+
+  return scale;
 }
 
 function useProjectEditorDraft(project: ProjectDetail, initialDraft: ProjectEditorDraft, localOverrideActive: boolean) {
