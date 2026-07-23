@@ -29,7 +29,7 @@ export function EditorPreviewStage({
   selectedScene: EditorSceneDraft | null;
 }) {
   return (
-    <section className="relative flex h-full min-h-0 items-center justify-center rounded-[16px] bg-[#090909] px-8 py-8 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
+    <section className="relative flex h-full min-h-0 items-center justify-center rounded-[16px] bg-[#0f0f0f] px-6 py-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
       <ZoomBadge>100%</ZoomBadge>
       <SafeAreaFrame>
         <CanvasViewport activeCaption={preview.activeCaption} aspectRatio={draft.aspectRatio} preview={preview} selectedScene={selectedScene} showCaptions={draft.showCaptions} />
@@ -61,7 +61,7 @@ export function EditorTimeline({
 }) {
   const selectedSceneId = draft.selectedSceneId || draft.scenes[0]?.id || "";
   return (
-    <section className="rounded-[14px] border border-white/6 bg-[#141414] px-4 pb-3 pt-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
+    <section className="rounded-[14px] border border-white/6 bg-[#121212] px-3 pb-3 pt-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
       <TransportBar currentTime={currentTime} isPlaying={isPlaying} onTogglePlayback={onTogglePlayback} totalDuration={totalDuration} />
       <TimelineBody currentTime={currentTime} onSceneSelect={onSceneSelect} onSeek={onSeek} scenes={draft.scenes} selectedSceneId={selectedSceneId} totalDuration={totalDuration} />
     </section>
@@ -83,7 +83,7 @@ function CanvasViewport({
 }) {
   const ratioClass = aspectRatio === "9:16" ? "aspect-[9/16]" : aspectRatio === "1:1" ? "aspect-square" : "aspect-[16/9]";
   return (
-    <div className={`relative mx-auto w-full max-w-[900px] overflow-hidden rounded-[18px] bg-black shadow-[0_38px_110px_rgba(0,0,0,0.42)] ${ratioClass}`}>
+    <div className={`relative mx-auto w-full max-w-[980px] overflow-hidden rounded-[18px] bg-black shadow-[0_38px_110px_rgba(0,0,0,0.42)] ${ratioClass}`}>
       {preview.sourceUrl ? <PreviewVideo onTogglePlayback={preview.togglePlayback} sourceUrl={preview.sourceUrl} videoRef={preview.videoRef} /> : <PreviewFallback detail={preview.error} />}
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.06),rgba(0,0,0,0.38))]" />
       {selectedScene ? <SceneBadge title={selectedScene.title} /> : null}
@@ -104,7 +104,7 @@ function TransportBar({
   totalDuration: number;
 }) {
   return (
-    <div className="flex items-center gap-4 rounded-[12px] bg-[#111111] px-4 py-3 text-slate-400">
+    <div className="flex items-center gap-3 rounded-[12px] bg-[#111111] px-3 py-3 text-slate-400">
       <TransportButton onClick={onTogglePlayback}>{isPlaying ? <PauseIcon /> : <PlayIcon />}</TransportButton>
       <TransportButton><StepIcon /></TransportButton>
       <TransportButton><StepForwardIcon /></TransportButton>
@@ -149,7 +149,7 @@ function Ruler({
   totalDuration: number;
 }) {
   return (
-    <div className="mb-3 flex items-end gap-0.5 px-1 text-[11px] text-slate-500">
+    <div className="mb-2 flex items-end gap-0.5 px-1 text-[11px] text-slate-500">
       <div className="rounded-[6px] bg-white px-2 py-1 text-black">0s</div>
       {timelineTicks(totalDuration).map((tick) => (
         <div key={tick} className="flex-1 text-center">{tick}s</div>
@@ -175,13 +175,13 @@ function VideoTrack({
   totalDuration: number;
 }) {
   return (
-    <div className="overflow-x-auto rounded-[10px] bg-[#0b0b0b] p-3">
+    <div className="overflow-x-auto rounded-[10px] bg-[#0b0b0b] px-3 pb-3 pt-2">
       <div className="mb-2 flex items-center gap-2">
         <span className="rounded-[7px] border border-white/10 bg-[#1965e6] px-3 py-1 text-sm text-white">Video</span>
       </div>
       <div className="relative min-w-[1380px] overflow-hidden rounded-[8px] border border-[#3479ff] bg-[#1b63e8] shadow-[inset_0_1px_0_rgba(255,255,255,0.14)]">
         <Playhead currentTime={currentTime} totalDuration={totalDuration} />
-        <div className="flex h-[120px]">
+        <div className="flex h-[118px]">
           {scenes.map((scene) => (
             <TrackSegment key={scene.id} isSelected={scene.id === selectedSceneId} onClick={() => handleSceneClick(onSceneSelect, onSeek, scene)} scene={scene} totalDuration={totalDuration} />
           ))}
@@ -216,7 +216,7 @@ function PreviewFallback({ detail }: { detail: string }) {
 }
 
 function SafeAreaFrame({ children }: { children: ReactNode }) {
-  return <div className="w-full rounded-[14px] border border-dashed border-[#c63fd7] p-7">{children}</div>;
+  return <div className="w-full rounded-[14px] border border-dashed border-[#d744db] p-7">{children}</div>;
 }
 
 function ZoomBadge({ children }: { children: ReactNode }) {
@@ -257,7 +257,7 @@ function TrackSegment({
     <button className={`relative h-full border-r border-black/20 text-left ${isSelected ? "bg-white/[0.08]" : "hover:bg-white/[0.04]"}`} onClick={onClick} style={{ minWidth: 180, width }} type="button">
       <div className="absolute inset-x-2 top-2 flex gap-0.5">
         {Array.from({ length: 10 }).map((_, index) => (
-          <span key={index} className="h-[64px] flex-1 rounded-[4px] bg-black/14" />
+          <span key={index} className="h-[62px] flex-1 rounded-[4px] bg-black/14" />
         ))}
       </div>
       <div className="absolute inset-x-0 bottom-0 bg-[linear-gradient(180deg,rgba(0,0,0,0),rgba(0,0,0,0.45))] px-4 py-3 text-white">
@@ -280,8 +280,8 @@ function TransportButton({
 
 function ScrollbarTrack() {
   return (
-    <div className="mt-4 h-4 rounded-full bg-[#2b2b2b] px-2 py-1">
-      <div className="h-full w-[78%] rounded-full bg-[#525252]" />
+    <div className="mt-4 h-3 rounded-full bg-[#2b2b2b] px-1.5 py-0.5">
+      <div className="h-full w-[78%] rounded-full bg-[#5a5a5a]" />
     </div>
   );
 }

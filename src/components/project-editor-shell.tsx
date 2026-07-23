@@ -108,8 +108,8 @@ function ProjectEditorLayout({
   setActiveTab: (tab: EditorTab) => void;
 }) {
   return (
-    <div className="h-screen overflow-hidden bg-[#121212] px-7 py-5 text-white">
-      <div className="mx-auto flex h-full max-w-[1980px] flex-col gap-4">
+    <div className="h-screen overflow-hidden bg-[#121212] px-6 py-4 text-white">
+      <div className="mx-auto flex h-full max-w-[1960px] flex-col gap-3">
         <EditorHeader editor={editor} project={project} />
         <ProjectEditorGrid activeTab={activeTab} editor={editor} onRegenerateScene={onRegenerateScene} preview={preview} regeneratePending={regeneratePending} selectedScene={selectedScene} setActiveTab={setActiveTab} />
         <EditorTimelineSection editor={editor} onRegenerateScene={onRegenerateScene} preview={preview} regeneratePending={regeneratePending} />
@@ -176,7 +176,7 @@ function ProjectEditorGrid({
   setActiveTab: (tab: EditorTab) => void;
 }) {
   return (
-    <div className="grid min-h-0 flex-1 gap-4 xl:grid-cols-[58px_532px_minmax(720px,1fr)_300px]">
+    <div className="grid min-h-0 flex-1 gap-3 lg:grid-cols-[56px_minmax(420px,500px)_minmax(0,1fr)] 2xl:grid-cols-[56px_540px_minmax(760px,1fr)_320px]">
       <EditorRail activeTab={activeTab} setActiveTab={setActiveTab} />
       <EditorLeftPanel
         activeTab={activeTab}
@@ -191,16 +191,37 @@ function ProjectEditorGrid({
         selectedSceneId={selectedScene?.id ?? editor.draft.selectedSceneId}
       />
       <EditorPreviewStage draft={editor.draft} preview={preview} selectedScene={selectedScene} />
-      <EditorInspector
-        draft={editor.draft}
-        onAspectRatioChange={editor.setAspectRatio}
-        onRegenerateScene={onRegenerateScene}
-        onSceneUpdate={editor.updateScene}
-        onToggleCaptions={editor.setShowCaptions}
-        regeneratePending={regeneratePending}
-        selectedScene={selectedScene}
-      />
+      <div className="lg:col-span-2 2xl:hidden">
+        <ResponsiveInspector editor={editor} onRegenerateScene={onRegenerateScene} regeneratePending={regeneratePending} selectedScene={selectedScene} />
+      </div>
+      <div className="hidden 2xl:block">
+        <ResponsiveInspector editor={editor} onRegenerateScene={onRegenerateScene} regeneratePending={regeneratePending} selectedScene={selectedScene} />
+      </div>
     </div>
+  );
+}
+
+function ResponsiveInspector({
+  editor,
+  onRegenerateScene,
+  regeneratePending,
+  selectedScene,
+}: {
+  editor: ReturnType<typeof useProjectEditorDraft>;
+  onRegenerateScene: (sceneId: string) => void;
+  regeneratePending: boolean;
+  selectedScene: EditorSceneDraft | null;
+}) {
+  return (
+    <EditorInspector
+      draft={editor.draft}
+      onAspectRatioChange={editor.setAspectRatio}
+      onRegenerateScene={onRegenerateScene}
+      onSceneUpdate={editor.updateScene}
+      onToggleCaptions={editor.setShowCaptions}
+      regeneratePending={regeneratePending}
+      selectedScene={selectedScene}
+    />
   );
 }
 

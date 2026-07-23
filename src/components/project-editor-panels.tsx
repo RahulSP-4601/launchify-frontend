@@ -31,7 +31,7 @@ export function EditorTopBar({
   saveLabel: string;
 }) {
   return (
-    <header className="flex items-center justify-between gap-5">
+    <header className="flex items-center justify-between gap-4">
       <HeaderGroup project={project} />
       <ActionGroup canRedo={canRedo} canUndo={canUndo} onRedo={onRedo} onUndo={onUndo} saveLabel={saveLabel} />
     </header>
@@ -52,7 +52,7 @@ export function EditorInspector({
   selectedScene: EditorSceneDraft | null;
 }) {
   return (
-    <aside className="flex h-full min-h-0 flex-col rounded-[12px] border border-white/6 bg-[#1b1b1b]">
+    <aside className="flex h-full min-h-0 flex-col rounded-[14px] border border-white/6 bg-[#1c1c1c]">
       <InspectorToolbar />
       <SectionTitle>Project</SectionTitle>
       <InspectorBody>
@@ -78,7 +78,7 @@ function TitleChip({ projectName }: { projectName: string }) {
       <ProjectMark>
         <FileDocIcon />
       </ProjectMark>
-      <p className="max-w-[340px] truncate text-[17px] font-medium text-white">{projectName}</p>
+      <p className="max-w-[340px] truncate text-[18px] font-medium tracking-[-0.01em] text-white">{projectName}</p>
       <button className="grid h-8 w-8 place-items-center text-slate-500 transition hover:text-slate-300" type="button">
         <CloudArrowIcon />
       </button>
@@ -89,8 +89,8 @@ function TitleChip({ projectName }: { projectName: string }) {
 function SegmentedView() {
   return (
     <div className="flex items-center rounded-[12px] border border-white/8 bg-[#151515] p-1 text-[15px] text-slate-500 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
-      <span className="rounded-[10px] bg-[#2a2a2a] px-7 py-2.5 text-white">Video</span>
-      <span className="px-7 py-2.5">Article</span>
+      <span className="rounded-[10px] bg-[#2a2a2a] px-8 py-2.5 text-white">Video</span>
+      <span className="px-8 py-2.5">Article</span>
     </div>
   );
 }
@@ -109,7 +109,7 @@ function ActionGroup({
   saveLabel: string;
 }) {
   return (
-    <div className="flex shrink-0 items-center gap-4">
+    <div className="flex min-w-0 items-center gap-2.5 xl:gap-3">
       <SavePill saveLabel={saveLabel} />
       <AvatarButton />
       <RoundButton>
@@ -132,12 +132,12 @@ function ActionGroup({
 
 function SavePill({ saveLabel }: { saveLabel: string }) {
   return (
-    <div className="flex min-w-[318px] items-center justify-between rounded-[14px] bg-white px-4 py-3 text-black shadow-[0_10px_30px_rgba(0,0,0,0.28)]">
-      <div className="flex items-center gap-3">
+    <div className="flex w-[min(42vw,440px)] min-w-[250px] shrink items-center justify-between rounded-[14px] bg-white px-4 py-3 text-black shadow-[0_10px_30px_rgba(0,0,0,0.28)] xl:px-5">
+      <div className="flex min-w-0 items-center gap-3">
         <SpinnerIcon />
-        <span className="text-[16px] font-medium">{saveLabel}</span>
+        <span className="truncate text-[16px] font-medium tracking-[-0.01em]">{saveLabel}</span>
       </div>
-      <button className="text-[15px] text-slate-700" type="button">
+      <button className="shrink-0 pl-4 text-[15px] text-slate-700" type="button">
         Cancel
       </button>
     </div>
@@ -151,7 +151,7 @@ function InspectorBody({ children }: { children: ReactNode }) {
 function SectionTitle({ children }: { children: ReactNode }) {
   return (
     <div className="border-b border-white/8 px-4 py-4">
-      <p className="text-[14px] font-medium tracking-[0.01em] text-slate-400">{children}</p>
+      <p className="text-[15px] font-medium tracking-[-0.01em] text-slate-400">{children}</p>
     </div>
   );
 }
@@ -169,7 +169,7 @@ function ToggleRow({
     <div className="flex items-center justify-between gap-4">
       <span className="text-[15px] text-white">{label}</span>
       <button
-        className={`flex h-8 w-11 items-center rounded-full p-1 transition ${checked ? "bg-[#ef72ea]" : "bg-[#313131]"}`}
+        className={`flex h-8 w-11 items-center rounded-full p-1 transition ${checked ? "bg-[#ea71e6]" : "bg-[#313131]"}`}
         onClick={() => onChange(!checked)}
         type="button"
       >
@@ -279,5 +279,5 @@ function PrimaryButton({
   compact?: boolean;
 }) {
   const sizeClass = compact ? "h-10 rounded-[10px] px-4 text-[15px]" : "h-12 rounded-[12px] px-6 text-[16px]";
-  return <button className={`bg-[#97438f] font-medium text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] ${sizeClass}`}>{children}</button>;
+  return <button className={`bg-[#9b448f] font-medium text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] ${sizeClass}`}>{children}</button>;
 }
