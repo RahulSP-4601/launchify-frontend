@@ -180,7 +180,7 @@ function ProjectEditorGrid({
   setActiveTab: (tab: EditorTab) => void;
 }) {
   return (
-    <div className="grid min-h-0 grid-cols-[52px_14px_520px_minmax(0,1fr)_334px] gap-y-0 2xl:grid-cols-[52px_14px_526px_minmax(0,1fr)_334px]">
+    <div className="grid min-h-0 grid-cols-[54px_16px_534px_minmax(0,1fr)_332px] gap-y-0 2xl:grid-cols-[54px_16px_544px_minmax(0,1fr)_332px]">
       <EditorRail activeTab={activeTab} setActiveTab={setActiveTab} />
       <div />
       <EditorLeftPanel

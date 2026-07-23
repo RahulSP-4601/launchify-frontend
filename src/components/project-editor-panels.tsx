@@ -29,9 +29,9 @@ export function EditorTopBar({
   saveLabel: string;
 }) {
   return (
-    <header className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-6">
+    <header className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-[18px]">
       <ProjectCompactGroup project={project} />
-      <div className="flex shrink-0 items-center gap-2">
+      <div className="flex shrink-0 items-center gap-[10px]">
         <SaveStatusPill label={saveLabel} />
         <AvatarButton />
         <ToolbarButton>
@@ -82,13 +82,13 @@ export function EditorInspector({
 
 function ProjectCompactGroup({ project }: { project: ProjectDetail }) {
   return (
-    <div className="flex min-w-0 items-center gap-[10px]">
-      <div className="flex min-w-0 items-center gap-3 rounded-[10px] border border-white/7 bg-[#1a1919] px-[10px] py-[7px] shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
-        <span className="grid h-8 w-8 place-items-center rounded-[6px] border border-white/8 bg-[#141414] text-[#646464]">
+    <div className="flex min-w-0 items-center gap-4">
+      <div className="flex h-[50px] min-w-0 items-center gap-3 rounded-[10px] border border-white/7 bg-[#1b1a1a] px-[10px] py-[8px] shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
+        <span className="grid h-[31px] w-[31px] place-items-center rounded-[6px] border border-white/8 bg-[#141414] text-[#646464]">
           <CloudArrowIcon />
         </span>
-        <p className="max-w-[346px] truncate text-[15px] font-medium text-[#efefef]">{project.project_name}</p>
-        <button className="text-[#727272] transition hover:text-white" type="button">
+        <p className="max-w-[338px] truncate text-[15px] font-medium tracking-[-0.02em] text-[#efefef]">{project.project_name}</p>
+        <button className="grid h-6 w-6 place-items-center text-[#727272] transition hover:text-white" type="button">
           <CloudArrowIcon />
         </button>
       </div>
@@ -99,9 +99,9 @@ function ProjectCompactGroup({ project }: { project: ProjectDetail }) {
 
 function ViewSwitcher() {
   return (
-    <div className="flex h-[46px] items-center rounded-[10px] border border-white/7 bg-[#1a1919] p-1 text-[13px] text-[#777777]">
-      <span className="rounded-[7px] bg-[#353535] px-7 py-[9px] text-[#efefef]">Video</span>
-      <span className="px-7 py-[9px]">Article</span>
+    <div className="flex h-[50px] items-center rounded-[10px] border border-white/7 bg-[#1b1a1a] p-1 text-[13px] text-[#777777]">
+      <span className="rounded-[8px] bg-[#3b3939] px-[28px] py-[10px] text-[#efefef]">Video</span>
+      <span className="px-[24px] py-[10px]">Article</span>
     </div>
   );
 }
@@ -109,8 +109,8 @@ function ViewSwitcher() {
 function SaveStatusPill({ label }: { label: string }) {
   const isPending = label.toLowerCase().includes("saving");
   return (
-    <div className={`flex h-[52px] min-w-[318px] items-center justify-between rounded-[11px] px-[14px] shadow-[0_12px_30px_rgba(0,0,0,0.18)] ${isPending ? "bg-[#f4f1ef] text-[#1d1d1d]" : "bg-[#262626] text-[#f0f0f0]"}`}>
-      <div className="flex min-w-0 items-center gap-3">
+    <div className={`flex h-[52px] min-w-[316px] items-center justify-between rounded-[11px] px-[15px] shadow-[0_12px_30px_rgba(0,0,0,0.18)] ${isPending ? "bg-[#f4f1ef] text-[#1d1d1d]" : "bg-[#262626] text-[#f0f0f0]"}`}>
+      <div className="flex min-w-0 items-center gap-[11px]">
         {isPending ? <SpinnerIcon /> : <CloudArrowIcon />}
         <span className="truncate text-[14px] font-medium">{label}</span>
       </div>
@@ -121,7 +121,7 @@ function SaveStatusPill({ label }: { label: string }) {
 
 function InspectorToolbar() {
   return (
-    <div className="flex items-center gap-2 border-b border-white/7 px-4 py-[7px]">
+    <div className="flex items-center gap-2 border-b border-white/7 px-[12px] py-[10px]">
       <AvatarButton compact />
       <ToolbarButton compact>
         <HeadphoneIcon />
@@ -143,7 +143,7 @@ function InspectorSection({
   title: string;
 }) {
   return (
-    <section className="border-b border-white/7 px-[14px] py-5 last:border-b-0">
+    <section className="border-b border-white/7 px-[14px] py-6 last:border-b-0">
       <p className="text-[12px] font-medium text-[#f0f0f0]">{title}</p>
       <div className="mt-4">{children}</div>
     </section>
@@ -212,7 +212,7 @@ function SceneDetails({ scene }: { scene: EditorSceneDraft | null }) {
 }
 
 function AvatarButton({ compact }: { compact?: boolean }) {
-  const shape = compact ? "h-10 w-10 rounded-[8px] text-[18px]" : "h-[54px] w-[54px] rounded-[12px] text-[20px]";
+  const shape = compact ? "h-[40px] w-[40px] rounded-[8px] text-[18px]" : "h-[54px] w-[54px] rounded-[12px] text-[20px]";
   return (
     <button className={`grid place-items-center bg-[#4a7cff] font-medium text-white ${shape}`} type="button">
       R
@@ -231,7 +231,7 @@ function ToolbarButton({
   disabled?: boolean;
   onClick?: () => void;
 }) {
-  const shape = compact ? "h-10 w-10 rounded-[8px]" : "h-[54px] w-[54px] rounded-[12px]";
+  const shape = compact ? "h-[40px] w-[40px] rounded-[8px]" : "h-[54px] w-[54px] rounded-[12px]";
   return (
     <button
       className={`grid place-items-center border border-white/8 bg-[#1a1a1a] text-[#bdbdbd] transition hover:text-white disabled:opacity-40 ${shape}`}
@@ -251,7 +251,7 @@ function WideButton({
   children: ReactNode;
   compact?: boolean;
 }) {
-  const shape = compact ? "h-10 rounded-[8px] px-4 text-[14px]" : "h-[54px] rounded-[12px] px-5 text-[14px]";
+  const shape = compact ? "h-[40px] rounded-[8px] px-4 text-[14px]" : "h-[54px] rounded-[12px] px-5 text-[14px]";
   return <button className={`flex items-center gap-2 border border-white/8 bg-[#1a1a1a] text-[#d1d1d1] ${shape}`}>{children}</button>;
 }
 
@@ -262,6 +262,6 @@ function ShareButton({
   children: ReactNode;
   compact?: boolean;
 }) {
-  const shape = compact ? "h-10 rounded-[8px] px-4 text-[14px]" : "h-[54px] rounded-[12px] px-5 text-[14px]";
+  const shape = compact ? "h-[40px] rounded-[8px] px-4 text-[14px]" : "h-[54px] rounded-[12px] px-5 text-[14px]";
   return <button className={`bg-[#93448b] font-medium text-white ${shape}`}>{children}</button>;
 }

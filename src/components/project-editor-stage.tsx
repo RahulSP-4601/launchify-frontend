@@ -4,6 +4,7 @@ import type { ReactNode, RefObject } from "react";
 
 import { EditorAspectRatio, EditorCaptionDraft, EditorSceneDraft, ProjectEditorDraft, sceneDuration } from "@/components/project-editor-draft";
 import { PauseIcon, PlayIcon, ScissorIcon, StepForwardIcon, StepIcon } from "@/components/project-editor-icons";
+import { ReferencePreviewMock } from "@/components/project-editor-reference-preview";
 
 export type ProjectEditorPreviewState = {
   activeCaption: EditorCaptionDraft | null;
@@ -93,7 +94,7 @@ function StageCanvas({
   const ratioClass = aspectRatio === "9:16" ? "aspect-[9/16] max-w-[430px]" : aspectRatio === "1:1" ? "aspect-square max-w-[700px]" : "aspect-[16/9] max-w-[860px]";
   return (
     <div className={`relative mx-auto w-full overflow-hidden rounded-[14px] bg-black shadow-[0_0_0_1px_rgba(255,255,255,0.03)] ${ratioClass}`}>
-      {preview.sourceUrl ? <PreviewVideo onTogglePlayback={preview.togglePlayback} sourceUrl={preview.sourceUrl} videoRef={preview.videoRef} /> : <PreviewFallback aspectRatio={aspectRatio} detail={preview.error} scene={selectedScene} />}
+      {preview.sourceUrl ? <PreviewVideo onTogglePlayback={preview.togglePlayback} sourceUrl={preview.sourceUrl} videoRef={preview.videoRef} /> : <PreviewFallback detail={preview.error} scene={selectedScene} />}
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.08),rgba(0,0,0,0.18))]" />
       {selectedScene ? <SceneBadge title={selectedScene.title} /> : null}
       {showCaptions && activeCaption ? <CaptionOverlay text={activeCaption.text} /> : null}
@@ -114,28 +115,13 @@ function PreviewVideo({
 }
 
 function PreviewFallback({
-  aspectRatio,
   detail,
   scene,
 }: {
-  aspectRatio: EditorAspectRatio;
   detail: string;
   scene: EditorSceneDraft | null;
 }) {
-  const layoutClass = fallbackLayoutClass(aspectRatio);
-  const footerLayoutClass = fallbackFooterLayoutClass(aspectRatio);
-  return (
-    <div className="grid h-full w-full place-items-center bg-[radial-gradient(circle_at_top,rgba(114,84,33,0.18),transparent_38%),linear-gradient(180deg,#071011,#06090b)] p-8 text-left">
-      <div className="w-full rounded-[18px] border border-white/6 bg-[linear-gradient(180deg,rgba(18,23,23,0.92),rgba(11,15,16,0.98))] p-6 shadow-[0_18px_50px_rgba(0,0,0,0.35)]">
-        <MockPreviewHeader />
-        <div className={`mt-6 grid ${layoutClass}`}>
-          <MockPreviewHero detail={detail} scene={scene} />
-          <MockPreviewSidebar />
-        </div>
-        <MockPreviewFooter layoutClass={footerLayoutClass} />
-      </div>
-    </div>
-  );
+  return <ReferencePreviewMock detail={detail} scene={scene} />;
 }
 
 function SceneBadge({ title }: { title: string }) {
@@ -344,103 +330,6 @@ function TransportGhost({ children }: { children: ReactNode }) {
   return <button className="grid h-9 w-9 place-items-center text-[#18a56a]" type="button">{children}</button>;
 }
 
-function MockPreviewHeader() {
-  return (
-    <div className="flex items-center justify-between rounded-full border border-white/6 bg-[linear-gradient(90deg,rgba(37,42,43,0.85),rgba(42,35,24,0.88),rgba(25,30,31,0.85))] px-4 py-3">
-      <span className="text-[10px] uppercase tracking-[0.42em] text-[#c7ab54]">Pronouncly</span>
-      <div className="flex items-center gap-4 text-[9px] text-[#8f938f]">
-        <span>Courses</span>
-        <span className="rounded-full border border-white/8 px-3 py-1 text-[#a1a6a1]">Google Login</span>
-      </div>
-    </div>
-  );
-}
-
-function MockPreviewHero({
-  detail,
-  scene,
-}: {
-  detail: string;
-  scene: EditorSceneDraft | null;
-}) {
-  return (
-    <div className="pt-4">
-      <span className="inline-flex rounded-full bg-[#2d2818] px-4 py-2 text-[10px] text-[#d0a954]">Preview pending</span>
-      <h2 className="mt-5 max-w-[460px] text-[36px] font-semibold leading-[1.02] tracking-[-0.04em] text-white">
-        {scene?.spokenLine ? trimPreviewHeadline(scene.spokenLine) : "Rendered preview will appear here when this scene is ready."}
-      </h2>
-      <p className="mt-5 max-w-[470px] text-[13px] leading-7 text-[#9a9f9a]">
-        {detail || `Launchify is still preparing media for ${scene?.title || "the selected scene"}. This styled canvas is a placeholder, not the final rendered output.`}
-      </p>
-      <div className="mt-6 flex items-center gap-3">
-        <span className="rounded-full bg-[linear-gradient(90deg,#f2b35f,#ff8b63)] px-5 py-3 text-[12px] font-medium text-white">Rendering</span>
-        <span className="rounded-full border border-white/8 bg-[#202525] px-5 py-3 text-[12px] font-medium text-[#d9dbd9]">Awaiting media</span>
-      </div>
-    </div>
-  );
-}
-
-function MockPreviewSidebar() {
-  return (
-    <div className="rounded-[28px] border border-white/6 bg-[linear-gradient(180deg,rgba(40,42,40,0.96),rgba(22,26,24,0.96))] p-4 shadow-[0_18px_34px_rgba(0,0,0,0.22)]">
-      <div className="flex items-center justify-between text-[9px] uppercase tracking-[0.28em] text-[#96804f]">
-        <span>Preview Status</span>
-        <span className="rounded-full bg-[#21352c] px-3 py-1 text-[8px] tracking-normal text-[#6ec59a]">Placeholder</span>
-      </div>
-      <h3 className="mt-4 text-[15px] font-semibold text-[#f4f5f4]">Media generation in progress</h3>
-      <p className="mt-2 text-[11px] leading-6 text-[#9ba09a]">The final frame, captions, and rendered scene layout will replace this placeholder automatically when assets are available.</p>
-      <PreviewInfoCard label="Video asset" value="Not ready yet" />
-      <PreviewInfoCard label="Rendered state" value="Showing placeholder preview only" />
-      <div className="mt-4 grid grid-cols-3 gap-3">
-        <PreviewStatCard label="Scene data" value="Loaded" />
-        <PreviewStatCard label="Media file" value="Pending" />
-        <PreviewStatCard label="Preview" value="Mock" />
-      </div>
-    </div>
-  );
-}
-
-function MockPreviewFooter({ layoutClass }: { layoutClass: string }) {
-  return (
-    <div className={`mt-4 grid ${layoutClass}`}>
-      <PreviewFeatureCard title="Scene" body="Selected scene metadata is available for layout preview." />
-      <PreviewFeatureCard title="Captions" body="Caption overlays will appear once the final timing is rendered." />
-      <PreviewFeatureCard title="Media" body="Video and image assets are still being processed." />
-      <div className="rounded-[16px] border border-[#29373b] bg-[linear-gradient(90deg,rgba(34,28,49,0.78),rgba(22,35,47,0.82))] p-4">
-        <p className="text-[9px] uppercase tracking-[0.28em] text-[#8887cf]">Placeholder Notice</p>
-        <p className="mt-2 max-w-[220px] text-[11px] leading-5 text-[#aeb3c8]">This panel mirrors the target composition style only. It is not the actual exported or generated preview.</p>
-      </div>
-    </div>
-  );
-}
-
-function PreviewInfoCard({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="mt-4 rounded-[14px] border border-white/6 bg-[#111918] p-4">
-      <p className="text-[9px] uppercase tracking-[0.28em] text-[#66716d]">{label}</p>
-      <p className="mt-2 text-[12px] text-[#dfe3df]">{value}</p>
-    </div>
-  );
-}
-
-function PreviewStatCard({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-[12px] border border-white/6 bg-[#1d2121] p-3">
-      <p className="text-[8px] uppercase tracking-[0.22em] text-[#6f7470]">{label}</p>
-      <p className="mt-2 text-[15px] font-semibold text-white">{value}</p>
-    </div>
-  );
-}
-
-function PreviewFeatureCard({ body, title }: { body: string; title: string }) {
-  return (
-    <div className="rounded-[16px] border border-white/6 bg-[#171c1c] p-4">
-      <p className="text-[12px] font-semibold text-white">{title}</p>
-      <p className="mt-3 text-[10px] leading-5 text-[#909693]">{body}</p>
-    </div>
-  );
-}
-
 function handleSceneClick(
   onSceneSelect: (scene: EditorSceneDraft) => void,
   onSeek: (time: number) => void,
@@ -460,36 +349,10 @@ function thumbnailCount(scene: EditorSceneDraft, totalDuration: number) {
   return Math.max(8, Math.min(20, Math.round(ratio * 42)));
 }
 
-function fallbackLayoutClass(aspectRatio: EditorAspectRatio) {
-  if (aspectRatio === "9:16") {
-    return "grid-cols-1 gap-5";
-  }
-  if (aspectRatio === "1:1") {
-    return "grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_280px] lg:gap-6";
-  }
-  return "grid-cols-[minmax(0,1.06fr)_320px] gap-8";
-}
-
-function fallbackFooterLayoutClass(aspectRatio: EditorAspectRatio) {
-  if (aspectRatio === "9:16") {
-    return "grid-cols-1 gap-3";
-  }
-  if (aspectRatio === "1:1") {
-    return "grid-cols-1 gap-3 md:grid-cols-2";
-  }
-  return "grid-cols-[repeat(3,minmax(0,1fr))_1.28fr] gap-3";
-}
-
 function formatTimelineTime(seconds: number) {
   const wholeSeconds = Math.max(0, Math.floor(seconds));
   const frames = Math.round((seconds - wholeSeconds) * 30);
   const minutes = Math.floor(wholeSeconds / 60);
   const remainder = wholeSeconds % 60;
   return `${minutes.toString().padStart(2, "0")}:${remainder.toString().padStart(2, "0")}:${frames.toString().padStart(2, "0")}`;
-}
-
-function trimPreviewHeadline(spokenLine: string) {
-  const words = spokenLine.trim().split(/\s+/).slice(0, 10);
-  const sentence = words.join(" ");
-  return sentence.length > 54 ? `${sentence.slice(0, 54)}...` : sentence;
 }
