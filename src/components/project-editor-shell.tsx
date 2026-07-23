@@ -103,8 +103,8 @@ function ProjectEditorLayout({
   setActiveTab: (tab: EditorTab) => void;
 }) {
   return (
-    <div className="h-screen overflow-hidden bg-[#0b0b0b] px-[18px] pb-[12px] pt-5 text-white">
-      <div className="mx-auto grid h-full max-w-[2048px] grid-rows-[52px_16px_minmax(0,1fr)_10px_244px]">
+    <div className="h-screen overflow-hidden bg-[#0b0b0b] px-[20px] pb-[14px] pt-7 text-white">
+      <div className="mx-auto grid h-full max-w-[2048px] grid-rows-[52px_18px_minmax(0,1fr)_14px_246px]">
         <EditorHeader editor={editor} project={project} />
         <div />
         <ProjectEditorGrid
@@ -180,7 +180,7 @@ function ProjectEditorGrid({
   setActiveTab: (tab: EditorTab) => void;
 }) {
   return (
-    <div className="grid min-h-0 grid-cols-[58px_12px_minmax(520px,560px)_minmax(0,1fr)_334px] gap-y-0 2xl:grid-cols-[58px_12px_612px_minmax(0,1fr)_344px]">
+    <div className="grid min-h-0 grid-cols-[52px_14px_520px_minmax(0,1fr)_334px] gap-y-0 2xl:grid-cols-[52px_14px_526px_minmax(0,1fr)_334px]">
       <EditorRail activeTab={activeTab} setActiveTab={setActiveTab} />
       <div />
       <EditorLeftPanel

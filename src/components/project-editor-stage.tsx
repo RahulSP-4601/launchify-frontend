@@ -30,7 +30,7 @@ export function EditorPreviewStage({
   selectedScene: EditorSceneDraft | null;
 }) {
   return (
-    <section className="relative flex h-full min-h-0 items-center justify-center overflow-hidden rounded-[10px] bg-[#0d0d0d]">
+    <section className="relative flex h-full min-h-0 items-center justify-center overflow-hidden rounded-[10px] bg-[#0f0f0f]">
       <StageSafeFrame>
         <StageCanvas activeCaption={preview.activeCaption} aspectRatio={draft.aspectRatio} preview={preview} selectedScene={selectedScene} showCaptions={draft.showCaptions} />
       </StageSafeFrame>
@@ -58,7 +58,7 @@ export function EditorTimeline({
 }) {
   const selectedSceneId = draft.selectedSceneId || draft.scenes[0]?.id || "";
   return (
-    <section className="rounded-[10px] bg-[#262221] px-4 pb-4 pt-3 text-[#bcbcbc]">
+    <section className="rounded-[10px] bg-[#262221] px-4 pb-3 pt-[10px] text-[#bcbcbc]">
       <TransportBar currentTime={currentTime} isPlaying={isPlaying} onTogglePlayback={onTogglePlayback} totalDuration={totalDuration} />
       <TimelineRuler currentTime={currentTime} onSeek={onSeek} totalDuration={totalDuration} />
       <VideoTrack currentTime={currentTime} onSceneSelect={onSceneSelect} onSeek={onSeek} scenes={draft.scenes} selectedSceneId={selectedSceneId} totalDuration={totalDuration} />
@@ -69,8 +69,8 @@ export function EditorTimeline({
 
 function StageSafeFrame({ children }: { children: ReactNode }) {
   return (
-    <div className="grid h-full w-full place-items-center px-[28px]">
-      <div className="grid w-full max-w-[968px] place-items-center rounded-[1px] border border-dashed border-[#cf58bd] p-8">
+    <div className="grid h-full w-full place-items-center px-[26px]">
+      <div className="grid w-full max-w-[978px] place-items-center rounded-[1px] border border-dashed border-[#cf58bd] px-[38px] py-[30px]">
         {children}
       </div>
     </div>
@@ -92,7 +92,7 @@ function StageCanvas({
 }) {
   const ratioClass = aspectRatio === "9:16" ? "aspect-[9/16] max-w-[430px]" : aspectRatio === "1:1" ? "aspect-square max-w-[700px]" : "aspect-[16/9] max-w-[860px]";
   return (
-    <div className={`relative mx-auto w-full overflow-hidden rounded-[10px] bg-black shadow-[0_0_0_1px_rgba(255,255,255,0.03)] ${ratioClass}`}>
+    <div className={`relative mx-auto w-full overflow-hidden rounded-[14px] bg-black shadow-[0_0_0_1px_rgba(255,255,255,0.03)] ${ratioClass}`}>
       {preview.sourceUrl ? <PreviewVideo onTogglePlayback={preview.togglePlayback} sourceUrl={preview.sourceUrl} videoRef={preview.videoRef} /> : <PreviewFallback aspectRatio={aspectRatio} detail={preview.error} scene={selectedScene} />}
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.08),rgba(0,0,0,0.18))]" />
       {selectedScene ? <SceneBadge title={selectedScene.title} /> : null}
@@ -125,8 +125,8 @@ function PreviewFallback({
   const layoutClass = fallbackLayoutClass(aspectRatio);
   const footerLayoutClass = fallbackFooterLayoutClass(aspectRatio);
   return (
-    <div className="grid h-full w-full place-items-center bg-[radial-gradient(circle_at_top,rgba(114,84,33,0.16),transparent_40%),linear-gradient(180deg,#071011,#06090b)] p-8 text-left">
-      <div className="w-full rounded-[18px] border border-white/6 bg-[linear-gradient(180deg,rgba(30,31,30,0.88),rgba(15,18,18,0.95))] p-6 shadow-[0_18px_50px_rgba(0,0,0,0.35)]">
+    <div className="grid h-full w-full place-items-center bg-[radial-gradient(circle_at_top,rgba(114,84,33,0.18),transparent_38%),linear-gradient(180deg,#071011,#06090b)] p-8 text-left">
+      <div className="w-full rounded-[18px] border border-white/6 bg-[linear-gradient(180deg,rgba(18,23,23,0.92),rgba(11,15,16,0.98))] p-6 shadow-[0_18px_50px_rgba(0,0,0,0.35)]">
         <MockPreviewHeader />
         <div className={`mt-6 grid ${layoutClass}`}>
           <MockPreviewHero detail={detail} scene={scene} />
@@ -151,7 +151,7 @@ function CaptionOverlay({ text }: { text: string }) {
 }
 
 function ZoomBadge({ children }: { children: ReactNode }) {
-  return <div className="absolute bottom-0 right-3 rounded-[8px] bg-[#252525] px-4 py-2 text-[14px] text-[#d7d7d7]">{children}</div>;
+  return <div className="absolute bottom-0 right-4 rounded-[10px] bg-[#252525] px-4 py-2.5 text-[14px] text-[#d7d7d7]">{children}</div>;
 }
 
 function TransportBar({
@@ -167,17 +167,17 @@ function TransportBar({
 }) {
   return (
     <div className="flex items-center justify-between gap-4 border-b border-white/6 pb-3">
-      <div className="flex items-center gap-[14px]">
+      <div className="flex items-center gap-[12px]">
         <TransportButton onClick={onTogglePlayback}>{isPlaying ? <PauseIcon /> : <PlayIcon />}</TransportButton>
         <TransportButton><StepIcon /></TransportButton>
         <TransportButton><StepForwardIcon /></TransportButton>
-        <span className="min-w-[186px] text-[14px] text-[#bcbcbc]">{formatTimelineTime(currentTime)}f / {formatTimelineTime(totalDuration)}f</span>
+        <span className="min-w-[194px] text-[14px] text-[#bcbcbc]">{formatTimelineTime(currentTime)}f / {formatTimelineTime(totalDuration)}f</span>
         <span className="text-[14px] text-[#d9d9d9]">1x</span>
         <span className="text-[14px] text-[#d9d9d9]">High res</span>
         <TransportButton><ScissorIcon /></TransportButton>
         <TransportButton>+</TransportButton>
       </div>
-      <div className="flex items-center gap-1.5 text-[#18a56a]">
+      <div className="flex items-center gap-1 text-[#18a56a]">
         <TransportGhost>⤴</TransportGhost>
         <TransportGhost>⌖</TransportGhost>
         <TransportGhost>⚙</TransportGhost>
@@ -198,18 +198,18 @@ function TimelineRuler({
 }) {
   const marks = timelineTicks(totalDuration);
   return (
-    <div className="relative mt-4 h-8">
+    <div className="relative mt-3 h-10">
       <button className="absolute left-0 top-0 rounded-[4px] bg-white px-2 py-1 text-[12px] text-black" onClick={() => onSeek(0)} type="button">
         0s
       </button>
-      <div className="ml-12 mr-2 flex h-full items-end">
+      <div className="ml-12 mr-2 flex h-full items-start pt-[13px]">
         {marks.map((tick) => (
           <button key={tick} className="flex-1 text-center text-[12px] text-[#6d6d6d]" onClick={() => onSeek(tick)} type="button">
             {tick}s
           </button>
         ))}
       </div>
-      <div className="absolute bottom-0 left-0 right-0 h-px bg-white/6" />
+      <div className="absolute bottom-[3px] left-0 right-0 h-px bg-white/6" />
       <div className="absolute top-0 h-full w-px bg-[#f7f7f7]" style={{ left: `${Math.min((currentTime / Math.max(totalDuration, 1)) * 100, 100)}%` }} />
     </div>
   );
@@ -231,19 +231,20 @@ function VideoTrack({
   totalDuration: number;
 }) {
   return (
-    <div className="mt-2.5 overflow-x-auto">
-      <div className="relative min-w-[1600px] rounded-[2px] border border-[#0e4d98] bg-[#0f61ca]">
+    <div className="mt-1 overflow-x-auto">
+      <div className="relative min-w-[1600px] rounded-[2px] border border-[#0c55a9] bg-[#0f61ca]">
         <Playhead currentTime={currentTime} totalDuration={totalDuration} />
         <TrackMarkers scenes={scenes} totalDuration={totalDuration} />
-        <div className="flex h-[31px] items-center border-b border-white/10 px-3">
-          <span className="rounded-[4px] border border-white/20 bg-[#145db4] px-2 py-1 text-[13px] font-medium text-white">Video</span>
+        <div className="flex h-[30px] items-center border-b border-white/10 px-3">
+          <span className="rounded-[4px] border border-white/20 bg-[#145db4] px-2 py-[3px] text-[13px] font-medium text-white">Video</span>
         </div>
-        <div className="flex h-[62px]">
+        <div className="flex h-[74px]">
           {scenes.map((scene) => (
             <TrackSegment key={scene.id} isSelected={scene.id === selectedSceneId} onClick={() => handleSceneClick(onSceneSelect, onSeek, scene)} scene={scene} totalDuration={totalDuration} />
           ))}
         </div>
         <ThumbnailStrip scenes={scenes} totalDuration={totalDuration} />
+        <div className="h-[42px] border-t border-black/30 bg-[#020202]" />
       </div>
     </div>
   );
@@ -257,9 +258,9 @@ function ThumbnailStrip({
   totalDuration: number;
 }) {
   return (
-    <div className="flex h-[39px] border-t border-black/20 bg-[#060606]">
+    <div className="flex h-[34px] border-t border-black/20 bg-[#060606]">
       {scenes.map((scene) => (
-        <div key={`${scene.id}-thumbs`} className="flex h-full border-r border-white/10 px-[1px] py-1" style={{ width: `${Math.max((sceneDuration(scene) / Math.max(totalDuration, 1)) * 100, 8)}%`, minWidth: 170 }}>
+        <div key={`${scene.id}-thumbs`} className="flex h-full border-r border-white/10 px-[1px] py-[3px]" style={{ width: `${Math.max((sceneDuration(scene) / Math.max(totalDuration, 1)) * 100, 8)}%`, minWidth: 170 }}>
           {Array.from({ length: thumbnailCount(scene, totalDuration) }).map((_, index) => (
             <span key={index} className="mx-[1px] h-full flex-1 rounded-[2px] bg-[linear-gradient(180deg,#4f6770,#101517_58%,#060606)] opacity-95" />
           ))}
@@ -277,7 +278,7 @@ function TrackMarkers({
   totalDuration: number;
 }) {
   return (
-    <div className="pointer-events-none absolute inset-x-0 top-[-8px] h-2">
+    <div className="pointer-events-none absolute inset-x-0 top-[-6px] h-2">
       {scenes.map((scene) => (
         <span
           key={`${scene.id}-marker`}
@@ -312,9 +313,9 @@ function TrackSegment({
 }) {
   const width = `${Math.max((sceneDuration(scene) / Math.max(totalDuration, 1)) * 100, 8)}%`;
   return (
-    <button className={`relative h-full border-r border-[#2a7de8] text-left ${isSelected ? "bg-white/[0.08]" : "hover:bg-white/[0.04]"}`} onClick={onClick} style={{ minWidth: 170, width }} type="button">
-      <div className="absolute inset-x-4 bottom-2 text-white">
-        <p className="truncate text-[10px] uppercase tracking-[0.24em] text-white/65">{`Scene ${scene.sceneNumber}`}</p>
+    <button className={`relative h-full border-r border-[#2a7de8] text-left ${isSelected ? "bg-white/[0.1]" : "hover:bg-white/[0.04]"}`} onClick={onClick} style={{ minWidth: 170, width }} type="button">
+      <div className="absolute inset-x-4 bottom-6 text-white">
+        <p className="truncate text-[10px] uppercase tracking-[0.32em] text-white/65">{`Scene ${scene.sceneNumber}`}</p>
         <p className="mt-2 truncate text-[11px] font-semibold tracking-[0.01em]">{scene.title}</p>
       </div>
     </button>
@@ -323,7 +324,7 @@ function TrackSegment({
 
 function ScrollbarTrack() {
   return (
-    <div className="mt-3 h-3 rounded-full bg-[#4f4f4f] px-1 py-[3px]">
+    <div className="mt-3 h-[10px] rounded-full bg-[#4f4f4f] px-1 py-[2px]">
       <div className="h-full w-[89%] rounded-full bg-[#6f6f6f]" />
     </div>
   );
@@ -365,7 +366,9 @@ function MockPreviewHero({
   return (
     <div className="pt-4">
       <span className="inline-flex rounded-full bg-[#2d2818] px-4 py-2 text-[10px] text-[#d0a954]">Preview pending</span>
-      <h2 className="mt-5 max-w-[460px] text-[36px] font-semibold leading-[1.02] tracking-[-0.04em] text-white">Rendered preview will appear here when this scene is ready.</h2>
+      <h2 className="mt-5 max-w-[460px] text-[36px] font-semibold leading-[1.02] tracking-[-0.04em] text-white">
+        {scene?.spokenLine ? trimPreviewHeadline(scene.spokenLine) : "Rendered preview will appear here when this scene is ready."}
+      </h2>
       <p className="mt-5 max-w-[470px] text-[13px] leading-7 text-[#9a9f9a]">
         {detail || `Launchify is still preparing media for ${scene?.title || "the selected scene"}. This styled canvas is a placeholder, not the final rendered output.`}
       </p>
@@ -454,7 +457,7 @@ function timelineTicks(totalDuration: number) {
 
 function thumbnailCount(scene: EditorSceneDraft, totalDuration: number) {
   const ratio = sceneDuration(scene) / Math.max(totalDuration, 1);
-  return Math.max(10, Math.min(24, Math.round(ratio * 58)));
+  return Math.max(8, Math.min(20, Math.round(ratio * 42)));
 }
 
 function fallbackLayoutClass(aspectRatio: EditorAspectRatio) {
@@ -483,4 +486,10 @@ function formatTimelineTime(seconds: number) {
   const minutes = Math.floor(wholeSeconds / 60);
   const remainder = wholeSeconds % 60;
   return `${minutes.toString().padStart(2, "0")}:${remainder.toString().padStart(2, "0")}:${frames.toString().padStart(2, "0")}`;
+}
+
+function trimPreviewHeadline(spokenLine: string) {
+  const words = spokenLine.trim().split(/\s+/).slice(0, 10);
+  const sentence = words.join(" ");
+  return sentence.length > 54 ? `${sentence.slice(0, 54)}...` : sentence;
 }
