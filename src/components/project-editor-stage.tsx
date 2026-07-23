@@ -29,7 +29,7 @@ export function EditorPreviewStage({
   selectedScene: EditorSceneDraft | null;
 }) {
   return (
-    <section className="relative flex h-full min-h-0 items-center justify-center rounded-[14px] bg-[#0f0f0f] px-8 py-6">
+    <section className="relative flex h-full min-h-0 items-center justify-center rounded-[16px] bg-[#090909] px-8 py-8 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
       <ZoomBadge>100%</ZoomBadge>
       <SafeAreaFrame>
         <CanvasViewport activeCaption={preview.activeCaption} aspectRatio={draft.aspectRatio} preview={preview} selectedScene={selectedScene} showCaptions={draft.showCaptions} />
@@ -61,7 +61,7 @@ export function EditorTimeline({
 }) {
   const selectedSceneId = draft.selectedSceneId || draft.scenes[0]?.id || "";
   return (
-    <section className="rounded-[14px] bg-[#171717] px-5 pb-4 pt-3">
+    <section className="rounded-[14px] border border-white/6 bg-[#141414] px-4 pb-3 pt-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
       <TransportBar currentTime={currentTime} isPlaying={isPlaying} onTogglePlayback={onTogglePlayback} totalDuration={totalDuration} />
       <TimelineBody currentTime={currentTime} onSceneSelect={onSceneSelect} onSeek={onSeek} scenes={draft.scenes} selectedSceneId={selectedSceneId} totalDuration={totalDuration} />
     </section>
@@ -83,7 +83,7 @@ function CanvasViewport({
 }) {
   const ratioClass = aspectRatio === "9:16" ? "aspect-[9/16]" : aspectRatio === "1:1" ? "aspect-square" : "aspect-[16/9]";
   return (
-    <div className={`relative mx-auto w-full max-w-[890px] overflow-hidden rounded-[18px] bg-black shadow-[0_30px_100px_rgba(0,0,0,0.35)] ${ratioClass}`}>
+    <div className={`relative mx-auto w-full max-w-[900px] overflow-hidden rounded-[18px] bg-black shadow-[0_38px_110px_rgba(0,0,0,0.42)] ${ratioClass}`}>
       {preview.sourceUrl ? <PreviewVideo onTogglePlayback={preview.togglePlayback} sourceUrl={preview.sourceUrl} videoRef={preview.videoRef} /> : <PreviewFallback detail={preview.error} />}
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.06),rgba(0,0,0,0.38))]" />
       {selectedScene ? <SceneBadge title={selectedScene.title} /> : null}
@@ -104,7 +104,7 @@ function TransportBar({
   totalDuration: number;
 }) {
   return (
-    <div className="flex items-center gap-5 text-slate-400">
+    <div className="flex items-center gap-4 rounded-[12px] bg-[#111111] px-4 py-3 text-slate-400">
       <TransportButton onClick={onTogglePlayback}>{isPlaying ? <PauseIcon /> : <PlayIcon />}</TransportButton>
       <TransportButton><StepIcon /></TransportButton>
       <TransportButton><StepForwardIcon /></TransportButton>
@@ -133,10 +133,10 @@ function TimelineBody({
   totalDuration: number;
 }) {
   return (
-    <div className="mt-3">
+    <div className="mt-2">
       <Ruler currentTime={currentTime} totalDuration={totalDuration} />
       <VideoTrack currentTime={currentTime} onSceneSelect={onSceneSelect} onSeek={onSeek} scenes={scenes} selectedSceneId={selectedSceneId} totalDuration={totalDuration} />
-      <div className="mt-3 h-3 rounded-full bg-[#343434]" />
+      <ScrollbarTrack />
     </div>
   );
 }
@@ -149,12 +149,12 @@ function Ruler({
   totalDuration: number;
 }) {
   return (
-    <div className="mb-3 flex items-end gap-0.5 text-[11px] text-slate-500">
-      <div className="rounded bg-white px-2 py-1 text-black">0s</div>
+    <div className="mb-3 flex items-end gap-0.5 px-1 text-[11px] text-slate-500">
+      <div className="rounded-[6px] bg-white px-2 py-1 text-black">0s</div>
       {timelineTicks(totalDuration).map((tick) => (
         <div key={tick} className="flex-1 text-center">{tick}s</div>
       ))}
-      <div className="rounded bg-[#2a2a2a] px-2 py-1 text-slate-300">{Math.floor(currentTime)}s</div>
+      <div className="rounded-[6px] bg-[#2a2a2a] px-2 py-1 text-slate-300">{Math.floor(currentTime)}s</div>
     </div>
   );
 }
@@ -176,12 +176,12 @@ function VideoTrack({
 }) {
   return (
     <div className="overflow-x-auto rounded-[10px] bg-[#0b0b0b] p-3">
-      <div className="mb-3 flex items-center gap-2">
-        <span className="rounded-[7px] bg-[#1965e6] px-3 py-1 text-sm text-white">Video</span>
+      <div className="mb-2 flex items-center gap-2">
+        <span className="rounded-[7px] border border-white/10 bg-[#1965e6] px-3 py-1 text-sm text-white">Video</span>
       </div>
-      <div className="relative min-w-[1300px] overflow-hidden rounded-[8px] bg-[#1b63e8]">
+      <div className="relative min-w-[1380px] overflow-hidden rounded-[8px] border border-[#3479ff] bg-[#1b63e8] shadow-[inset_0_1px_0_rgba(255,255,255,0.14)]">
         <Playhead currentTime={currentTime} totalDuration={totalDuration} />
-        <div className="flex h-[118px]">
+        <div className="flex h-[120px]">
           {scenes.map((scene) => (
             <TrackSegment key={scene.id} isSelected={scene.id === selectedSceneId} onClick={() => handleSceneClick(onSceneSelect, onSeek, scene)} scene={scene} totalDuration={totalDuration} />
           ))}
@@ -200,7 +200,7 @@ function PreviewVideo({
   sourceUrl: string;
   videoRef: RefObject<HTMLVideoElement | null>;
 }) {
-  return <video ref={videoRef} className="h-full w-full object-cover" onClick={onTogglePlayback} playsInline preload="metadata" src={sourceUrl} />;
+  return <video ref={videoRef} className="h-full w-full object-contain" onClick={onTogglePlayback} playsInline preload="metadata" src={sourceUrl} />;
 }
 
 function PreviewFallback({ detail }: { detail: string }) {
@@ -216,19 +216,19 @@ function PreviewFallback({ detail }: { detail: string }) {
 }
 
 function SafeAreaFrame({ children }: { children: ReactNode }) {
-  return <div className="w-full rounded-[14px] border border-dashed border-[#d553e6] p-7">{children}</div>;
+  return <div className="w-full rounded-[14px] border border-dashed border-[#c63fd7] p-7">{children}</div>;
 }
 
 function ZoomBadge({ children }: { children: ReactNode }) {
-  return <div className="absolute bottom-5 right-5 rounded-[8px] bg-[#232323] px-3 py-2 text-sm text-slate-300">{children}</div>;
+  return <div className="absolute bottom-5 right-5 rounded-[10px] border border-white/8 bg-[#1f1f1f] px-3 py-2 text-sm text-slate-300">{children}</div>;
 }
 
 function SceneBadge({ title }: { title: string }) {
-  return <div className="absolute left-6 top-6 rounded-full bg-black/70 px-5 py-2 text-xs uppercase tracking-[0.24em] text-white">{title}</div>;
+  return <div className="absolute left-6 top-6 rounded-full bg-black/72 px-5 py-2 text-xs uppercase tracking-[0.28em] text-white">{title}</div>;
 }
 
 function CaptionOverlay({ text }: { text: string }) {
-  return <div className="absolute inset-x-10 bottom-8 rounded-[14px] bg-black/70 px-5 py-4 text-center text-base font-medium text-white">{text}</div>;
+  return <div className="absolute inset-x-10 bottom-8 rounded-[14px] bg-black/72 px-5 py-4 text-center text-base font-medium text-white">{text}</div>;
 }
 
 function Playhead({
@@ -254,10 +254,10 @@ function TrackSegment({
 }) {
   const width = `${Math.max((sceneDuration(scene) / Math.max(totalDuration, 1)) * 100, 8)}%`;
   return (
-    <button className={`relative h-full border-r border-black/20 text-left ${isSelected ? "bg-white/[0.08]" : "hover:bg-white/[0.04]"}`} onClick={onClick} style={{ minWidth: 170, width }} type="button">
+    <button className={`relative h-full border-r border-black/20 text-left ${isSelected ? "bg-white/[0.08]" : "hover:bg-white/[0.04]"}`} onClick={onClick} style={{ minWidth: 180, width }} type="button">
       <div className="absolute inset-x-2 top-2 flex gap-0.5">
-        {Array.from({ length: 8 }).map((_, index) => (
-          <span key={index} className="h-16 flex-1 rounded-[4px] bg-black/14" />
+        {Array.from({ length: 10 }).map((_, index) => (
+          <span key={index} className="h-[64px] flex-1 rounded-[4px] bg-black/14" />
         ))}
       </div>
       <div className="absolute inset-x-0 bottom-0 bg-[linear-gradient(180deg,rgba(0,0,0,0),rgba(0,0,0,0.45))] px-4 py-3 text-white">
@@ -276,6 +276,14 @@ function TransportButton({
   onClick?: () => void;
 }) {
   return <button className="grid h-10 w-10 place-items-center rounded-[10px] border border-white/8 bg-[#121212]" onClick={onClick} type="button">{children}</button>;
+}
+
+function ScrollbarTrack() {
+  return (
+    <div className="mt-4 h-4 rounded-full bg-[#2b2b2b] px-2 py-1">
+      <div className="h-full w-[78%] rounded-full bg-[#525252]" />
+    </div>
+  );
 }
 
 function handleSceneClick(

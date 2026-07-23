@@ -79,13 +79,14 @@ export function EditorLeftPanel({
   const [query, setQuery] = useState("");
   const scenes = useMemo(() => filterScenes(draft.scenes, query), [draft.scenes, query]);
   const selectedScene = sceneForPanel(draft.scenes, selectedSceneId);
+  const transcriptScene = transcriptSceneForPanel(query, scenes, selectedScene);
 
   return (
-    <section className="flex h-full min-h-0 flex-col rounded-[14px] bg-[#1d1d1d] p-3">
+    <section className="flex h-full min-h-0 flex-col rounded-[14px] border border-white/6 bg-[#1c1c1c] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
       <SearchBar query={query} setQuery={setQuery} />
       <ModeBar activeTab={activeTab} />
       <PanelViewport>
-        {activeTab === "script" ? <TranscriptPanel captions={draft.captions} onSceneSelect={onSceneSelect} scene={selectedScene} /> : null}
+        {activeTab === "script" ? <TranscriptPanel captions={draft.captions} onSceneSelect={onSceneSelect} scene={transcriptScene} /> : null}
         {activeTab === "captions" ? <CaptionPanel captions={draft.captions} onCaptionSelect={onCaptionSelect} onCaptionUpdate={onCaptionUpdate} /> : null}
         {activeTab === "scenes" ? <ScenePanel onMoveScene={onMoveScene} onRegenerateScene={onRegenerateScene} onSceneSelect={onSceneSelect} onSceneUpdate={onSceneUpdate} regeneratePending={regeneratePending} scenes={scenes} /> : null}
       </PanelViewport>
@@ -103,7 +104,7 @@ function SearchBar({
 }) {
   return (
     <div className="flex items-center gap-3">
-      <label className="flex h-10 flex-1 items-center rounded-[8px] border border-white/8 bg-[#161616] px-4">
+      <label className="flex h-11 flex-1 items-center rounded-[9px] border border-white/8 bg-[#181818] px-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
         <input
           className="w-full bg-transparent text-[15px] text-slate-300 outline-none placeholder:text-slate-500"
           onChange={(event) => setQuery(event.target.value)}
@@ -111,7 +112,7 @@ function SearchBar({
           value={query}
         />
       </label>
-      <button className="grid h-10 w-10 place-items-center rounded-[8px] border border-white/8 bg-[#161616] text-slate-500" type="button">
+      <button className="grid h-11 w-11 place-items-center rounded-[9px] border border-white/8 bg-[#181818] text-slate-500 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]" type="button">
         <FilterIcon />
       </button>
     </div>
@@ -120,7 +121,7 @@ function SearchBar({
 
 function ModeBar({ activeTab }: { activeTab: EditorTab }) {
   return (
-    <div className="mt-3 flex items-center gap-2 rounded-[10px] bg-[#161616] p-3 text-[15px]">
+    <div className="mt-3 flex items-center gap-2 rounded-[10px] bg-[#171717] p-3 text-[15px] shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
       <Chip strong>1</Chip>
       <Chip>Video</Chip>
       <Chip accent>{tabLabel(activeTab)}</Chip>
@@ -144,13 +145,13 @@ function TranscriptPanel({
     return <PanelEmptyState message="Select a scene to review the transcript." />;
   }
   return (
-    <article className="rounded-[12px] bg-[#222222] p-5">
+    <article className="rounded-[12px] border border-white/6 bg-[#202020] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
       <button className="w-full text-left" onClick={() => onSceneSelect(scene.id)} type="button">
-        <p className="text-[18px] leading-[3.4rem] text-slate-200">{scene.spokenLine}</p>
+        <p className="text-[17px] leading-[2.6rem] text-slate-200">{scene.spokenLine}</p>
       </button>
-      <div className="mt-4 flex flex-wrap gap-2">
+      <div className="mt-5 flex flex-wrap gap-2">
         {captionsForScene(captions, scene.id).slice(0, 3).map((caption, index) => (
-          <span key={caption.id} className="rounded-[8px] border border-white/10 bg-[#2a2a2a] px-3 py-1.5 text-xs text-slate-300">
+          <span key={caption.id} className="rounded-[8px] border border-white/10 bg-[#272727] px-3 py-1.5 text-[12px] text-slate-300">
             Sync Point {index + 1}
           </span>
         ))}
@@ -171,7 +172,7 @@ function CaptionPanel({
   return (
     <div className="space-y-3">
       {captions.map((caption) => (
-        <article key={caption.id} className="rounded-[12px] bg-[#222222] p-4">
+        <article key={caption.id} className="rounded-[12px] border border-white/6 bg-[#202020] p-4">
           <button className="text-xs uppercase tracking-[0.18em] text-slate-500" onClick={() => caption.sceneId ? onCaptionSelect(caption.sceneId) : undefined} type="button">
             {formatRange(caption.start, caption.end)}
           </button>
@@ -226,7 +227,7 @@ function SceneCard({
   scene: EditorSceneDraft;
 }) {
   return (
-    <article className="rounded-[12px] bg-[#222222] p-4">
+    <article className="rounded-[12px] border border-white/6 bg-[#202020] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
       <button className="w-full text-left" onClick={() => onSceneSelect(scene.id)} type="button">
         <p className="text-xs uppercase tracking-[0.2em] text-slate-500">{`Scene ${scene.sceneNumber}`}</p>
         <p className="mt-2 text-lg font-semibold text-white">{scene.title}</p>
@@ -267,11 +268,11 @@ function FooterActions({
 }
 
 function PanelViewport({ children }: { children: ReactNode }) {
-  return <div className="mt-3 min-h-0 flex-1 overflow-y-auto">{children}</div>;
+  return <div className="mt-3 min-h-0 flex-1 overflow-y-auto pr-1">{children}</div>;
 }
 
 function PanelEmptyState({ message }: { message: string }) {
-  return <div className="rounded-[12px] bg-[#222222] p-5 text-sm text-slate-400">{message}</div>;
+  return <div className="rounded-[12px] border border-white/6 bg-[#202020] p-5 text-sm text-slate-400">{message}</div>;
 }
 
 function Chip({
@@ -321,7 +322,7 @@ function RailButton({
 }
 
 function FooterIcon({ children }: { children: ReactNode }) {
-  return <button className="grid h-10 w-10 place-items-center rounded-[10px] border border-white/8 bg-[#1a1a1a] text-slate-300">{children}</button>;
+  return <button className="grid h-10 w-10 place-items-center rounded-[10px] border border-white/8 bg-[#1a1a1a] text-slate-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">{children}</button>;
 }
 
 function MiniButton({
@@ -374,6 +375,20 @@ function filterScenes(scenes: EditorSceneDraft[], query: string) {
 
 function sceneForPanel(scenes: EditorSceneDraft[], selectedSceneId: string) {
   return scenes.find((scene) => scene.id === selectedSceneId) ?? scenes[0] ?? null;
+}
+
+function transcriptSceneForPanel(
+  query: string,
+  scenes: EditorSceneDraft[],
+  selectedScene: EditorSceneDraft | null,
+) {
+  if (!query.trim()) {
+    return selectedScene;
+  }
+  if (!selectedScene) {
+    return null;
+  }
+  return scenes.some((scene) => scene.id === selectedScene.id) ? selectedScene : null;
 }
 
 function tabLabel(activeTab: EditorTab) {

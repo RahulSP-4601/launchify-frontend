@@ -31,7 +31,7 @@ export function EditorTopBar({
   saveLabel: string;
 }) {
   return (
-    <header className="flex items-center justify-between gap-6">
+    <header className="flex items-center justify-between gap-5">
       <HeaderGroup project={project} />
       <ActionGroup canRedo={canRedo} canUndo={canUndo} onRedo={onRedo} onUndo={onUndo} saveLabel={saveLabel} />
     </header>
@@ -52,7 +52,8 @@ export function EditorInspector({
   selectedScene: EditorSceneDraft | null;
 }) {
   return (
-    <aside className="flex h-full min-h-0 flex-col rounded-[12px] bg-[#1d1d1d]">
+    <aside className="flex h-full min-h-0 flex-col rounded-[12px] border border-white/6 bg-[#1b1b1b]">
+      <InspectorToolbar />
       <SectionTitle>Project</SectionTitle>
       <InspectorBody>
         <ToggleRow checked={draft.showCaptions} label="Show Transcript" onChange={onToggleCaptions} />
@@ -64,7 +65,7 @@ export function EditorInspector({
 
 function HeaderGroup({ project }: { project: ProjectDetail }) {
   return (
-    <div className="flex min-w-0 items-center gap-3">
+    <div className="flex min-w-0 items-center gap-4">
       <TitleChip projectName={project.project_name} />
       <SegmentedView />
     </div>
@@ -73,12 +74,12 @@ function HeaderGroup({ project }: { project: ProjectDetail }) {
 
 function TitleChip({ projectName }: { projectName: string }) {
   return (
-    <div className="flex min-w-0 items-center gap-3 rounded-[12px] border border-white/8 bg-[#1f1f1f] px-4 py-3">
-      <IconPlate>
+    <div className="flex min-w-0 items-center gap-3 rounded-[12px] border border-white/8 bg-[#1a1a1a] px-4 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+      <ProjectMark>
         <FileDocIcon />
-      </IconPlate>
-      <p className="truncate text-[17px] font-medium text-white">{projectName}</p>
-      <button className="text-slate-500 transition hover:text-slate-300" type="button">
+      </ProjectMark>
+      <p className="max-w-[340px] truncate text-[17px] font-medium text-white">{projectName}</p>
+      <button className="grid h-8 w-8 place-items-center text-slate-500 transition hover:text-slate-300" type="button">
         <CloudArrowIcon />
       </button>
     </div>
@@ -87,9 +88,9 @@ function TitleChip({ projectName }: { projectName: string }) {
 
 function SegmentedView() {
   return (
-    <div className="flex items-center rounded-[12px] border border-white/8 bg-[#1b1b1b] p-1 text-[15px] text-slate-500">
-      <span className="rounded-[10px] bg-[#2a2a2a] px-6 py-2.5 text-white">Video</span>
-      <span className="px-6 py-2.5">Article</span>
+    <div className="flex items-center rounded-[12px] border border-white/8 bg-[#151515] p-1 text-[15px] text-slate-500 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+      <span className="rounded-[10px] bg-[#2a2a2a] px-7 py-2.5 text-white">Video</span>
+      <span className="px-7 py-2.5">Article</span>
     </div>
   );
 }
@@ -108,9 +109,9 @@ function ActionGroup({
   saveLabel: string;
 }) {
   return (
-    <div className="flex shrink-0 items-center gap-3">
+    <div className="flex shrink-0 items-center gap-4">
       <SavePill saveLabel={saveLabel} />
-      <RoundButton active>R</RoundButton>
+      <AvatarButton />
       <RoundButton>
         <HeadphoneIcon />
       </RoundButton>
@@ -131,12 +132,12 @@ function ActionGroup({
 
 function SavePill({ saveLabel }: { saveLabel: string }) {
   return (
-    <div className="flex min-w-[410px] items-center justify-between rounded-[14px] bg-white px-5 py-3.5 text-black shadow-[0_8px_30px_rgba(255,255,255,0.08)]">
+    <div className="flex min-w-[318px] items-center justify-between rounded-[14px] bg-white px-4 py-3 text-black shadow-[0_10px_30px_rgba(0,0,0,0.28)]">
       <div className="flex items-center gap-3">
         <SpinnerIcon />
-        <span className="text-[17px] font-medium">{saveLabel}</span>
+        <span className="text-[16px] font-medium">{saveLabel}</span>
       </div>
-      <button className="text-[16px] text-slate-700" type="button">
+      <button className="text-[15px] text-slate-700" type="button">
         Cancel
       </button>
     </div>
@@ -144,13 +145,13 @@ function SavePill({ saveLabel }: { saveLabel: string }) {
 }
 
 function InspectorBody({ children }: { children: ReactNode }) {
-  return <div className="space-y-8 px-4 py-4">{children}</div>;
+  return <div className="space-y-8 px-4 py-5">{children}</div>;
 }
 
 function SectionTitle({ children }: { children: ReactNode }) {
   return (
     <div className="border-b border-white/8 px-4 py-4">
-      <p className="text-[15px] font-medium text-slate-400">{children}</p>
+      <p className="text-[14px] font-medium tracking-[0.01em] text-slate-400">{children}</p>
     </div>
   );
 }
@@ -201,24 +202,55 @@ function AspectRatioField({
   );
 }
 
-function IconPlate({ children }: { children: ReactNode }) {
-  return <span className="grid h-8 w-8 place-items-center rounded-[8px] border border-white/8 text-slate-500">{children}</span>;
+function InspectorToolbar() {
+  return (
+    <div className="flex items-center gap-3 border-b border-white/8 px-4 py-4">
+      <AvatarButton compact />
+      <RoundButton compact>
+        <HeadphoneIcon />
+      </RoundButton>
+      <GhostButton compact>
+        <TranslateIcon />
+        <span>Translate</span>
+      </GhostButton>
+      <PrimaryButton compact>Share</PrimaryButton>
+    </div>
+  );
+}
+
+function ProjectMark({ children }: { children: ReactNode }) {
+  return <span className="grid h-10 w-10 place-items-center rounded-[10px] border border-white/8 bg-[#171717] text-slate-500">{children}</span>;
+}
+
+function AvatarButton({ compact }: { compact?: boolean }) {
+  const sizeClass = compact ? "h-10 w-10 rounded-[10px] text-[18px]" : "h-12 w-12 rounded-[12px] text-[22px]";
+  return (
+    <button
+      className={`grid place-items-center border border-[#4668ff]/50 bg-[#3a63f3] font-medium text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.18)] ${sizeClass}`}
+      type="button"
+    >
+      R
+    </button>
+  );
 }
 
 function RoundButton({
   active,
   children,
+  compact,
   disabled,
   onClick,
 }: {
   active?: boolean;
   children: ReactNode;
+  compact?: boolean;
   disabled?: boolean;
   onClick?: () => void;
 }) {
+  const sizeClass = compact ? "h-10 w-10 rounded-[10px]" : "h-12 w-12 rounded-[12px]";
   return (
     <button
-      className={`grid h-12 w-12 place-items-center rounded-[12px] border border-white/8 text-[17px] transition ${active ? "bg-[#3b67f4] text-white" : "bg-[#1b1b1b] text-slate-300"} disabled:opacity-40`}
+      className={`grid place-items-center border border-white/8 text-[17px] transition ${sizeClass} ${active ? "bg-[#3b67f4] text-white" : "bg-[#1b1b1b] text-slate-300"} disabled:opacity-40`}
       disabled={disabled}
       onClick={onClick}
       type="button"
@@ -228,10 +260,24 @@ function RoundButton({
   );
 }
 
-function GhostButton({ children }: { children: ReactNode }) {
-  return <button className="flex h-12 items-center gap-2 rounded-[12px] border border-white/8 bg-[#1b1b1b] px-5 text-[16px] text-slate-300">{children}</button>;
+function GhostButton({
+  children,
+  compact,
+}: {
+  children: ReactNode;
+  compact?: boolean;
+}) {
+  const sizeClass = compact ? "h-10 rounded-[10px] px-4 text-[15px]" : "h-12 rounded-[12px] px-5 text-[16px]";
+  return <button className={`flex items-center gap-2 border border-white/8 bg-[#1b1b1b] text-slate-300 ${sizeClass}`}>{children}</button>;
 }
 
-function PrimaryButton({ children }: { children: ReactNode }) {
-  return <button className="h-12 rounded-[12px] bg-[#97438f] px-6 text-[16px] font-medium text-white">{children}</button>;
+function PrimaryButton({
+  children,
+  compact,
+}: {
+  children: ReactNode;
+  compact?: boolean;
+}) {
+  const sizeClass = compact ? "h-10 rounded-[10px] px-4 text-[15px]" : "h-12 rounded-[12px] px-6 text-[16px]";
+  return <button className={`bg-[#97438f] font-medium text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] ${sizeClass}`}>{children}</button>;
 }

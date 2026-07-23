@@ -108,8 +108,8 @@ function ProjectEditorLayout({
   setActiveTab: (tab: EditorTab) => void;
 }) {
   return (
-    <div className="h-screen overflow-hidden bg-[#121212] px-6 py-5 text-white">
-      <div className="mx-auto flex h-full max-w-[1950px] flex-col gap-5">
+    <div className="h-screen overflow-hidden bg-[#121212] px-7 py-5 text-white">
+      <div className="mx-auto flex h-full max-w-[1980px] flex-col gap-4">
         <EditorHeader editor={editor} project={project} />
         <ProjectEditorGrid activeTab={activeTab} editor={editor} onRegenerateScene={onRegenerateScene} preview={preview} regeneratePending={regeneratePending} selectedScene={selectedScene} setActiveTab={setActiveTab} />
         <EditorTimelineSection editor={editor} onRegenerateScene={onRegenerateScene} preview={preview} regeneratePending={regeneratePending} />
@@ -176,7 +176,7 @@ function ProjectEditorGrid({
   setActiveTab: (tab: EditorTab) => void;
 }) {
   return (
-    <div className="grid min-h-0 flex-1 gap-4 xl:grid-cols-[58px_530px_minmax(0,1fr)_296px]">
+    <div className="grid min-h-0 flex-1 gap-4 xl:grid-cols-[58px_532px_minmax(720px,1fr)_300px]">
       <EditorRail activeTab={activeTab} setActiveTab={setActiveTab} />
       <EditorLeftPanel
         activeTab={activeTab}
