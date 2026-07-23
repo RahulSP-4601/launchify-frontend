@@ -2,6 +2,19 @@
 
 import type { ProjectEditorClip, ProjectEditorSequence, ProjectEditorTrack } from "@/lib/types";
 import type { ProjectEditorDraft } from "@/components/project-editor-draft";
+import {
+  buildInsertedClip,
+  clipDuration,
+  draftScenesFromTracks,
+  draftSourceProjectId,
+  mapCaptionClip,
+  maxTrackEnd,
+  minDurationForClip,
+  relatedClipIds,
+  rollLinkedClip,
+  roundTime,
+  shiftClip,
+} from "@/components/project-editor-sequence-utils";
 
 export type SequenceOperation =
   | { type: "add_overlay_callout"; clipId: string }
@@ -101,15 +114,19 @@ export function projectDraftFromSequence(
   sequence: ProjectEditorSequence,
 ) {
   const priorScenes = new Map(draft.scenes.map((scene) => [scene.id, scene]));
-  const videoTrack = sequence.tracks.find((track) => track.kind === "video");
   const captionTrack = sequence.tracks.find((track) => track.kind === "caption");
-  const scenes = (videoTrack?.clips ?? []).map((clip, index) => mapSceneClip(clip, priorScenes, index));
+  const scenes = draftScenesFromTracks(sequence.tracks, priorScenes);
   const captions = (captionTrack?.clips ?? []).map(mapCaptionClip);
+  const nextSelectedClipId = hasClipSelection(sequence, draft.selectedClipId) ? draft.selectedClipId : "";
+  const nextSelectedSceneId = nextSelectedClipId && !draft.selectedSceneId
+    ? ""
+    : scenes.find((scene) => scene.id === draft.selectedSceneId)?.id ?? scenes[0]?.id ?? "";
   return {
     ...draft,
     captions,
     scenes,
-    selectedSceneId: scenes.find((scene) => scene.id === draft.selectedSceneId)?.id ?? scenes[0]?.id ?? "",
+    selectedClipId: nextSelectedClipId,
+    selectedSceneId: nextSelectedSceneId,
     sequence,
   };
 }
@@ -123,13 +140,18 @@ function addOverlayCallout(
   const overlayTrack = ensureTrack(sequence.tracks, "overlay", "Overlay");
   const overlayTrackId = overlayTrack.id;
   const overlayClip: ProjectEditorClip = {
+    asset_path: null,
+    content_type: null,
+    effect_preset: "callout",
     id: `${clipId}-overlay-${Math.round(target.timeline_start * 10)}`,
-    kind: "inserted_card",
+    kind: "effect_overlay",
     locked: false,
     muted: false,
     scene_id: `${target.scene_id ?? clipId}-overlay`,
+    source_project_id: draftSourceProjectId(target),
     source_end: null,
     source_start: null,
+    style_preset: "callout",
     text: target.text || target.title || "Overlay callout",
     timeline_end: target.timeline_end,
     timeline_start: target.timeline_start,
@@ -140,6 +162,12 @@ function addOverlayCallout(
     ? sequence.tracks.map((track) => track.id === overlayTrackId ? { ...track, clips: [...track.clips, overlayClip] } : track)
     : [...sequence.tracks, { ...overlayTrack, clips: [overlayClip] }];
   return finalizeSequence(sequence, tracks);
+}
+
+function hasClipSelection(sequence: ProjectEditorSequence, selectedClipId: string) {
+  return selectedClipId
+    ? sequence.tracks.some((track) => track.clips.some((clip) => clip.id === selectedClipId))
+    : false;
 }
 
 function rippleDelete(
@@ -170,11 +198,16 @@ function liftClip(
   const linkedClipIds = relatedClipIds(sequence, target);
   const replacement: ProjectEditorClip = {
     ...target,
+    asset_path: null,
+    content_type: null,
+    effect_preset: null,
     id: `${clipId}-gap`,
     kind: "inserted_card",
     scene_id: `${target.scene_id ?? clipId}-gap`,
+    source_project_id: null,
     source_end: null,
     source_start: null,
+    style_preset: "gap",
     text: "Gap placeholder",
     title: "Lifted Gap",
   };
@@ -273,20 +306,32 @@ function slideClip(
   const index = track.clips.findIndex((clip) => clip.id === clipId);
   if (index <= 0 || index >= track.clips.length - 1) return sequence;
   const previous = track.clips[index - 1];
+  const current = track.clips[index];
   const next = track.clips[index + 1];
   const minDelta = -(clipDuration(previous) - 0.5);
   const maxDelta = clipDuration(next) - 0.5;
   const delta = Math.min(Math.max(deltaSeconds, minDelta), maxDelta);
-  const nextTrack = {
-    ...track,
-    clips: track.clips.map((clip, clipIndex) => {
-      if (clipIndex === index - 1) return { ...clip, timeline_end: roundTime(clip.timeline_end + delta) };
-      if (clipIndex === index) return { ...clip, timeline_end: roundTime(clip.timeline_end + delta), timeline_start: roundTime(clip.timeline_start + delta) };
-      if (clipIndex === index + 1) return { ...clip, timeline_start: roundTime(clip.timeline_start + delta) };
+  const linkedClipIds = relatedClipIds(sequence, current);
+  const tracks = sequence.tracks.map((item) => ({
+    ...item,
+    clips: item.clips.map((clip, clipIndex) => {
+      if (item.id === trackId && clipIndex === index - 1) {
+        return { ...clip, timeline_end: roundTime(clip.timeline_end + delta) };
+      }
+      if (item.id === trackId && clipIndex === index + 1) {
+        return { ...clip, timeline_start: roundTime(clip.timeline_start + delta) };
+      }
+      if (linkedClipIds.has(clip.id)) {
+        return {
+          ...clip,
+          timeline_end: roundTime(clip.timeline_end + delta),
+          timeline_start: roundTime(clip.timeline_start + delta),
+        };
+      }
       return clip;
     }),
-  };
-  return finalizeSequence(sequence, sequence.tracks.map((item) => item.id === trackId ? nextTrack : item));
+  }));
+  return finalizeSequence(sequence, tracks);
 }
 
 function rollBoundary(
@@ -310,34 +355,6 @@ function rollBoundary(
     clips: item.clips.map((clip) => rollLinkedClip(clip, currentClip, nextClip, boundary)),
   }));
   return finalizeSequence(sequence, tracks);
-}
-
-function mapSceneClip(
-  clip: ProjectEditorClip,
-  priorScenes: Map<string, ProjectEditorDraft["scenes"][number]>,
-  index: number,
-) {
-  const prior = priorScenes.get(clip.scene_id ?? "");
-  return {
-    end: clip.timeline_end,
-    id: clip.scene_id ?? clip.id,
-    onScreenText: clip.text || prior?.onScreenText || "",
-    sceneNumber: index + 1,
-    source: clip.kind === "inserted_card" ? "inserted" : prior?.source ?? "edit_plan",
-    spokenLine: clip.text || prior?.spokenLine || "",
-    start: clip.timeline_start,
-    title: clip.title || prior?.title || `Scene ${index + 1}`,
-  };
-}
-
-function mapCaptionClip(clip: ProjectEditorClip) {
-  return {
-    end: clip.timeline_end,
-    id: clip.id.replace("caption-clip-", ""),
-    sceneId: clip.scene_id,
-    start: clip.timeline_start,
-    text: clip.text,
-  };
 }
 
 function finalizeSequence(
@@ -409,92 +426,4 @@ function adjacentClip(
 
 function isTrackLocked(sequence: ProjectEditorSequence, trackId: string) {
   return sequence.tracks.some((track) => track.id === trackId && track.locked);
-}
-
-function buildInsertedClip(
-  trackId: string,
-  insertionStart: number,
-  duration: number,
-) {
-  return {
-    id: `clip-inserted-${Math.round(insertionStart * 10)}`,
-    kind: "inserted_card" as const,
-    locked: false,
-    muted: false,
-    scene_id: `inserted-scene-${Math.round(insertionStart * 10)}`,
-    source_end: null,
-    source_start: null,
-    text: "Inserted screen placeholder.",
-    timeline_end: roundTime(insertionStart + duration),
-    timeline_start: roundTime(insertionStart),
-    title: "Inserted Screen",
-    track_id: trackId,
-  };
-}
-
-function shiftClip(clip: ProjectEditorClip, delta: number) {
-  return {
-    ...clip,
-    timeline_end: roundTime(clip.timeline_end + delta),
-    timeline_start: roundTime(clip.timeline_start + delta),
-  };
-}
-
-function clipDuration(clip: ProjectEditorClip) {
-  return Math.max(clip.timeline_end - clip.timeline_start, minDurationForClip(clip));
-}
-
-function maxTrackEnd(tracks: ProjectEditorTrack[]) {
-  return tracks.reduce((max, track) => Math.max(max, track.clips.at(-1)?.timeline_end ?? 0), 0);
-}
-
-function relatedClipIds(
-  sequence: ProjectEditorSequence,
-  target: ProjectEditorClip,
-) {
-  if (!target.scene_id) {
-    return new Set([target.id]);
-  }
-  return new Set(
-    sequence.tracks.flatMap((track) =>
-      track.clips
-        .filter((clip) => clip.id === target.id || clip.scene_id === target.scene_id)
-        .map((clip) => clip.id),
-    ),
-  );
-}
-
-function rollLinkedClip(
-  clip: ProjectEditorClip,
-  currentClip: ProjectEditorClip,
-  nextClip: ProjectEditorClip,
-  boundary: number,
-) {
-  if (clip.id === currentClip.id) {
-    return { ...clip, timeline_end: boundary };
-  }
-  if (clip.id === nextClip.id) {
-    return { ...clip, timeline_start: boundary };
-  }
-  if (clip.scene_id && clip.scene_id === currentClip.scene_id) {
-    return {
-      ...clip,
-      timeline_end: roundTime(Math.max(Math.min(clip.timeline_end, boundary), clip.timeline_start + minDurationForClip(clip))),
-    };
-  }
-  if (clip.scene_id && clip.scene_id === nextClip.scene_id) {
-    return {
-      ...clip,
-      timeline_start: roundTime(Math.min(Math.max(clip.timeline_start, boundary), clip.timeline_end - minDurationForClip(clip))),
-    };
-  }
-  return clip;
-}
-
-function minDurationForClip(clip: ProjectEditorClip) {
-  return clip.kind === "caption" ? 0.2 : 0.5;
-}
-
-function roundTime(value: number) {
-  return Math.round(value * 10) / 10;
 }

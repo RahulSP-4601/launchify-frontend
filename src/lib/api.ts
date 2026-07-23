@@ -3,6 +3,9 @@ import {
   RegenerateProjectEditorSceneInput,
   ProjectEditorRevisionRecord,
   ProjectEditorRevisionSummary,
+  ProjectEditorMediaAsset,
+  ProjectEditorMediaAssetImportInput,
+  ProjectEditorMediaAssetListResponse,
   ProjectEditorSaveInput,
   ProjectEditorState,
   ProjectEditorStateRecord,
@@ -148,6 +151,44 @@ export async function regenerateProjectEditorScene(
     body: JSON.stringify(input),
   });
   return handleResponse<ProjectEditorStateRecord>(response);
+}
+
+export async function fetchProjectEditorAssets(
+  projectId: string,
+  scope: "project" | "saved",
+): Promise<ProjectEditorMediaAsset[]> {
+  const response = await apiFetch(`/api/projects/${projectId}/editor/assets?scope=${scope}`, { cache: "no-store" });
+  return (await handleResponse<ProjectEditorMediaAssetListResponse>(response)).assets;
+}
+
+export async function uploadProjectEditorAsset(
+  projectId: string,
+  file: File,
+  durationSeconds: number | null,
+): Promise<ProjectEditorMediaAsset> {
+  const token = await getAccessToken();
+  const formData = new FormData();
+  formData.set("file", file);
+  formData.set("filename", file.name);
+  if (durationSeconds !== null) {
+    formData.set("duration_seconds", durationSeconds.toString());
+  }
+  const responseText = await sendUploadRequest(`/api/projects/${projectId}/editor/assets/upload`, formData, token);
+  return (JSON.parse(responseText) as { asset: ProjectEditorMediaAsset }).asset;
+}
+
+export async function importProjectEditorAsset(
+  projectId: string,
+  input: ProjectEditorMediaAssetImportInput,
+): Promise<ProjectEditorMediaAsset> {
+  const response = await apiFetch(`/api/projects/${projectId}/editor/assets/import`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(input),
+  });
+  return (await handleResponse<{ asset: ProjectEditorMediaAsset }>(response)).asset;
 }
 
 export async function uploadGroundedSession(

@@ -7,11 +7,13 @@ import type { RefObject } from "react";
 import {
   buildProjectEditorDraft,
   EditorCaptionDraft,
+  EditorCommentDraft,
   EditorSceneDraft,
   ProjectEditorDraft,
 } from "@/components/project-editor-draft";
 import { useProjectEditorHistory } from "@/components/project-editor-history";
 import { deriveEditorSequence } from "@/components/project-editor-sequence";
+import { extractAudioInputs, syncSequenceWithDraft } from "@/components/project-editor-persistence-sequence";
 import {
   fetchProjectEditorRevisions,
   fetchProjectEditorState,
@@ -19,12 +21,10 @@ import {
   saveProjectEditorState,
 } from "@/lib/api";
 import {
-  ProjectEditorClip,
   ProjectDetail,
   ProjectEditorSequence,
   ProjectEditorState,
   ProjectEditorStateRecord,
-  ProjectEditorTrack,
   TranscriptResponse,
 } from "@/lib/types";
 
@@ -291,6 +291,13 @@ export function editorDraftToApiState(draft: ProjectEditorDraft): ProjectEditorS
       start: caption.start,
       text: caption.text,
     })),
+    comments: draft.comments.map((comment) => ({
+      body: comment.body,
+      created_at: comment.createdAt,
+      id: comment.id,
+      scene_id: comment.sceneId,
+      time: comment.time,
+    })),
     scenes: draft.scenes.map((scene) => ({
       end: scene.end,
       id: scene.id,
@@ -302,10 +309,12 @@ export function editorDraftToApiState(draft: ProjectEditorDraft): ProjectEditorS
       title: scene.title,
     })),
     edit_mode: draft.editMode,
+    selected_clip_id: draft.selectedClipId || null,
     selected_scene_id: draft.selectedSceneId,
     selected_track_id: draft.selectedTrackId,
     sequence,
     show_captions: draft.showCaptions,
+    tool_state: draft.toolState,
   };
 }
 
@@ -320,14 +329,37 @@ function editorDraftFromApiState(
   return {
     aspectRatio: state.aspect_ratio,
     captions,
+    comments: mapCommentsFromApi(state.comments ?? []),
     editMode: state.edit_mode ?? "overwrite",
     headRevisionId,
     projectId,
+    selectedClipId: state.selected_clip_id ?? "",
     scenes,
     selectedSceneId: state.selected_scene_id,
     selectedTrackId: state.selected_track_id || state.sequence?.tracks.find((track) => track.kind === "video")?.id || "track-video-1",
     sequence: state.sequence ?? deriveSequenceWithFallbackAudio(projectId, scenes, captions, fallbackSequence),
     showCaptions: state.show_captions,
+    toolState: state.tool_state ?? defaultToolState(),
+  };
+}
+
+function mapCommentsFromApi(comments: NonNullable<ProjectEditorState["comments"]>): EditorCommentDraft[] {
+  return comments.map((comment) => ({
+    body: comment.body,
+    createdAt: comment.created_at,
+    id: comment.id,
+    sceneId: comment.scene_id,
+    time: comment.time,
+  }));
+}
+
+function defaultToolState() {
+  return {
+    active_caption_preset: "basic" as const,
+    active_effect: null,
+    active_shape: null,
+    media_tab: "project" as const,
+    pending_media_intent: null,
   };
 }
 
@@ -343,72 +375,6 @@ function deriveSequenceWithFallbackAudio(
     captions,
     extractAudioInputs(fallbackSequence),
   );
-}
-
-function syncSequenceWithDraft(draft: ProjectEditorDraft): ProjectEditorSequence {
-  const fallback = deriveEditorSequence(
-    draft.projectId,
-    draft.scenes,
-    draft.captions,
-    extractAudioInputs(draft.sequence),
-    draft.sequence?.playhead_seconds ?? 0,
-    draft.sequence?.version ?? 1,
-  );
-  const base = draft.sequence ?? fallback;
-  const videoTrackId = base.tracks.find((track) => track.kind === "video")?.id ?? "track-video-1";
-  const captionTrackId = base.tracks.find((track) => track.kind === "caption")?.id ?? "track-caption-1";
-  const videoClips = fallback.tracks.find((track) => track.kind === "video")?.clips ?? [];
-  const captionClips = fallback.tracks.find((track) => track.kind === "caption")?.clips ?? [];
-  const tracks = mergeSequenceTracks(base.tracks, videoTrackId, captionTrackId, videoClips, captionClips);
-  const duration = maxTrackEnd(tracks);
-  return {
-    ...base,
-    duration_seconds: duration,
-    playhead_seconds: Math.min(Math.max(base.playhead_seconds, 0), duration),
-    tracks,
-  };
-}
-
-function extractAudioInputs(sequence: ProjectEditorSequence | undefined) {
-  return (sequence?.tracks ?? [])
-    .filter((track) => track.kind === "audio")
-    .flatMap((track) => track.clips)
-    .map((clip) => ({
-      end: clip.timeline_end,
-      id: clip.id.replace("audio-clip-", ""),
-      sceneId: clip.scene_id,
-      start: clip.timeline_start,
-      text: clip.text,
-      title: clip.title,
-    }));
-}
-
-function mergeSequenceTracks(
-  tracks: ProjectEditorTrack[],
-  videoTrackId: string,
-  captionTrackId: string,
-  videoClips: ProjectEditorClip[],
-  captionClips: ProjectEditorClip[],
-) {
-  return upsertTrack(
-    upsertTrack(tracks, { clips: videoClips, id: videoTrackId, kind: "video", locked: false, muted: false, name: "Video" }),
-    { clips: captionClips, id: captionTrackId, kind: "caption", locked: false, muted: false, name: "Captions" },
-  );
-}
-
-function upsertTrack(
-  tracks: ProjectEditorTrack[],
-  nextTrack: ProjectEditorTrack,
-) {
-  const existing = tracks.find((track) => track.id === nextTrack.id);
-  if (!existing) {
-    return [...tracks, nextTrack];
-  }
-  return tracks.map((track) => track.id === nextTrack.id ? { ...existing, clips: nextTrack.clips, kind: nextTrack.kind, name: nextTrack.name } : track);
-}
-
-function maxTrackEnd(tracks: ProjectEditorTrack[]) {
-  return tracks.reduce((max, track) => Math.max(max, track.clips.at(-1)?.timeline_end ?? 0), 0);
 }
 
 function mapCaptionFromApi(caption: ProjectEditorState["captions"][number]): EditorCaptionDraft {

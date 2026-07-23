@@ -1,11 +1,9 @@
 "use client";
 import { useMutation } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
-import {
-  EditorSceneDraft,
-  ProjectEditorDraft,
-} from "@/components/project-editor-draft";
+import { EditorSceneDraft, ProjectEditorDraft } from "@/components/project-editor-draft";
 import { buildSceneActions, buildSequenceActions } from "@/components/project-editor-actions";
+import { useProjectEditorAssets } from "@/components/project-editor-assets";
 import {
   shouldPreferLocalDraft,
   usePersistedProjectEditorDraft,
@@ -13,20 +11,16 @@ import {
 } from "@/components/project-editor-persistence";
 import { editorDraftToApiState } from "@/components/project-editor-persistence";
 import { deriveEditorSequence } from "@/components/project-editor-sequence";
-import { EditorInspector, EditorTopBar } from "@/components/project-editor-panels";
-import { EditorLeftPanel, EditorRail } from "@/components/project-editor-left-panel";
+import { EditorTopBar } from "@/components/project-editor-panels";
+import { EditorToolMode } from "@/components/project-editor-left-panel";
 import { useProjectEditorPreview } from "@/components/project-editor-preview";
-import {
-  EditorPreviewStage,
-  EditorTimeline,
-  ProjectEditorPreviewState,
-} from "@/components/project-editor-stage";
+import { useEditorShortcuts } from "@/components/project-editor-shortcuts";
+import { EditorUploadInput } from "@/components/project-editor-upload-input";
+import { ProjectEditorWorkspaceGrid } from "@/components/project-editor-workspace-grid";
+import { EditorTimeline, ProjectEditorPreviewState } from "@/components/project-editor-stage";
 import { regenerateProjectEditorScene } from "@/lib/api";
-import { ProjectDetail, ProjectEditorState, ProjectEditorStateRecord, TranscriptResponse } from "@/lib/types";
-type EditorTab = "script" | "captions" | "scenes";
-const EDITOR_BASE_WIDTH = 1860;
-const EDITOR_BASE_HEIGHT = 1040;
-
+import { ProjectDetail, ProjectEditorClip, ProjectEditorState, ProjectEditorStateRecord, TranscriptResponse } from "@/lib/types";
+const EDITOR_BASE_WIDTH = 1860, EDITOR_BASE_HEIGHT = 1040;
 export function ProjectEditorShell({
   project,
   transcript,
@@ -48,6 +42,15 @@ export function ProjectEditorShell({
   );
 }
 
+type ProjectEditorWorkspaceProps = {
+  bootstrapRecord: ProjectEditorStateRecord | null | undefined;
+  initialDraft: ProjectEditorDraft;
+  localDraftSavedAt: string;
+  localOverrideActive: boolean;
+  project: ProjectDetail;
+  revisions: ReturnType<typeof useProjectEditorBootstrap>["revisions"];
+};
+
 function ProjectEditorWorkspace({
   bootstrapRecord,
   initialDraft,
@@ -55,73 +58,105 @@ function ProjectEditorWorkspace({
   localOverrideActive,
   project,
   revisions,
-}: {
-  bootstrapRecord: ProjectEditorStateRecord | null | undefined;
-  initialDraft: ProjectEditorDraft;
-  localDraftSavedAt: string;
-  localOverrideActive: boolean;
-  project: ProjectDetail;
-  revisions: ReturnType<typeof useProjectEditorBootstrap>["revisions"];
-}) {
-  const [activeTab, setActiveTab] = useState<EditorTab>("script");
+}: ProjectEditorWorkspaceProps) {
+  const [activeTool, setActiveTool] = useState<EditorToolMode>("pointer");
+  const uploadInputRef = useRef<HTMLInputElement | null>(null);
   const editor = useProjectEditorDraft(project, initialDraft, localOverrideActive);
+  const editorAssets = useProjectEditorAssets(
+    project.id,
+    editor.draft,
+    editor.insertMediaAsset,
+    editor.setMediaIntent,
+  );
   const preview = useProjectEditorPreview(project, editor.draft);
   const regenerateScene = useRegenerateScene(editor.draft, project.id, editor.hydrateSavedDraft);
   useBootstrapHydration(bootstrapRecord, editor.hydrateSavedDraft, initialDraft, localDraftSavedAt);
-
+  useEditorShortcuts(editor, preview);
+  const openUploadPicker = () => {
+    setActiveTool("media");
+    editor.setMediaIntent("upload_file");
+    uploadInputRef.current?.click();
+  };
+  const openSavedMediaTab = () => {
+    setActiveTool("media");
+    editor.setMediaIntent("import_project");
+    editor.setMediaTab("saved");
+  };
   return (
     <ProjectEditorLayout
-      activeTab={activeTab}
+      activeTool={activeTool}
       editor={editor}
+      editorAssets={editorAssets}
+      openSavedMediaTab={openSavedMediaTab}
+      openUploadPicker={openUploadPicker}
+      uploadInputRef={uploadInputRef}
       onRegenerateScene={regenerateScene.mutate}
       preview={preview}
       project={project}
       regeneratePending={regenerateScene.isPending}
       revisions={revisions}
       selectedScene={selectedSceneForLayout(editor.draft, preview)}
-      setActiveTab={setActiveTab}
+      setActiveTool={setActiveTool}
     />
   );
 }
-function ProjectEditorLayout({
-  activeTab,
-  editor,
-  onRegenerateScene,
-  preview,
-  project,
-  regeneratePending,
-  revisions,
-  selectedScene,
-  setActiveTab,
-}: {
-  activeTab: EditorTab;
+
+type ProjectEditorLayoutProps = {
+  activeTool: EditorToolMode;
   editor: ReturnType<typeof useProjectEditorDraft>;
+  editorAssets: ReturnType<typeof useProjectEditorAssets>;
+  openSavedMediaTab: () => void;
+  openUploadPicker: () => void;
+  uploadInputRef: React.RefObject<HTMLInputElement | null>;
   onRegenerateScene: (sceneId: string) => void;
   preview: ProjectEditorPreviewState;
   project: ProjectDetail;
   regeneratePending: boolean;
   revisions: ReturnType<typeof useProjectEditorBootstrap>["revisions"];
   selectedScene: EditorSceneDraft | null;
-  setActiveTab: (tab: EditorTab) => void;
-}) {
+  setActiveTool: (tool: EditorToolMode) => void;
+};
+
+function ProjectEditorLayout({
+  activeTool,
+  editor,
+  editorAssets,
+  openSavedMediaTab,
+  openUploadPicker,
+  uploadInputRef,
+  onRegenerateScene,
+  preview,
+  project,
+  regeneratePending,
+  revisions,
+  selectedScene,
+  setActiveTool,
+}: ProjectEditorLayoutProps) {
   const workspaceScale = useWorkspaceScale();
   return (
     <div className="h-screen overflow-auto bg-[#0b0b0b] px-4 pb-4 pt-5 text-white">
+      <EditorUploadInput onFileChange={editorAssets.handleFileSelection} uploadInputRef={uploadInputRef} />
       <ScaledWorkspaceFrame workspaceScale={workspaceScale}>
           <EditorHeader editor={editor} project={project} />
           <div />
-          <ProjectEditorGrid
-            activeTab={activeTab}
-            editor={editor}
-            onRegenerateScene={onRegenerateScene}
+          <ProjectEditorWorkspaceGrid
+            activeTool={activeTool}
+            activeRevisionId={editor.draft.headRevisionId}
+            draft={editor.draft}
+            leftPanelProps={leftPanelProps(activeTool, editor, editorAssets, openUploadPicker, onRegenerateScene, preview.currentTime, regeneratePending, selectedScene)}
+            onAspectRatioChange={editor.setAspectRatio}
+            onRestoreRevision={editor.restoreRevision}
+            onToggleCaptions={editor.setShowCaptions}
+            onUpdateSelectedClip={editor.updateSelectedClip}
             preview={preview}
-            regeneratePending={regeneratePending}
+            restoreRevisionPending={editor.restoreRevisionPending}
             revisions={revisions}
+            selectedClip={selectedClipForDraft(editor.draft)}
             selectedScene={selectedScene}
-            setActiveTab={setActiveTab}
+            setActiveTool={setActiveTool}
           />
           <div />
-          <EditorTimelineSection editor={editor} preview={preview} />
+          <EditorTimelineSection editor={editor} openSavedMediaTab={openSavedMediaTab} openUploadPicker={openUploadPicker} preview={preview} />
       </ScaledWorkspaceFrame>
     </div>
   );
@@ -174,9 +209,13 @@ function EditorHeader({
 
 function EditorTimelineSection({
   editor,
+  openSavedMediaTab,
+  openUploadPicker,
   preview,
 }: {
   editor: ReturnType<typeof useProjectEditorDraft>;
+  openSavedMediaTab: () => void;
+  openUploadPicker: () => void;
   preview: ProjectEditorPreviewState;
 }) {
   return (
@@ -186,6 +225,7 @@ function EditorTimelineSection({
       editMode={editor.draft.editMode}
       isPlaying={preview.isPlaying}
       onAddOverlayCallout={editor.addOverlayCallout}
+      onChooseImportProject={openSavedMediaTab}
       onAddScreen={editor.addScreenAfterSelected}
       onAddVideoTrack={editor.addVideoTrack}
       onEditModeChange={editor.setEditMode}
@@ -193,6 +233,8 @@ function EditorTimelineSection({
       onLiftScene={editor.liftSelectedScene}
       onRollBoundary={editor.rollSelectedBoundary}
       onRippleDeleteScene={editor.rippleDeleteSelectedScene}
+      onMoveClip={editor.moveSelectedClip}
+      onSelectClip={editor.setSelectedClipId}
       onSelectTrack={editor.setSelectedTrackId}
       onToggleTrackLocked={editor.toggleTrackLocked}
       onToggleTrackMuted={editor.toggleTrackMuted}
@@ -201,61 +243,48 @@ function EditorTimelineSection({
       onSceneSelect={preview.seekToScene}
       onSeek={preview.seek}
       onSlipScene={editor.slipSelectedScene}
+      onTrimClip={editor.trimSelectedClipEdge}
       onTrimBoundary={editor.trimSceneBoundary}
       onTogglePlayback={preview.togglePlayback}
+      onChooseUploadFile={openUploadPicker}
       totalDuration={preview.totalDuration}
     />
   );
 }
 
-function ProjectEditorGrid({
-  activeTab,
-  editor,
-  onRegenerateScene,
-  preview,
-  regeneratePending,
-  revisions,
-  selectedScene,
-  setActiveTab,
-}: {
-  activeTab: EditorTab;
-  editor: ReturnType<typeof useProjectEditorDraft>;
-  onRegenerateScene: (sceneId: string) => void;
-  preview: ProjectEditorPreviewState;
-  regeneratePending: boolean;
-  revisions: ReturnType<typeof useProjectEditorBootstrap>["revisions"];
-  selectedScene: EditorSceneDraft | null;
-  setActiveTab: (tab: EditorTab) => void;
-}) {
-  return (
-    <div className="grid min-h-0 grid-cols-[54px_16px_534px_minmax(0,1fr)_332px] gap-y-0 2xl:grid-cols-[54px_16px_544px_minmax(0,1fr)_332px]">
-      <EditorRail activeTab={activeTab} setActiveTab={setActiveTab} />
-      <div />
-      <EditorLeftPanel
-        activeTab={activeTab}
-        draft={editor.draft}
-        onCaptionSelect={editor.setSelectedSceneId}
-        onCaptionUpdate={editor.updateCaption}
-        onMoveScene={editor.moveScene}
-        onRegenerateScene={onRegenerateScene}
-        onSceneSelect={editor.setSelectedSceneId}
-        onSceneUpdate={editor.updateScene}
-        regeneratePending={regeneratePending}
-        selectedSceneId={selectedScene?.id ?? editor.draft.selectedSceneId}
-      />
-      <EditorPreviewStage draft={editor.draft} preview={preview} selectedScene={selectedScene} />
-      <EditorInspector
-        activeRevisionId={editor.draft.headRevisionId}
-        draft={editor.draft}
-        onAspectRatioChange={editor.setAspectRatio}
-        onRestoreRevision={editor.restoreRevision}
-        onToggleCaptions={editor.setShowCaptions}
-        restoreRevisionPending={editor.restoreRevisionPending}
-        revisions={revisions}
-        selectedScene={selectedScene}
-      />
-    </div>
-  );
+function leftPanelProps(
+  activeTool: EditorToolMode,
+  editor: ReturnType<typeof useProjectEditorDraft>,
+  editorAssets: ReturnType<typeof useProjectEditorAssets>,
+  openUploadPicker: () => void,
+  onRegenerateScene: (sceneId: string) => void,
+  currentTime: number,
+  regeneratePending: boolean,
+  selectedScene: EditorSceneDraft | null,
+) {
+  return {
+    activeTool,
+    assets: editorAssets.assets,
+    assetsPending: editorAssets.assetsPending,
+    currentTime,
+    draft: editor.draft,
+    onAssetSelect: editorAssets.onAssetSelect,
+    onAddComment: editor.addComment,
+    onCaptionSelect: editor.setSelectedSceneId,
+    onCaptionUpdate: editor.updateCaption,
+    onMoveScene: editor.moveScene,
+    onRegenerateScene,
+    onSceneSelect: editor.setSelectedSceneId,
+    onSetCaptionPreset: editor.setCaptionPreset,
+    onSetMediaIntent: editor.setMediaIntent,
+    onSetMediaTab: editor.setMediaTab,
+    onSetSelectedEffect: editor.setSelectedEffect,
+    onSetSelectedShape: editor.setSelectedShape,
+    onSceneUpdate: editor.updateScene,
+    onUploadRequest: openUploadPicker,
+    regeneratePending,
+    selectedSceneId: selectedScene?.id ?? editor.draft.selectedSceneId,
+  };
 }
 
 function useWorkspaceScale() {
@@ -359,17 +388,23 @@ function useRegenerateScene(
 }
 
 function selectedSceneForDraft(draft: ProjectEditorDraft) {
+  if (draft.selectedClipId && !draft.selectedSceneId) {
+    return null;
+  }
   return draft.scenes.find((scene) => scene.id === draft.selectedSceneId) ?? draft.scenes[0] ?? null;
+}
+
+function selectedClipForDraft(draft: ProjectEditorDraft): ProjectEditorClip | null {
+  return draft.sequence.tracks
+    .flatMap((track) => track.clips)
+    .find((clip) => clip.id === draft.selectedClipId) ?? null;
 }
 
 function selectedSceneForLayout(
   draft: ProjectEditorDraft,
   preview: ProjectEditorPreviewState,
 ) {
-  if (!preview.isPlaying) {
-    return selectedSceneForDraft(draft);
-  }
-  return preview.activeScene ?? selectedSceneForDraft(draft);
+  return preview.isPlaying ? preview.activeScene ?? selectedSceneForDraft(draft) : selectedSceneForDraft(draft);
 }
 
 function editorTimelineDuration(project: ProjectDetail, draft: ProjectEditorDraft) {
@@ -397,9 +432,17 @@ function mapSavedStateToDraft(
   return {
     aspectRatio: merged.aspect_ratio,
     captions,
+    comments: (merged.comments ?? []).map((comment) => ({
+      body: comment.body,
+      createdAt: comment.created_at,
+      id: comment.id,
+      sceneId: comment.scene_id,
+      time: comment.time,
+    })),
     editMode: merged.edit_mode ?? "overwrite",
     headRevisionId,
     projectId: fallbackDraft.projectId,
+    selectedClipId: merged.selected_clip_id ?? fallbackDraft.selectedClipId,
     scenes,
     selectedSceneId: merged.selected_scene_id,
     selectedTrackId: merged.selected_track_id || fallbackDraft.selectedTrackId,
@@ -420,6 +463,7 @@ function mapSavedStateToDraft(
         })),
     ),
     showCaptions: merged.show_captions,
+    toolState: merged.tool_state ?? fallbackDraft.toolState,
   } satisfies ProjectEditorDraft;
 }
 

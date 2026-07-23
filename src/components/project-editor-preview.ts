@@ -160,6 +160,7 @@ function activeSceneAtTime(scenes: EditorSceneDraft[], currentTime: number) {
 function totalTimelineDuration(project: ProjectDetail, draft: ProjectEditorDraft) {
   return Math.max(
     project.preview_video?.duration_seconds || 0,
+    draft.sequence.duration_seconds || 0,
     draft.scenes.at(-1)?.end || 0,
     draft.captions.at(-1)?.end || 0,
     1,

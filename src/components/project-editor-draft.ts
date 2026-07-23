@@ -6,7 +6,10 @@ import {
   ProjectEditorSequence,
   TranscriptResponse,
 } from "@/lib/types";
+import { normalizeSceneEnd, projectDurationSeconds } from "@/components/project-editor-draft-builders";
 import { deriveEditorSequence } from "@/components/project-editor-sequence";
+import { buildDefaultToolState } from "@/components/project-editor-tool-state";
+import type { ProjectEditorToolState } from "@/lib/types";
 
 export type EditorAspectRatio = "16:9" | "9:16" | "1:1";
 
@@ -18,7 +21,7 @@ export type EditorSceneDraft = {
   onScreenText: string;
   start: number;
   end: number;
-  source: "edit_plan" | "launch_script" | "transcript" | "fallback" | "inserted";
+  source: "edit_plan" | "launch_script" | "transcript" | "fallback" | "inserted" | "imported";
 };
 
 export type EditorCaptionDraft = {
@@ -29,16 +32,27 @@ export type EditorCaptionDraft = {
   sceneId: string | null;
 };
 
+export type EditorCommentDraft = {
+  id: string;
+  sceneId: string | null;
+  body: string;
+  time: number;
+  createdAt: string;
+};
+
 export type ProjectEditorDraft = {
   aspectRatio: EditorAspectRatio;
   editMode: EditorEditMode;
   headRevisionId: number | null;
   projectId: string;
+  selectedClipId: string;
   selectedSceneId: string;
   selectedTrackId: string;
   showCaptions: boolean;
   scenes: EditorSceneDraft[];
   captions: EditorCaptionDraft[];
+  comments: EditorCommentDraft[];
+  toolState: ProjectEditorToolState;
   sequence: ProjectEditorSequence;
 };
 
@@ -52,14 +66,17 @@ export function buildProjectEditorDraft(
   return {
     aspectRatio: "16:9",
     captions,
+    comments: [],
     editMode: "overwrite",
     headRevisionId: null,
     projectId: project.id,
+    selectedClipId: "",
     selectedSceneId: scenes[0]?.id ?? "scene-1",
     selectedTrackId: "track-video-1",
     sequence: deriveEditorSequence(project.id, scenes, captions, audioClips),
     scenes,
     showCaptions: true,
+    toolState: buildDefaultToolState(),
   };
 }
 
@@ -93,7 +110,7 @@ function buildScenesFromEditPlan(scenes: EditPlanScene[]) {
     return null;
   }
   return scenes.map((scene) => ({
-    end: normalizeEnd(scene.start, scene.end, scene.render_duration_seconds),
+    end: normalizeSceneEnd(scene.start, scene.end, scene.render_duration_seconds),
     id: `scene-${scene.scene_number}`,
     onScreenText: scene.on_screen_text,
     sceneNumber: scene.scene_number,
@@ -208,31 +225,6 @@ function buildCaptionsFromScenes(scenes: EditorSceneDraft[]) {
 
 function sceneIdForTime(scenes: EditorSceneDraft[], time: number) {
   return scenes.find((scene) => time >= scene.start && time <= scene.end)?.id ?? scenes[0]?.id ?? null;
-}
-
-function normalizeEnd(start: number, end: number, renderDuration: number | null) {
-  if (end > start) {
-    return end;
-  }
-  if (renderDuration && renderDuration > 0) {
-    return start + renderDuration;
-  }
-  return start + 3;
-}
-
-function projectDurationSeconds(project: ProjectDetail) {
-  const launchScriptDuration = project.launch_script?.scenes.reduce(
-    (total, scene) => total + Math.max(scene.estimated_duration_seconds || 0, 0),
-    0,
-  );
-  const guideDuration = project.guide?.steps.at(-1)?.end ?? 0;
-  return (
-    project.preview_video?.duration_seconds ||
-    project.edit_plan?.total_duration_seconds ||
-    launchScriptDuration ||
-    guideDuration ||
-    12
-  );
 }
 
 export function reorderScenes(

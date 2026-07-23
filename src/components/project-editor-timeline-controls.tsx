@@ -1,28 +1,21 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 
 import { PauseIcon, PlayIcon, ScissorIcon, StepForwardIcon, StepIcon } from "@/components/project-editor-icons";
 
 export function TimelineTransportBar({
-  editMode,
-  onAddOverlayCallout,
   currentTime,
   isPlaying,
+  onChooseImportProject,
   onAddScreen,
-  onAddVideoTrack,
-  onEditModeChange,
-  onExtractScene,
-  onLiftScene,
-  onRollBoundary,
-  onRippleDeleteScene,
   onSplitScene,
-  onSlideScene,
   onTogglePlayback,
+  onChooseUploadFile,
   totalDuration,
   zoom,
   onZoomChange,
-  onSlipScene,
 }: {
   editMode: "overwrite" | "insert";
   onAddOverlayCallout: () => void;
@@ -31,6 +24,7 @@ export function TimelineTransportBar({
   onEditModeChange: (mode: "overwrite" | "insert") => void;
   onAddScreen: () => void;
   onAddVideoTrack: () => void;
+  onChooseImportProject: () => void;
   onExtractScene: () => void;
   onLiftScene: () => void;
   onRollBoundary: (deltaSeconds: number) => void;
@@ -38,6 +32,7 @@ export function TimelineTransportBar({
   onSplitScene: (time: number) => void;
   onSlideScene: (deltaSeconds: number) => void;
   onTogglePlayback: () => void;
+  onChooseUploadFile: () => void;
   totalDuration: number;
   zoom: number;
   onZoomChange: (value: number) => void;
@@ -45,52 +40,35 @@ export function TimelineTransportBar({
 }) {
   return (
     <div className="flex items-center justify-between gap-4 border-b border-white/6 pb-3">
-      <TransportLeftActions currentTime={currentTime} editMode={editMode} isPlaying={isPlaying} onAddOverlayCallout={onAddOverlayCallout} onAddScreen={onAddScreen} onAddVideoTrack={onAddVideoTrack} onEditModeChange={onEditModeChange} onExtractScene={onExtractScene} onLiftScene={onLiftScene} onRollBoundary={onRollBoundary} onRippleDeleteScene={onRippleDeleteScene} onSplitScene={onSplitScene} onSlideScene={onSlideScene} onSlipScene={onSlipScene} onTogglePlayback={onTogglePlayback} totalDuration={totalDuration} />
+      <TransportLeftActions currentTime={currentTime} isPlaying={isPlaying} onAddScreen={onAddScreen} onChooseImportProject={onChooseImportProject} onChooseUploadFile={onChooseUploadFile} onSplitScene={onSplitScene} onTogglePlayback={onTogglePlayback} totalDuration={totalDuration} />
       <TransportRightActions onZoomChange={onZoomChange} zoom={zoom} />
     </div>
   );
 }
 
 function TransportLeftActions({
-  onAddOverlayCallout,
   currentTime,
-  editMode,
   isPlaying,
   onAddScreen,
-  onAddVideoTrack,
-  onEditModeChange,
-  onExtractScene,
-  onLiftScene,
-  onRollBoundary,
-  onRippleDeleteScene,
+  onChooseImportProject,
+  onChooseUploadFile,
   onSplitScene,
-  onSlideScene,
-  onSlipScene,
   onTogglePlayback,
   totalDuration,
 }: {
-  onAddOverlayCallout: () => void;
   currentTime: number;
-  editMode: "overwrite" | "insert";
   isPlaying: boolean;
   onAddScreen: () => void;
-  onAddVideoTrack: () => void;
-  onEditModeChange: (mode: "overwrite" | "insert") => void;
-  onExtractScene: () => void;
-  onLiftScene: () => void;
-  onRollBoundary: (deltaSeconds: number) => void;
-  onRippleDeleteScene: () => void;
+  onChooseImportProject: () => void;
+  onChooseUploadFile: () => void;
   onSplitScene: (time: number) => void;
-  onSlideScene: (deltaSeconds: number) => void;
-  onSlipScene: (deltaSeconds: number) => void;
   onTogglePlayback: () => void;
   totalDuration: number;
 }) {
   return (
     <div className="flex items-center gap-[12px]">
       <TransportPlayback currentTime={currentTime} isPlaying={isPlaying} onTogglePlayback={onTogglePlayback} totalDuration={totalDuration} />
-      <ModeToggle editMode={editMode} onChange={onEditModeChange} />
-      <TransportEditActions currentTime={currentTime} onAddOverlayCallout={onAddOverlayCallout} onAddScreen={onAddScreen} onAddVideoTrack={onAddVideoTrack} onExtractScene={onExtractScene} onLiftScene={onLiftScene} onRollBoundary={onRollBoundary} onRippleDeleteScene={onRippleDeleteScene} onSlideScene={onSlideScene} onSlipScene={onSlipScene} onSplitScene={onSplitScene} />
+      <TransportEditActions currentTime={currentTime} onAddScreen={onAddScreen} onChooseImportProject={onChooseImportProject} onChooseUploadFile={onChooseUploadFile} onSplitScene={onSplitScene} />
     </div>
   );
 }
@@ -120,60 +98,22 @@ function TransportPlayback({
 
 function TransportEditActions({
   currentTime,
-  onAddOverlayCallout,
   onAddScreen,
-  onAddVideoTrack,
-  onExtractScene,
-  onLiftScene,
-  onRollBoundary,
-  onRippleDeleteScene,
-  onSlideScene,
-  onSlipScene,
+  onChooseImportProject,
+  onChooseUploadFile,
   onSplitScene,
 }: {
   currentTime: number;
-  onAddOverlayCallout: () => void;
   onAddScreen: () => void;
-  onAddVideoTrack: () => void;
-  onExtractScene: () => void;
-  onLiftScene: () => void;
-  onRollBoundary: (deltaSeconds: number) => void;
-  onRippleDeleteScene: () => void;
-  onSlideScene: (deltaSeconds: number) => void;
-  onSlipScene: (deltaSeconds: number) => void;
+  onChooseImportProject: () => void;
+  onChooseUploadFile: () => void;
   onSplitScene: (time: number) => void;
 }) {
   return (
     <>
       <TransportButton onClick={() => onSplitScene(currentTime)}><ScissorIcon /></TransportButton>
-      <TransportButton onClick={onAddScreen}>+</TransportButton>
-      <MiniAction onClick={onAddVideoTrack}>Track+</MiniAction>
-      <MiniAction onClick={onAddOverlayCallout}>Callout</MiniAction>
-      <MiniAction onClick={onRippleDeleteScene}>Ripple</MiniAction>
-      <MiniAction onClick={onLiftScene}>Lift</MiniAction>
-      <MiniAction onClick={onExtractScene}>Extract</MiniAction>
-      <MiniAction onClick={() => onRollBoundary(-0.5)}>Roll-</MiniAction>
-      <MiniAction onClick={() => onRollBoundary(0.5)}>Roll+</MiniAction>
-      <MiniAction onClick={() => onSlipScene(-0.5)}>Slip-</MiniAction>
-      <MiniAction onClick={() => onSlipScene(0.5)}>Slip+</MiniAction>
-      <MiniAction onClick={() => onSlideScene(-0.5)}>Slide-</MiniAction>
-      <MiniAction onClick={() => onSlideScene(0.5)}>Slide+</MiniAction>
+      <AddMenuButton onChooseBlankClip={onAddScreen} onChooseImportProject={onChooseImportProject} onChooseUploadFile={onChooseUploadFile} />
     </>
-  );
-}
-
-function ModeToggle({
-  editMode,
-  onChange,
-}: {
-  editMode: "overwrite" | "insert";
-  onChange: (mode: "overwrite" | "insert") => void;
-}) {
-  return (
-    <div className="flex items-center rounded-[8px] border border-white/8 bg-[#1f1f1f] p-1">
-      <button className={`rounded-[6px] px-2 py-1 text-[11px] ${editMode === "overwrite" ? "bg-white/12 text-white" : "text-[#a8a8a8]"}`} onClick={() => onChange("overwrite")} type="button">Overwrite</button>
-      <button className={`rounded-[6px] px-2 py-1 text-[11px] ${editMode === "insert" ? "bg-white/12 text-white" : "text-[#a8a8a8]"}`} onClick={() => onChange("insert")} type="button">Insert</button>
-    </div>
   );
 }
 
@@ -195,16 +135,6 @@ function TransportRightActions({
       </div>
     </div>
   );
-}
-
-function MiniAction({
-  children,
-  onClick,
-}: {
-  children: ReactNode;
-  onClick: () => void;
-}) {
-  return <button className="rounded-[8px] border border-white/8 px-2 py-1.5 text-[11px] text-[#d1d1d1]" onClick={onClick} type="button">{children}</button>;
 }
 
 function ZoomControl({
@@ -234,6 +164,76 @@ function TransportButton({
 
 function TransportGhost({ children }: { children: ReactNode }) {
   return <button className="grid h-9 w-9 place-items-center text-[#18a56a]" type="button">{children}</button>;
+}
+
+export function AddMenuButton({
+  onChooseBlankClip,
+  onChooseImportProject,
+  onChooseUploadFile,
+}: {
+  onChooseBlankClip: () => void;
+  onChooseImportProject: () => void;
+  onChooseUploadFile: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!containerRef.current?.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    };
+    window.addEventListener("pointerdown", handlePointerDown);
+    return () => window.removeEventListener("pointerdown", handlePointerDown);
+  }, [open]);
+
+  return (
+    <div ref={containerRef} className="relative">
+      <TransportButton onClick={() => setOpen((current) => !current)}>+</TransportButton>
+      {open ? <AddMenu onChooseBlankClip={onChooseBlankClip} onChooseImportProject={onChooseImportProject} onChooseUploadFile={onChooseUploadFile} onClose={() => setOpen(false)} /> : null}
+    </div>
+  );
+}
+
+function AddMenu({
+  onChooseBlankClip,
+  onChooseImportProject,
+  onChooseUploadFile,
+  onClose,
+}: {
+  onChooseBlankClip: () => void;
+  onChooseImportProject: () => void;
+  onChooseUploadFile: () => void;
+  onClose: () => void;
+}) {
+  return (
+    <div className="absolute left-1/2 top-[calc(100%+12px)] z-30 w-[182px] -translate-x-1/2 rounded-[10px] border border-white/8 bg-[#211f1f] p-2 shadow-[0_24px_48px_rgba(0,0,0,0.45)]">
+      <AddMenuItem label="Blank clip" onClick={() => selectAddMenuItem(onChooseBlankClip, onClose)} />
+      <AddMenuItem label="Upload file" onClick={() => selectAddMenuItem(onChooseUploadFile, onClose)} />
+      <AddMenuItem label="Import project" onClick={() => selectAddMenuItem(onChooseImportProject, onClose)} />
+    </div>
+  );
+}
+
+function AddMenuItem({
+  label,
+  onClick,
+}: {
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button className="flex w-full items-center rounded-[8px] px-3 py-2.5 text-left text-[14px] text-[#e2e2e2] transition hover:bg-white/6" onClick={onClick} type="button">
+      {label}
+    </button>
+  );
+}
+
+function selectAddMenuItem(action: () => void, onClose: () => void) {
+  action();
+  onClose();
 }
 
 function formatTimelineTime(seconds: number) {

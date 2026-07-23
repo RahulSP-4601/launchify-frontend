@@ -309,7 +309,7 @@ export type UpdateRecordingSessionInput = {
 export type EditorAspectRatio = "16:9" | "9:16" | "1:1";
 export type EditorEditMode = "overwrite" | "insert";
 
-export type EditorSceneSource = "edit_plan" | "launch_script" | "transcript" | "fallback" | "inserted";
+export type EditorSceneSource = "edit_plan" | "launch_script" | "transcript" | "fallback" | "inserted" | "imported";
 
 export type ProjectEditorScene = {
   id: string;
@@ -330,9 +330,52 @@ export type ProjectEditorCaption = {
   scene_id: string | null;
 };
 
+export type ProjectEditorComment = {
+  id: string;
+  scene_id: string | null;
+  body: string;
+  time: number;
+  created_at: string;
+};
+
+export type ProjectEditorToolState = {
+  active_shape: "rectangle" | "ellipse" | "polygon" | "star" | "line" | "arrow" | null;
+  active_effect: "blur" | "callout" | "spotlight" | "zoom" | null;
+  active_caption_preset: "basic" | "basic_karaoke" | "highlight_box" | "karaoke_highlight_box";
+  media_tab: "project" | "saved" | "stock";
+  pending_media_intent: "upload_file" | "import_project" | null;
+};
+
+export type ProjectEditorMediaAssetKind = "audio" | "video";
+export type ProjectEditorMediaAssetSource = "project_source" | "project_voiceover" | "uploaded" | "imported";
+
+export type ProjectEditorMediaAsset = {
+  id: string;
+  project_id: string;
+  kind: ProjectEditorMediaAssetKind;
+  source: ProjectEditorMediaAssetSource;
+  title: string;
+  storage_path: string;
+  content_type: string;
+  size_bytes: number;
+  duration_seconds: number | null;
+  source_project_id: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 export type EditorTrackKind = "video" | "audio" | "caption" | "overlay";
 
-export type EditorClipKind = "source_video" | "inserted_card" | "caption" | "voiceover";
+export type EditorClipKind =
+  | "source_video"
+  | "inserted_card"
+  | "caption"
+  | "voiceover"
+  | "media_audio"
+  | "media_video"
+  | "text_overlay"
+  | "shape_overlay"
+  | "effect_overlay";
 
 export type ProjectEditorClip = {
   id: string;
@@ -344,9 +387,18 @@ export type ProjectEditorClip = {
   timeline_end: number;
   source_start: number | null;
   source_end: number | null;
+  asset_path?: string | null;
+  content_type?: string | null;
+  source_project_id?: string | null;
+  style_preset?: string | null;
+  effect_preset?: string | null;
   text: string;
   locked: boolean;
   muted: boolean;
+  volume_percent?: number | null;
+  fade_in_seconds?: number | null;
+  fade_out_seconds?: number | null;
+  loop?: boolean | null;
 };
 
 export type ProjectEditorTrack = {
@@ -369,11 +421,14 @@ export type ProjectEditorSequence = {
 export type ProjectEditorState = {
   aspect_ratio: EditorAspectRatio;
   edit_mode: EditorEditMode;
+  selected_clip_id?: string | null;
   selected_scene_id: string;
   selected_track_id: string;
   show_captions: boolean;
   scenes: ProjectEditorScene[];
   captions: ProjectEditorCaption[];
+  comments?: ProjectEditorComment[];
+  tool_state?: ProjectEditorToolState | null;
   sequence?: ProjectEditorSequence | null;
 };
 
@@ -410,6 +465,17 @@ export type RegenerateProjectEditorSceneInput = {
   scene_id: string;
   editor_state: ProjectEditorState;
   base_revision_id: number | null;
+};
+
+export type ProjectEditorMediaAssetListResponse = {
+  assets: ProjectEditorMediaAsset[];
+};
+
+export type ProjectEditorMediaAssetImportInput = {
+  source_project_id: string;
+  asset_id?: string | null;
+  variant: "source" | "voiceover" | "asset";
+  duration_seconds: number | null;
 };
 
 export type UsageSummary = {

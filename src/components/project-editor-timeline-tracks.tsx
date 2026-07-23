@@ -3,140 +3,89 @@
 import { useRef } from "react";
 
 import { EditorSceneDraft, ProjectEditorDraft, isInsertedScene, sceneDuration } from "@/components/project-editor-draft";
-import { ProjectEditorTrack } from "@/lib/types";
+import { AddMenuButton } from "@/components/project-editor-timeline-controls";
+import { GlobalTimelinePlayhead } from "@/components/project-editor-timeline-playhead";
+import { clampRatio } from "@/components/project-editor-timeline-track-utils";
+import { mapSceneClip } from "@/components/project-editor-sequence-utils";
+import { ProjectEditorClip, ProjectEditorTrack } from "@/lib/types";
 
-export function TrackStack({
-  currentTime,
-  draft,
-  onSceneSelect,
-  onSeek,
-  onSelectTrack,
-  onToggleTrackLocked,
-  onToggleTrackMuted,
-  onTrimBoundary,
-  selectedSceneId,
-  selectedTrackId,
-  totalDuration,
-  zoom,
-}: {
+type TrackStackProps = {
   currentTime: number;
   draft: ProjectEditorDraft;
   onSceneSelect: (scene: EditorSceneDraft) => void;
   onSeek: (time: number) => void;
+  onSelectClip: (clipId: string) => void;
+  onMoveClip: (deltaSeconds: number) => void;
   onSelectTrack: (trackId: string) => void;
   onToggleTrackLocked: (trackId: string) => void;
   onToggleTrackMuted: (trackId: string) => void;
+  onTrimClip: (edge: "start" | "end", nextTime: number) => void;
   onTrimBoundary: (sceneId: string, time: number) => void;
+  onChooseImportProject: () => void;
+  onAddScreen: () => void;
+  onChooseUploadFile: () => void;
+  selectedClipId: string;
   selectedSceneId: string;
   selectedTrackId: string;
   totalDuration: number;
   zoom: number;
-}) {
+};
+
+type VideoTrackProps = Omit<TrackStackProps, "draft"> & {
+  draft: ProjectEditorDraft;
+  track: ProjectEditorTrack;
+};
+
+type VideoTrackBodyProps = Omit<VideoTrackProps, "draft"> & {
+  scenes: EditorSceneDraft[];
+};
+
+export function TrackStack(props: TrackStackProps) {
   return (
-    <div className="space-y-2">
-      {draft.sequence.tracks.map((track) => (
-        <SequenceTrackLane
-          key={track.id}
-          currentTime={currentTime}
-          draft={draft}
-          onSceneSelect={onSceneSelect}
-          onSeek={onSeek}
-          onSelectTrack={onSelectTrack}
-          onToggleTrackLocked={onToggleTrackLocked}
-          onToggleTrackMuted={onToggleTrackMuted}
-          onTrimBoundary={onTrimBoundary}
-          selectedSceneId={selectedSceneId}
-          selectedTrackId={selectedTrackId}
-          totalDuration={totalDuration}
-          track={track}
-          zoom={zoom}
-        />
+    <div className="relative space-y-2">
+      <GlobalTimelinePlayhead currentTime={props.currentTime} onSeek={props.onSeek} totalDuration={props.totalDuration} />
+      {props.draft.sequence.tracks.map((track) => (
+        <SequenceTrackLane key={track.id} {...props} track={track} />
       ))}
     </div>
   );
 }
 
-function SequenceTrackLane({
-  currentTime,
-  draft,
-  onSceneSelect,
-  onSeek,
-  onSelectTrack,
-  onToggleTrackLocked,
-  onToggleTrackMuted,
-  onTrimBoundary,
-  selectedSceneId,
-  selectedTrackId,
-  totalDuration,
-  track,
-  zoom,
-}: {
-  currentTime: number;
-  draft: ProjectEditorDraft;
-  onSceneSelect: (scene: EditorSceneDraft) => void;
-  onSeek: (time: number) => void;
-  onSelectTrack: (trackId: string) => void;
-  onToggleTrackLocked: (trackId: string) => void;
-  onToggleTrackMuted: (trackId: string) => void;
-  onTrimBoundary: (sceneId: string, time: number) => void;
-  selectedSceneId: string;
-  selectedTrackId: string;
-  totalDuration: number;
+function SequenceTrackLane(props: TrackStackProps & {
   track: ProjectEditorTrack;
-  zoom: number;
 }) {
-  if (track.kind === "video") {
-    return <VideoSequenceTrack currentTime={currentTime} draft={draft} onSceneSelect={onSceneSelect} onSeek={onSeek} onSelectTrack={onSelectTrack} onToggleTrackLocked={onToggleTrackLocked} onToggleTrackMuted={onToggleTrackMuted} onTrimBoundary={onTrimBoundary} selectedSceneId={selectedSceneId} selectedTrackId={selectedTrackId} totalDuration={totalDuration} track={track} zoom={zoom} />;
+  if (props.track.kind === "video") {
+    return <VideoSequenceTrack {...props} />;
   }
-  return <AuxSequenceTrack onSelectTrack={onSelectTrack} onToggleTrackLocked={onToggleTrackLocked} onToggleTrackMuted={onToggleTrackMuted} selectedTrackId={selectedTrackId} totalDuration={totalDuration} track={track} zoom={zoom} />;
+  return <AuxSequenceTrack onMoveClip={props.onMoveClip} onSeek={props.onSeek} onSelectClip={props.onSelectClip} onSelectTrack={props.onSelectTrack} onToggleTrackLocked={props.onToggleTrackLocked} onToggleTrackMuted={props.onToggleTrackMuted} onTrimClip={props.onTrimClip} selectedClipId={props.selectedClipId} selectedTrackId={props.selectedTrackId} totalDuration={props.totalDuration} track={props.track} zoom={props.zoom} />;
 }
 
-function VideoSequenceTrack({
-  currentTime,
-  draft,
-  onSceneSelect,
-  onSeek,
-  onSelectTrack,
-  onToggleTrackLocked,
-  onToggleTrackMuted,
-  onTrimBoundary,
-  selectedSceneId,
-  selectedTrackId,
-  totalDuration,
-  track,
-  zoom,
-}: {
-  currentTime: number;
-  draft: ProjectEditorDraft;
-  onSceneSelect: (scene: EditorSceneDraft) => void;
-  onSeek: (time: number) => void;
-  onSelectTrack: (trackId: string) => void;
-  onToggleTrackLocked: (trackId: string) => void;
-  onToggleTrackMuted: (trackId: string) => void;
-  onTrimBoundary: (sceneId: string, time: number) => void;
-  selectedSceneId: string;
-  selectedTrackId: string;
-  totalDuration: number;
-  track: ProjectEditorTrack;
-  zoom: number;
-}) {
-  const scenes = track.clips
-    .map((clip) => draft.scenes.find((scene) => scene.id === clip.scene_id))
-    .filter(isSceneDraft);
+function VideoSequenceTrack(props: VideoTrackProps) {
+  const scenes = videoScenesForTrack(props.track, props.draft);
   return (
     <div className="mt-1 overflow-x-auto">
-      <div className={`relative rounded-[2px] border ${track.id === selectedTrackId ? "border-[#74a4ff] shadow-[0_0_0_1px_rgba(116,164,255,0.5)]" : "border-[#0c55a9]"} bg-[#0f61ca]`} style={{ minWidth: `${Math.round(1320 * zoom)}px` }}>
-        <Playhead currentTime={currentTime} totalDuration={totalDuration} />
-        <TrackMarkers scenes={scenes} totalDuration={totalDuration} />
-        <TrackHeader accentClass="bg-[#145db4]" onSelectTrack={onSelectTrack} onToggleTrackLocked={onToggleTrackLocked} onToggleTrackMuted={onToggleTrackMuted} track={track} />
-        <div className="flex h-[74px]">
-          {scenes.map((scene) => (
-            <TrackSegment key={scene.id} isSelected={scene.id === selectedSceneId} onClick={() => handleSceneClick(onSceneSelect, onSeek, scene)} onTrimBoundary={onTrimBoundary} scene={scene} scenes={scenes} totalDuration={totalDuration} />
-          ))}
-        </div>
-        <ThumbnailStrip scenes={scenes} totalDuration={totalDuration} />
-        <div className="h-[42px] border-t border-black/30 bg-[#020202]" />
+      <VideoTrackBody {...props} scenes={scenes} />
+    </div>
+  );
+}
+
+function VideoTrackBody(props: VideoTrackBodyProps) {
+  return (
+    <div
+      className={`relative rounded-[2px] border ${props.track.id === props.selectedTrackId ? "border-[#74a4ff] shadow-[0_0_0_1px_rgba(116,164,255,0.5)]" : "border-[#0c55a9]"} bg-[#0f61ca]`}
+      onPointerDown={handleLanePointerDown(props.onSeek, props.totalDuration)}
+      style={{ minWidth: `${Math.round(1320 * props.zoom)}px` }}
+    >
+      <TrackMarkers scenes={props.scenes} totalDuration={props.totalDuration} />
+      <TrackHeader accentClass="bg-[#145db4]" onSelectTrack={props.onSelectTrack} onToggleTrackLocked={props.onToggleTrackLocked} onToggleTrackMuted={props.onToggleTrackMuted} track={props.track} />
+      <div className="flex h-[74px]">
+        {props.scenes.map((scene) => (
+          <TrackSegment key={scene.id} isSelected={scene.id === props.selectedSceneId} onSceneSelect={props.onSceneSelect} onSeek={props.onSeek} onTrimBoundary={props.onTrimBoundary} scene={scene} scenes={props.scenes} totalDuration={props.totalDuration} />
+        ))}
+        <TimelineInsertTarget onChooseBlankClip={props.onAddScreen} onChooseImportProject={props.onChooseImportProject} onChooseUploadFile={props.onChooseUploadFile} />
       </div>
+      <ThumbnailStrip scenes={props.scenes} totalDuration={props.totalDuration} />
+      <div className="h-[42px] border-t border-black/30 bg-[#020202]" />
     </div>
   );
 }
@@ -145,18 +94,35 @@ function isSceneDraft(scene: EditorSceneDraft | undefined): scene is EditorScene
   return Boolean(scene);
 }
 
+function videoScenesForTrack(track: ProjectEditorTrack, draft: ProjectEditorDraft) {
+  const priorScenes = new Map(draft.scenes.map((scene) => [scene.id, scene]));
+  return track.clips
+    .map((clip, index) => draft.scenes.find((scene) => scene.id === clip.scene_id) ?? mapSceneClip(clip, priorScenes, index))
+    .filter(isSceneDraft);
+}
+
 function AuxSequenceTrack({
+  onMoveClip,
+  onSeek,
+  onSelectClip,
   onSelectTrack,
   onToggleTrackLocked,
   onToggleTrackMuted,
+  onTrimClip,
+  selectedClipId,
   selectedTrackId,
   totalDuration,
   track,
   zoom,
 }: {
+  onMoveClip: (deltaSeconds: number) => void;
+  onSeek: (time: number) => void;
+  onSelectClip: (clipId: string) => void;
   onSelectTrack: (trackId: string) => void;
   onToggleTrackLocked: (trackId: string) => void;
   onToggleTrackMuted: (trackId: string) => void;
+  onTrimClip: (edge: "start" | "end", nextTime: number) => void;
+  selectedClipId: string;
   selectedTrackId: string;
   totalDuration: number;
   track: ProjectEditorTrack;
@@ -167,13 +133,15 @@ function AuxSequenceTrack({
     : { body: "bg-[#25303a]", border: "border-[#375066]", chip: "bg-[#2e556d]" };
   return (
     <div className="overflow-x-auto">
-      <div className={`relative rounded-[2px] border ${track.id === selectedTrackId ? "border-white/35" : palette.border} ${palette.body}`} style={{ minWidth: `${Math.round(1320 * zoom)}px` }}>
+      <div
+        className={`relative rounded-[2px] border ${track.id === selectedTrackId ? "border-white/35" : palette.border} ${palette.body}`}
+        onPointerDown={handleAuxLanePointerDown(handleSeekAndSelectTrack(onSeek, onSelectTrack, track.id), totalDuration)}
+        style={{ minWidth: `${Math.round(1320 * zoom)}px` }}
+      >
         <TrackHeader accentClass={palette.chip} compact onSelectTrack={onSelectTrack} onToggleTrackLocked={onToggleTrackLocked} onToggleTrackMuted={onToggleTrackMuted} track={track} />
         <div className="flex h-[32px]">
           {track.clips.map((clip) => (
-            <div key={clip.id} className="border-r border-white/10 px-2 py-1 text-[10px] text-white/85" style={{ width: `${Math.max(((clip.timeline_end - clip.timeline_start) / Math.max(totalDuration, 1)) * 100, 4)}%`, minWidth: 90 }}>
-              <span className="line-clamp-1">{clip.title || clip.text || track.kind}</span>
-            </div>
+            <AuxClipSegment key={clip.id} clip={clip} isSelected={selectedClipId === clip.id} onMoveClip={onMoveClip} onSeek={onSeek} onSelectClip={onSelectClip} onSelectTrack={onSelectTrack} onTrimClip={onTrimClip} totalDuration={totalDuration} track={track} />
           ))}
         </div>
       </div>
@@ -211,20 +179,18 @@ function TrackMarkers({ scenes, totalDuration }: { scenes: EditorSceneDraft[]; t
   );
 }
 
-function Playhead({ currentTime, totalDuration }: { currentTime: number; totalDuration: number }) {
-  return <div className="absolute inset-y-0 z-10 w-px bg-white" style={{ left: `${Math.min((currentTime / Math.max(totalDuration, 1)) * 100, 100)}%` }} />;
-}
-
 function TrackSegment({
   isSelected,
-  onClick,
+  onSceneSelect,
+  onSeek,
   onTrimBoundary,
   scene,
   scenes,
   totalDuration,
 }: {
   isSelected: boolean;
-  onClick: () => void;
+  onSceneSelect: (scene: EditorSceneDraft) => void;
+  onSeek: (time: number) => void;
   onTrimBoundary: (sceneId: string, time: number) => void;
   scene: EditorSceneDraft;
   scenes: EditorSceneDraft[];
@@ -234,7 +200,12 @@ function TrackSegment({
   const inserted = isInsertedScene(scene);
   const canTrim = scenes.at(-1)?.id !== scene.id;
   return (
-    <button className={`relative h-full border-r text-left ${inserted ? "border-[#5f58b9] bg-[linear-gradient(180deg,#3f356f,#2c2850)] hover:bg-[#3d3666]" : "border-[#2a7de8]"} ${isSelected ? "bg-white/[0.1]" : "hover:bg-white/[0.04]"}`} onClick={onClick} style={{ minWidth: inserted ? 190 : 170, width }} type="button">
+    <button
+      className={`relative h-full border-r text-left ${inserted ? "border-[#5f58b9] bg-[linear-gradient(180deg,#3f356f,#2c2850)] hover:bg-[#3d3666]" : "border-[#2a7de8]"} ${isSelected ? "bg-white/[0.1]" : "hover:bg-white/[0.04]"}`}
+      onPointerDown={handleSegmentPointerDown(onSceneSelect, onSeek, scene)}
+      style={{ minWidth: inserted ? 190 : 170, width }}
+      type="button"
+    >
       <div className="absolute inset-x-4 bottom-6 text-white">
         <p className="truncate text-[10px] uppercase tracking-[0.32em] text-white/65">{inserted ? "Inserted" : `Scene ${scene.sceneNumber}`}</p>
         <p className="mt-2 truncate text-[11px] font-semibold tracking-[0.01em]">{scene.title}</p>
@@ -270,9 +241,180 @@ function TrimHandle({
   return <span className="absolute inset-y-0 right-0 z-20 w-3 cursor-col-resize bg-white/10 transition hover:bg-white/25" onPointerDown={onPointerDown} onPointerMove={onPointerMove} />;
 }
 
-function handleSceneClick(onSceneSelect: (scene: EditorSceneDraft) => void, onSeek: (time: number) => void, scene: EditorSceneDraft) {
-  onSceneSelect(scene);
-  onSeek(scene.start);
+function handleSegmentPointerDown(
+  onSceneSelect: (scene: EditorSceneDraft) => void,
+  onSeek: (time: number) => void,
+  scene: EditorSceneDraft,
+) {
+  return (event: React.PointerEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const ratio = clampRatio((event.clientX - bounds.left) / Math.max(bounds.width, 1));
+    const time = scene.start + (sceneDuration(scene) * ratio);
+    onSceneSelect(scene);
+    onSeek(time);
+  };
+}
+
+function scrubLanePointerDown(
+  onSeek: (time: number) => void,
+  totalDuration: number,
+) {
+  return (event: React.PointerEvent<HTMLDivElement>) => {
+    const lane = event.currentTarget;
+    const seekAtPointer = (clientX: number) => {
+      const bounds = lane.getBoundingClientRect();
+      const ratio = clampRatio((clientX - bounds.left) / Math.max(bounds.width, 1));
+      onSeek(ratio * totalDuration);
+    };
+    seekAtPointer(event.clientX);
+    const pointerId = event.pointerId;
+    lane.setPointerCapture(pointerId);
+    const handleMove = (moveEvent: PointerEvent) => seekAtPointer(moveEvent.clientX);
+    const handleEnd = () => {
+      lane.removeEventListener("pointermove", handleMove);
+      lane.removeEventListener("pointerup", handleEnd);
+      lane.removeEventListener("pointercancel", handleEnd);
+      if (lane.hasPointerCapture(pointerId)) {
+        lane.releasePointerCapture(pointerId);
+      }
+    };
+    lane.addEventListener("pointermove", handleMove);
+    lane.addEventListener("pointerup", handleEnd);
+    lane.addEventListener("pointercancel", handleEnd);
+  };
+}
+
+function handleLanePointerDown(onSeek: (time: number) => void, totalDuration: number) {
+  return scrubLanePointerDown(onSeek, totalDuration);
+}
+
+function handleAuxLanePointerDown(onSeek: (time: number) => void, totalDuration: number) {
+  return scrubLanePointerDown(onSeek, totalDuration);
+}
+
+function handleSeekAndSelectTrack(
+  onSeek: (time: number) => void,
+  onSelectTrack: (trackId: string) => void,
+  trackId: string,
+) {
+  return (time: number) => {
+    onSeek(time);
+    onSelectTrack(trackId);
+  };
+}
+
+function TimelineInsertTarget({
+  onChooseBlankClip,
+  onChooseImportProject,
+  onChooseUploadFile,
+}: {
+  onChooseBlankClip: () => void;
+  onChooseImportProject: () => void;
+  onChooseUploadFile: () => void;
+}) {
+  return (
+    <div className="grid h-full min-w-[176px] place-items-center border-l border-white/8 bg-[#101010]">
+      <div className="grid place-items-center gap-3">
+        <span className="text-[28px] font-light text-white/30">+</span>
+        <AddMenuButton onChooseBlankClip={onChooseBlankClip} onChooseImportProject={onChooseImportProject} onChooseUploadFile={onChooseUploadFile} />
+      </div>
+    </div>
+  );
+}
+
+function AuxClipSegment({
+  clip,
+  isSelected,
+  onMoveClip,
+  onSeek,
+  onSelectClip,
+  onSelectTrack,
+  onTrimClip,
+  totalDuration,
+  track,
+}: {
+  clip: ProjectEditorClip;
+  isSelected: boolean;
+  onMoveClip: (deltaSeconds: number) => void;
+  onSeek: (time: number) => void;
+  onSelectClip: (clipId: string) => void;
+  onSelectTrack: (trackId: string) => void;
+  onTrimClip: (edge: "start" | "end", nextTime: number) => void;
+  totalDuration: number;
+  track: ProjectEditorTrack;
+}) {
+  return (
+    <button
+      className={`relative border-r border-white/10 px-2 py-1 text-left text-[10px] text-white/85 ${isSelected ? "bg-white/10" : "hover:bg-white/5"}`}
+      onPointerDown={handleAuxClipPointerDown(clip, onSeek, onSelectClip, onSelectTrack, onMoveClip, totalDuration)}
+      style={{ width: `${Math.max(((clip.timeline_end - clip.timeline_start) / Math.max(totalDuration, 1)) * 100, 4)}%`, minWidth: 90 }}
+      type="button"
+    >
+      <span className="line-clamp-1">{clip.title || clip.text || track.kind}</span>
+      <AuxTrimHandle clip={clip} edge="start" onTrimClip={onTrimClip} totalDuration={totalDuration} />
+      <AuxTrimHandle clip={clip} edge="end" onTrimClip={onTrimClip} totalDuration={totalDuration} />
+    </button>
+  );
+}
+
+function AuxTrimHandle({
+  clip,
+  edge,
+  onTrimClip,
+  totalDuration,
+}: {
+  clip: ProjectEditorClip;
+  edge: "start" | "end";
+  onTrimClip: (edge: "start" | "end", nextTime: number) => void;
+  totalDuration: number;
+}) {
+  const anchorXRef = useRef(0);
+  const anchorTimeRef = useRef(edge === "start" ? clip.timeline_start : clip.timeline_end);
+  const onPointerDown = (event: React.PointerEvent<HTMLSpanElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    anchorXRef.current = event.clientX;
+    anchorTimeRef.current = edge === "start" ? clip.timeline_start : clip.timeline_end;
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+  const onPointerMove = (event: React.PointerEvent<HTMLSpanElement>) => {
+    if (!(event.buttons & 1)) return;
+    const nextTime = anchorTimeRef.current + ((event.clientX - anchorXRef.current) / 320) * totalDuration;
+    onTrimClip(edge, nextTime);
+  };
+  return <span className={`absolute inset-y-0 z-20 w-2 cursor-col-resize ${edge === "start" ? "left-0" : "right-0"}`} onPointerDown={onPointerDown} onPointerMove={onPointerMove} />;
+}
+
+function handleAuxClipPointerDown(
+  clip: ProjectEditorClip,
+  onSeek: (time: number) => void,
+  onSelectClip: (clipId: string) => void,
+  onSelectTrack: (trackId: string) => void,
+  onMoveClip: (deltaSeconds: number) => void,
+  totalDuration: number,
+) {
+  return (event: React.PointerEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+    let previousX = event.clientX;
+    onSelectClip(clip.id);
+    onSelectTrack(clip.track_id);
+    onSeek(clip.timeline_start);
+    event.currentTarget.setPointerCapture(event.pointerId);
+    const handleMove = (moveEvent: PointerEvent) => {
+      const deltaSeconds = ((moveEvent.clientX - previousX) / 320) * totalDuration;
+      previousX = moveEvent.clientX;
+      onMoveClip(deltaSeconds);
+    };
+    const handleEnd = () => {
+      event.currentTarget.removeEventListener("pointermove", handleMove);
+      event.currentTarget.removeEventListener("pointerup", handleEnd);
+      event.currentTarget.removeEventListener("pointercancel", handleEnd);
+    };
+    event.currentTarget.addEventListener("pointermove", handleMove);
+    event.currentTarget.addEventListener("pointerup", handleEnd);
+    event.currentTarget.addEventListener("pointercancel", handleEnd);
+  };
 }
 
 function TrackControls({

@@ -12,7 +12,7 @@ import {
   UndoIcon,
 } from "@/components/project-editor-icons";
 import { EditorRevisionHistory } from "@/components/project-editor-revisions";
-import { ProjectDetail, ProjectEditorRevisionSummary } from "@/lib/types";
+import { ProjectDetail, ProjectEditorClip, ProjectEditorRevisionSummary } from "@/lib/types";
 
 export function EditorTopBar({
   canRedo,
@@ -63,8 +63,10 @@ export function EditorInspector({
   onAspectRatioChange,
   onRestoreRevision,
   onToggleCaptions,
+  onUpdateSelectedClip,
   restoreRevisionPending,
   revisions,
+  selectedClip,
   selectedScene,
 }: {
   activeRevisionId: number | null;
@@ -72,8 +74,10 @@ export function EditorInspector({
   onAspectRatioChange: (aspectRatio: EditorAspectRatio) => void;
   onRestoreRevision: (revisionId: number) => void;
   onToggleCaptions: (value: boolean) => void;
+  onUpdateSelectedClip: (patch: Partial<ProjectEditorClip>) => void;
   restoreRevisionPending: boolean;
   revisions: ProjectEditorRevisionSummary[];
+  selectedClip: ProjectEditorClip | null;
   selectedScene: EditorSceneDraft | null;
 }) {
   return (
@@ -84,8 +88,10 @@ export function EditorInspector({
       <InspectorSection title="Aspect Ratio">
         <AspectRatioField aspectRatio={draft.aspectRatio} onChange={onAspectRatioChange} />
       </InspectorSection>
-      <InspectorSection title="Selected Scene">
-        <SceneDetails scene={selectedScene} />
+      <InspectorSection title={selectedClip ? "Selected Clip" : "Selected Scene"}>
+        {selectedClip
+          ? <SelectedClipDetails clip={selectedClip} onUpdateClip={onUpdateSelectedClip} />
+          : <SceneDetails scene={selectedScene} />}
       </InspectorSection>
       <InspectorSection title="Revision History">
         <EditorRevisionHistory activeRevisionId={activeRevisionId} onRestore={onRestoreRevision} restorePending={restoreRevisionPending} revisions={revisions} />
@@ -207,6 +213,157 @@ function SceneDetails({ scene }: { scene: EditorSceneDraft | null }) {
       <p className="text-[#8f8f8f]">{`${scene.start.toFixed(1)}s - ${scene.end.toFixed(1)}s`}</p>
     </div>
   );
+}
+
+function SelectedClipDetails({
+  clip,
+  onUpdateClip,
+}: {
+  clip: ProjectEditorClip;
+  onUpdateClip: (patch: Partial<ProjectEditorClip>) => void;
+}) {
+  return (
+    <div className="space-y-4">
+      <ClipIdentity clip={clip} onUpdateClip={onUpdateClip} />
+      <ClipRange clip={clip} />
+      <ClipFlags clip={clip} onUpdateClip={onUpdateClip} />
+      {clip.kind === "caption" ? <CaptionClipFields clip={clip} onUpdateClip={onUpdateClip} /> : null}
+      {clip.kind === "media_audio" || clip.kind === "voiceover" ? <AudioClipFields clip={clip} onUpdateClip={onUpdateClip} /> : null}
+    </div>
+  );
+}
+
+function ClipIdentity({
+  clip,
+  onUpdateClip,
+}: {
+  clip: ProjectEditorClip;
+  onUpdateClip: (patch: Partial<ProjectEditorClip>) => void;
+}) {
+  return (
+    <div className="space-y-2">
+      <p className="text-[11px] uppercase tracking-[0.28em] text-[#727272]">{clipLabel(clip)}</p>
+      <input
+        className="h-[42px] w-full rounded-[7px] border border-white/8 bg-[#191919] px-3 text-[14px] text-[#ededed] outline-none"
+        onChange={(event) => onUpdateClip({ title: event.target.value })}
+        value={clip.title}
+      />
+    </div>
+  );
+}
+
+function ClipRange({ clip }: { clip: ProjectEditorClip }) {
+  return <p className="text-[13px] leading-6 text-[#8f8f8f]">{`${clip.timeline_start.toFixed(1)}s - ${clip.timeline_end.toFixed(1)}s`}</p>;
+}
+
+function ClipFlags({
+  clip,
+  onUpdateClip,
+}: {
+  clip: ProjectEditorClip;
+  onUpdateClip: (patch: Partial<ProjectEditorClip>) => void;
+}) {
+  return (
+    <div className="grid grid-cols-2 gap-3">
+      <ToggleCard checked={clip.muted} label="Muted" onChange={(value) => onUpdateClip({ muted: value })} />
+      <ToggleCard checked={clip.locked} label="Locked" onChange={(value) => onUpdateClip({ locked: value })} />
+    </div>
+  );
+}
+
+function CaptionClipFields({
+  clip,
+  onUpdateClip,
+}: {
+  clip: ProjectEditorClip;
+  onUpdateClip: (patch: Partial<ProjectEditorClip>) => void;
+}) {
+  return (
+    <div className="space-y-2">
+      <p className="text-[12px] font-medium text-[#f0f0f0]">Caption text</p>
+      <textarea
+        className="min-h-[96px] w-full rounded-[7px] border border-white/8 bg-[#191919] px-3 py-2 text-[14px] leading-6 text-[#ededed] outline-none"
+        onChange={(event) => onUpdateClip({ text: event.target.value, title: clipTitleFromText(event.target.value, clip.title) })}
+        value={clip.text}
+      />
+    </div>
+  );
+}
+
+function AudioClipFields({
+  clip,
+  onUpdateClip,
+}: {
+  clip: ProjectEditorClip;
+  onUpdateClip: (patch: Partial<ProjectEditorClip>) => void;
+}) {
+  return (
+    <div className="space-y-4">
+      <SliderField label={`Volume ${clip.volume_percent ?? 100}%`} max={200} min={0} onChange={(value) => onUpdateClip({ volume_percent: value })} step={1} value={clip.volume_percent ?? 100} />
+      <SliderField label={`Fade In ${formatSeconds(clip.fade_in_seconds ?? 0)}`} max={5} min={0} onChange={(value) => onUpdateClip({ fade_in_seconds: value })} step={0.1} value={clip.fade_in_seconds ?? 0} />
+      <SliderField label={`Fade Out ${formatSeconds(clip.fade_out_seconds ?? 0)}`} max={5} min={0} onChange={(value) => onUpdateClip({ fade_out_seconds: value })} step={0.1} value={clip.fade_out_seconds ?? 0} />
+      <ToggleCard checked={clip.loop ?? false} label="Loop clip" onChange={(value) => onUpdateClip({ loop: value })} />
+    </div>
+  );
+}
+
+function ToggleCard({
+  checked,
+  label,
+  onChange,
+}: {
+  checked: boolean;
+  label: string;
+  onChange: (value: boolean) => void;
+}) {
+  return (
+    <button className="flex items-center justify-between rounded-[8px] border border-white/8 bg-[#191919] px-3 py-2 text-left" onClick={() => onChange(!checked)} type="button">
+      <span className="text-[13px] text-[#e7e7e7]">{label}</span>
+      <span className={`flex h-[18px] w-[34px] items-center rounded-full p-[2px] transition ${checked ? "bg-[#d46ccc]" : "bg-[#3a3a3a]"}`}>
+        <span className={`h-3.5 w-3.5 rounded-full bg-white transition ${checked ? "translate-x-4" : ""}`} />
+      </span>
+    </button>
+  );
+}
+
+function SliderField({
+  label,
+  max,
+  min,
+  onChange,
+  step,
+  value,
+}: {
+  label: string;
+  max: number;
+  min: number;
+  onChange: (value: number) => void;
+  step: number;
+  value: number;
+}) {
+  return (
+    <label className="block">
+      <span className="mb-2 block text-[12px] font-medium text-[#f0f0f0]">{label}</span>
+      <input className="w-full accent-[#d46ccc]" max={max} min={min} onChange={(event) => onChange(Number(event.target.value))} step={step} type="range" value={value} />
+    </label>
+  );
+}
+
+function clipLabel(clip: ProjectEditorClip) {
+  if (clip.kind === "voiceover") return "Voiceover clip";
+  if (clip.kind === "media_audio") return "Audio clip";
+  if (clip.kind === "media_video") return "Video clip";
+  if (clip.kind === "caption") return "Caption clip";
+  return "Timeline clip";
+}
+
+function clipTitleFromText(text: string, fallback: string) {
+  const trimmed = text.trim();
+  return trimmed ? trimmed.slice(0, 48) : fallback;
+}
+
+function formatSeconds(value: number) {
+  return `${value.toFixed(1)}s`;
 }
 
 function AvatarButton({ compact }: { compact?: boolean }) {

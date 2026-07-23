@@ -1,10 +1,13 @@
 "use client";
 
+import { deleteSelectedClip, moveSelectedClip, patchSelectedClip, trimSelectedClipEdge } from "@/components/project-editor-clip-ops";
 import type { EditorSceneDraft, ProjectEditorDraft } from "@/components/project-editor-draft";
 import { reorderScenes, shiftSceneTiming, splitSceneAtTime, trimSceneBoundary, updateSceneTiming } from "@/components/project-editor-draft";
+import { insertMediaAssetIntoDraft } from "@/components/project-editor-media-ops";
 import type { usePersistedProjectEditorDraft } from "@/components/project-editor-persistence";
 import { applySequenceOperation } from "@/components/project-editor-sequence-ops";
-import type { ProjectEditorTrack } from "@/lib/types";
+import { addCommentDraft } from "@/components/project-editor-tool-state";
+import type { ProjectEditorMediaAsset, ProjectEditorTrack } from "@/lib/types";
 
 type DraftSetter = ReturnType<typeof usePersistedProjectEditorDraft>["setDraft"];
 
@@ -12,6 +15,7 @@ export function buildSequenceActions(setDraft: DraftSetter) {
   return {
     addOverlayCallout: () => setDraft((current) => applySequenceOperation(current, { clipId: currentSelectedClipId(current), type: "add_overlay_callout" })),
     addScreenAfterSelected: () => setDraft((current) => applySequenceOperation(current, current.editMode === "insert" ? { afterClipId: currentSelectedClipId(current), durationSeconds: 5, trackId: activeVideoTrackId(current), type: "insert_inserted" } : { afterClipId: currentSelectedClipId(current), durationSeconds: 5, trackId: activeVideoTrackId(current), type: "overwrite_inserted" })),
+    insertMediaAsset: (asset: ProjectEditorMediaAsset) => setDraft((current) => insertMediaAssetIntoDraft(current, asset)),
     addVideoTrack: () => setDraft((current) => appendVideoTrack(current)),
     extractSelectedScene: () => setDraft((current) => applySequenceOperation(current, { clipId: currentSelectedClipId(current), trackId: activeVideoTrackId(current), type: "extract" })),
     liftSelectedScene: () => setDraft((current) => applySequenceOperation(current, { clipId: currentSelectedClipId(current), trackId: activeVideoTrackId(current), type: "lift" })),
@@ -32,14 +36,25 @@ export function buildSequenceActions(setDraft: DraftSetter) {
 
 export function buildSceneActions(setDraft: DraftSetter, totalDuration: number) {
   return {
+    addComment: (body: string, time: number) => setDraft((current) => addCommentDraft(current, { body, scene_id: current.selectedSceneId || null, time })),
+    deleteSelectedClip: () => setDraft((current) => deleteSelectedClip(current)),
     moveScene: (sceneId: string, direction: "backward" | "forward") => setDraft((current) => ({ ...current, scenes: reorderScenes(current.scenes, sceneId, direction) })),
+    moveSelectedClip: (deltaSeconds: number) => setDraft((current) => moveSelectedClip(current, deltaSeconds)),
     nudgeScene: (sceneId: string, delta: number) => setDraft((current) => shiftSceneTiming(current, sceneId, delta, totalDuration)),
     setAspectRatio: (aspectRatio: ProjectEditorDraft["aspectRatio"]) => setDraft((current) => ({ ...current, aspectRatio })),
+    setCaptionPreset: (preset: ProjectEditorDraft["toolState"]["active_caption_preset"]) => setDraft((current) => ({ ...current, toolState: { ...current.toolState, active_caption_preset: preset } })),
     setEditMode: (editMode: ProjectEditorDraft["editMode"]) => setDraft((current) => ({ ...current, editMode })),
+    setMediaIntent: (intent: ProjectEditorDraft["toolState"]["pending_media_intent"]) => setDraft((current) => ({ ...current, toolState: { ...current.toolState, pending_media_intent: intent } })),
+    setMediaTab: (tab: ProjectEditorDraft["toolState"]["media_tab"]) => setDraft((current) => ({ ...current, toolState: { ...current.toolState, media_tab: tab } })),
+    setSelectedEffect: (effect: ProjectEditorDraft["toolState"]["active_effect"]) => setDraft((current) => ({ ...current, toolState: { ...current.toolState, active_effect: current.toolState.active_effect === effect ? null : effect } })),
+    setSelectedClipId: (selectedClipId: string) => setDraft((current) => ({ ...current, selectedClipId })),
+    updateSelectedClip: (patch: Partial<ProjectEditorTrack["clips"][number]>) => setDraft((current) => patchSelectedClip(current, patch)),
     setSelectedSceneId: (selectedSceneId: string) => setDraft((current) => ({ ...current, selectedSceneId })),
+    setSelectedShape: (shape: ProjectEditorDraft["toolState"]["active_shape"]) => setDraft((current) => ({ ...current, toolState: { ...current.toolState, active_shape: current.toolState.active_shape === shape ? null : shape } })),
     setSelectedTrackId: (selectedTrackId: string) => setDraft((current) => ({ ...current, selectedTrackId })),
     setShowCaptions: (showCaptions: boolean) => setDraft((current) => ({ ...current, showCaptions })),
     splitSelectedScene: (currentTime: number) => setDraft((current) => splitSceneAtTime(current, current.selectedSceneId || current.scenes[0]?.id || "scene-1", currentTime)),
+    trimSelectedClipEdge: (edge: "start" | "end", nextTime: number) => setDraft((current) => trimSelectedClipEdge(current, edge, nextTime)),
     trimSceneBoundary: (sceneId: string, value: number) => setDraft((current) => trimSceneBoundary(current, sceneId, value, totalDuration)),
     updateCaption: (captionId: string, text: string) => setDraft((current) => ({ ...current, captions: current.captions.map((caption) => caption.id === captionId ? { ...caption, text } : caption) })),
     updateScene: (sceneId: string, patch: Partial<EditorSceneDraft>) => setDraft((current) => ({ ...current, scenes: current.scenes.map((scene) => scene.id === sceneId ? { ...scene, ...patch } : scene) })),
@@ -48,6 +63,9 @@ export function buildSceneActions(setDraft: DraftSetter, totalDuration: number) 
 }
 
 function currentSelectedClipId(draft: ProjectEditorDraft) {
+  if (draft.selectedClipId) {
+    return draft.selectedClipId;
+  }
   return `clip-${draft.selectedSceneId || draft.scenes[0]?.id || "scene-1"}`;
 }
 

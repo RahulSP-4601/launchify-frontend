@@ -29,6 +29,7 @@ type EditorTimelineProps = {
   editMode: "overwrite" | "insert";
   isPlaying: boolean;
   onAddOverlayCallout: () => void;
+  onChooseImportProject: () => void;
   onAddScreen: () => void;
   onAddVideoTrack: () => void;
   onEditModeChange: (mode: "overwrite" | "insert") => void;
@@ -36,7 +37,9 @@ type EditorTimelineProps = {
   onLiftScene: () => void;
   onRollBoundary: (deltaSeconds: number) => void;
   onRippleDeleteScene: () => void;
+  onMoveClip: (deltaSeconds: number) => void;
   onSelectTrack: (trackId: string) => void;
+  onSelectClip: (clipId: string) => void;
   onToggleTrackLocked: (trackId: string) => void;
   onToggleTrackMuted: (trackId: string) => void;
   onSplitScene: (time: number) => void;
@@ -44,8 +47,10 @@ type EditorTimelineProps = {
   onSceneSelect: (scene: EditorSceneDraft) => void;
   onSeek: (time: number) => void;
   onSlipScene: (deltaSeconds: number) => void;
+  onTrimClip: (edge: "start" | "end", nextTime: number) => void;
   onTrimBoundary: (sceneId: string, time: number) => void;
   onTogglePlayback: () => void;
+  onChooseUploadFile: () => void;
   totalDuration: number;
 };
 
@@ -61,7 +66,7 @@ export function EditorPreviewStage({
   return (
     <section className="relative flex h-full min-h-0 items-center justify-center overflow-hidden rounded-[10px] bg-[#0f0f0f]">
       <StageSafeFrame>
-        <StageCanvas activeCaption={preview.activeCaption} aspectRatio={draft.aspectRatio} preview={preview} selectedScene={selectedScene} showCaptions={draft.showCaptions} />
+        <StageCanvas activeCaption={preview.activeCaption} aspectRatio={draft.aspectRatio} preview={preview} selectedScene={selectedScene} showCaptions={draft.showCaptions} toolState={draft.toolState} />
       </StageSafeFrame>
       <ZoomBadge>100%</ZoomBadge>
     </section>
@@ -75,6 +80,7 @@ export function EditorTimeline(props: EditorTimelineProps) {
     editMode,
     isPlaying,
     onAddOverlayCallout,
+    onChooseImportProject,
     onAddScreen,
     onAddVideoTrack,
     onEditModeChange,
@@ -82,13 +88,17 @@ export function EditorTimeline(props: EditorTimelineProps) {
     onLiftScene,
     onRollBoundary,
     onRippleDeleteScene,
+    onMoveClip,
     onSelectTrack,
+    onSelectClip,
     onSceneSelect,
     onSeek,
     onSlipScene,
     onSplitScene,
     onSlideScene,
     onTogglePlayback,
+    onTrimClip,
+    onChooseUploadFile,
     onToggleTrackLocked,
     onToggleTrackMuted,
     onTrimBoundary,
@@ -98,9 +108,9 @@ export function EditorTimeline(props: EditorTimelineProps) {
   const [zoom, setZoom] = useState(1.15);
   return (
     <section className="rounded-[10px] bg-[#262221] px-4 pb-3 pt-[10px] text-[#bcbcbc]">
-      <TimelineTransportBar currentTime={currentTime} editMode={editMode} isPlaying={isPlaying} onAddOverlayCallout={onAddOverlayCallout} onAddScreen={onAddScreen} onAddVideoTrack={onAddVideoTrack} onEditModeChange={onEditModeChange} onExtractScene={onExtractScene} onLiftScene={onLiftScene} onRollBoundary={onRollBoundary} onRippleDeleteScene={onRippleDeleteScene} onSplitScene={onSplitScene} onSlideScene={onSlideScene} onTogglePlayback={onTogglePlayback} totalDuration={totalDuration} zoom={zoom} onZoomChange={setZoom} onSlipScene={onSlipScene} />
+      <TimelineTransportBar currentTime={currentTime} editMode={editMode} isPlaying={isPlaying} onAddOverlayCallout={onAddOverlayCallout} onChooseImportProject={onChooseImportProject} onAddScreen={onAddScreen} onAddVideoTrack={onAddVideoTrack} onEditModeChange={onEditModeChange} onExtractScene={onExtractScene} onLiftScene={onLiftScene} onRollBoundary={onRollBoundary} onRippleDeleteScene={onRippleDeleteScene} onSplitScene={onSplitScene} onSlideScene={onSlideScene} onTogglePlayback={onTogglePlayback} onChooseUploadFile={onChooseUploadFile} totalDuration={totalDuration} zoom={zoom} onZoomChange={setZoom} onSlipScene={onSlipScene} />
       <TimelineRuler currentTime={currentTime} onSeek={onSeek} totalDuration={totalDuration} />
-      <TrackStack currentTime={currentTime} draft={draft} onSceneSelect={onSceneSelect} onSeek={onSeek} onSelectTrack={onSelectTrack} onToggleTrackLocked={onToggleTrackLocked} onToggleTrackMuted={onToggleTrackMuted} onTrimBoundary={onTrimBoundary} selectedSceneId={selectedSceneId} selectedTrackId={draft.selectedTrackId} totalDuration={totalDuration} zoom={zoom} />
+      <TrackStack currentTime={currentTime} draft={draft} onSceneSelect={onSceneSelect} onSeek={onSeek} onSelectTrack={onSelectTrack} onSelectClip={onSelectClip} onMoveClip={onMoveClip} onToggleTrackLocked={onToggleTrackLocked} onToggleTrackMuted={onToggleTrackMuted} onTrimClip={onTrimClip} onTrimBoundary={onTrimBoundary} onChooseImportProject={onChooseImportProject} onAddScreen={onAddScreen} onChooseUploadFile={onChooseUploadFile} selectedClipId={draft.selectedClipId} selectedSceneId={selectedSceneId} selectedTrackId={draft.selectedTrackId} totalDuration={totalDuration} zoom={zoom} />
       <ScrollbarTrack />
     </section>
   );
@@ -122,12 +132,14 @@ function StageCanvas({
   preview,
   selectedScene,
   showCaptions,
+  toolState,
 }: {
   activeCaption: EditorCaptionDraft | null;
   aspectRatio: EditorAspectRatio;
   preview: ProjectEditorPreviewState;
   selectedScene: EditorSceneDraft | null;
   showCaptions: boolean;
+  toolState: ProjectEditorDraft["toolState"];
 }) {
   const ratioClass = aspectRatio === "9:16" ? "aspect-[9/16] max-w-[430px]" : aspectRatio === "1:1" ? "aspect-square max-w-[700px]" : "aspect-[16/9] max-w-[860px]";
   const insertedScene = preview.activeScene && isInsertedScene(preview.activeScene) ? preview.activeScene : null;
@@ -140,7 +152,9 @@ function StageCanvas({
           : <PreviewFallback detail={preview.error} scene={selectedScene} />}
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.08),rgba(0,0,0,0.18))]" />
       {selectedScene ? <SceneBadge title={selectedScene.title} /> : null}
-      {showCaptions && activeCaption ? <CaptionOverlay text={activeCaption.text} /> : null}
+      {selectedScene ? <EffectOverlay effect={toolState.active_effect} /> : null}
+      {selectedScene ? <ShapeOverlay shape={toolState.active_shape} /> : null}
+      {showCaptions && activeCaption ? <CaptionOverlay preset={toolState.active_caption_preset} text={activeCaption.text} /> : null}
     </div>
   );
 }
@@ -191,12 +205,41 @@ function SceneBadge({ title }: { title: string }) {
   );
 }
 
-function CaptionOverlay({ text }: { text: string }) {
-  return <div className="absolute inset-x-8 bottom-6 rounded-[8px] bg-black/72 px-4 py-3 text-center text-[14px] font-medium text-white">{text}</div>;
+function CaptionOverlay({
+  preset,
+  text,
+}: {
+  preset: ProjectEditorDraft["toolState"]["active_caption_preset"];
+  text: string;
+}) {
+  const className = captionPresetClass(preset);
+  return <div className={`absolute inset-x-8 bottom-6 px-4 py-3 text-center text-[14px] font-medium text-white ${className}`}>{text}</div>;
 }
 
 function ZoomBadge({ children }: { children: ReactNode }) {
   return <div className="absolute bottom-0 right-4 rounded-[10px] bg-[#252525] px-4 py-2.5 text-[14px] text-[#d7d7d7]">{children}</div>;
+}
+
+function EffectOverlay({ effect }: { effect: ProjectEditorDraft["toolState"]["active_effect"] }) {
+  if (!effect) return null;
+  if (effect === "blur") return <div className="pointer-events-none absolute inset-0 backdrop-blur-[2px]" />;
+  if (effect === "spotlight") return <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_18%,rgba(0,0,0,0.52)_70%)]" />;
+  if (effect === "zoom") return <div className="pointer-events-none absolute inset-[8%] rounded-[18px] border border-white/10 shadow-[0_0_0_999px_rgba(0,0,0,0.06)]" />;
+  return <div className="pointer-events-none absolute left-8 top-20 rounded-full border border-[#f0a45f] bg-black/60 px-4 py-2 text-[12px] uppercase tracking-[0.24em] text-[#ffd0a2]">Callout</div>;
+}
+
+function ShapeOverlay({ shape }: { shape: ProjectEditorDraft["toolState"]["active_shape"] }) {
+  if (!shape) return null;
+  if (shape === "line") return <div className="pointer-events-none absolute left-[18%] top-[58%] h-px w-[44%] bg-[#f39be5]" />;
+  if (shape === "arrow") return <div className="pointer-events-none absolute left-[20%] top-[52%] h-[2px] w-[36%] bg-[#f39be5] after:absolute after:right-0 after:top-[-4px] after:border-y-[5px] after:border-l-[10px] after:border-r-0 after:border-y-transparent after:border-l-[#f39be5] after:content-['']" />;
+  return <div className={`pointer-events-none absolute left-[20%] top-[22%] h-[26%] w-[30%] border-2 border-[#f39be5] ${shape === "ellipse" ? "rounded-full" : "rounded-[12px]"}`} />;
+}
+
+function captionPresetClass(preset: ProjectEditorDraft["toolState"]["active_caption_preset"]) {
+  if (preset === "basic_karaoke") return "rounded-[8px] bg-black/72 tracking-[0.01em]";
+  if (preset === "highlight_box") return "rounded-[8px] bg-[#f04fad] text-black";
+  if (preset === "karaoke_highlight_box") return "rounded-[8px] bg-black/82 shadow-[0_0_0_2px_rgba(240,79,173,0.6)_inset]";
+  return "rounded-[8px] bg-black/72";
 }
 
 function TimelineRuler({
@@ -232,10 +275,17 @@ function TrackStack({
   draft,
   onSceneSelect,
   onSeek,
+  onSelectClip,
+  onMoveClip,
   onSelectTrack,
   onToggleTrackLocked,
   onToggleTrackMuted,
+  onTrimClip,
   onTrimBoundary,
+  onChooseImportProject,
+  onAddScreen,
+  onChooseUploadFile,
+  selectedClipId,
   selectedSceneId,
   selectedTrackId,
   totalDuration,
@@ -245,16 +295,23 @@ function TrackStack({
   draft: ProjectEditorDraft;
   onSceneSelect: (scene: EditorSceneDraft) => void;
   onSeek: (time: number) => void;
+  onSelectClip: (clipId: string) => void;
+  onMoveClip: (deltaSeconds: number) => void;
   onSelectTrack: (trackId: string) => void;
   onToggleTrackLocked: (trackId: string) => void;
   onToggleTrackMuted: (trackId: string) => void;
+  onTrimClip: (edge: "start" | "end", nextTime: number) => void;
   onTrimBoundary: (sceneId: string, time: number) => void;
+  onChooseImportProject: () => void;
+  onAddScreen: () => void;
+  onChooseUploadFile: () => void;
+  selectedClipId: string;
   selectedSceneId: string;
   selectedTrackId: string;
   totalDuration: number;
   zoom: number;
 }) {
-  return <TimelineTrackStack currentTime={currentTime} draft={draft} onSceneSelect={onSceneSelect} onSeek={onSeek} onSelectTrack={onSelectTrack} onToggleTrackLocked={onToggleTrackLocked} onToggleTrackMuted={onToggleTrackMuted} onTrimBoundary={onTrimBoundary} selectedSceneId={selectedSceneId} selectedTrackId={selectedTrackId} totalDuration={totalDuration} zoom={zoom} />;
+  return <TimelineTrackStack currentTime={currentTime} draft={draft} onSceneSelect={onSceneSelect} onSeek={onSeek} onSelectClip={onSelectClip} onMoveClip={onMoveClip} onSelectTrack={onSelectTrack} onToggleTrackLocked={onToggleTrackLocked} onToggleTrackMuted={onToggleTrackMuted} onTrimClip={onTrimClip} onTrimBoundary={onTrimBoundary} onChooseImportProject={onChooseImportProject} onAddScreen={onAddScreen} onChooseUploadFile={onChooseUploadFile} selectedClipId={selectedClipId} selectedSceneId={selectedSceneId} selectedTrackId={selectedTrackId} totalDuration={totalDuration} zoom={zoom} />;
 }
 
 function ScrollbarTrack() {

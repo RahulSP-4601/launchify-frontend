@@ -19,13 +19,23 @@ type SequenceCaptionInput = {
   text: string;
 };
 
-type SequenceAudioInput = {
+export type SequenceAudioInput = {
   end: number;
   id: string;
+  assetPath?: string | null;
+  contentType?: string | null;
+  effectPreset?: string | null;
+  fadeInSeconds?: number | null;
+  fadeOutSeconds?: number | null;
+  kind?: "voiceover" | "media_audio";
+  loop?: boolean | null;
   sceneId: string | null;
+  sourceProjectId?: string | null;
   start: number;
+  stylePreset?: string | null;
   text: string;
   title: string;
+  volumePercent?: number | null;
 };
 
 export function deriveEditorSequence(
@@ -80,13 +90,18 @@ function buildVideoClip(
   const sourceStart = inserted ? null : roundToTenth(sourceCursor);
   const sourceEnd = inserted ? null : roundToTenth(sourceCursor + duration);
   return {
+    asset_path: null,
+    content_type: null,
+    effect_preset: null,
     id: `clip-${scene.id}`,
     kind: inserted ? "inserted_card" : "source_video",
     locked: false,
     muted: false,
     scene_id: scene.id,
+    source_project_id: null,
     source_end: sourceEnd,
     source_start: sourceStart,
+    style_preset: inserted ? "blank-card" : null,
     text: scene.onScreenText,
     timeline_end: scene.end,
     timeline_start: scene.start,
@@ -100,13 +115,18 @@ function buildCaptionClips(
   trackId: string,
 ) {
   return captions.map((caption) => ({
+    asset_path: null,
     id: `caption-clip-${caption.id}`,
     kind: "caption" as const,
+    content_type: null,
+    effect_preset: null,
     locked: false,
     muted: false,
     scene_id: caption.sceneId,
+    source_project_id: null,
     source_end: null,
     source_start: null,
+    style_preset: "body",
     text: caption.text,
     timeline_end: caption.end,
     timeline_start: caption.start,
@@ -120,18 +140,27 @@ function buildAudioClips(
   trackId: string,
 ) {
   return audioClips.map((clip) => ({
+    asset_path: clip.assetPath ?? null,
+    content_type: clip.contentType ?? null,
+    effect_preset: clip.effectPreset ?? null,
+    fade_in_seconds: clip.fadeInSeconds ?? 0,
+    fade_out_seconds: clip.fadeOutSeconds ?? 0,
     id: `audio-clip-${clip.id}`,
-    kind: "voiceover" as const,
+    kind: clip.kind ?? "voiceover",
     locked: false,
+    loop: clip.loop ?? false,
     muted: false,
     scene_id: clip.sceneId,
+    source_project_id: clip.sourceProjectId ?? null,
     source_end: null,
     source_start: null,
+    style_preset: clip.stylePreset ?? null,
     text: clip.text,
     timeline_end: clip.end,
     timeline_start: clip.start,
     title: clip.title,
     track_id: trackId,
+    volume_percent: clip.volumePercent ?? 100,
   }));
 }
 
