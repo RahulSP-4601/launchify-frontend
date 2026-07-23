@@ -13,6 +13,7 @@ import {
   updateSceneTiming,
 } from "@/components/project-editor-draft";
 import {
+  shouldPreferLocalDraft,
   usePersistedProjectEditorDraft,
   useProjectEditorBootstrap,
 } from "@/components/project-editor-persistence";
@@ -30,7 +31,7 @@ import {
 } from "@/components/project-editor-stage";
 import { useAssetUrl } from "@/components/render-preview-studio";
 import { regenerateProjectEditorScene } from "@/lib/api";
-import { ProjectDetail, ProjectEditorState, TranscriptResponse } from "@/lib/types";
+import { ProjectDetail, ProjectEditorState, ProjectEditorStateRecord, TranscriptResponse } from "@/lib/types";
 
 type EditorTab = "script" | "captions" | "scenes";
 
@@ -42,23 +43,36 @@ export function ProjectEditorShell({
   transcript: TranscriptResponse["transcript"];
 }) {
   const bootstrap = useProjectEditorBootstrap(project, transcript);
-  if (bootstrap.pending) {
-    return <EditorDraftLoadingState />;
-  }
-  return <ProjectEditorWorkspace key={project.id} initialDraft={bootstrap.draft} project={project} />;
+  return (
+    <ProjectEditorWorkspace
+      localDraftSavedAt={bootstrap.localDraftSavedAt}
+      localOverrideActive={bootstrap.localOverrideActive}
+      bootstrapRecord={bootstrap.record}
+      key={project.id}
+      initialDraft={bootstrap.draft}
+      project={project}
+    />
+  );
 }
 
 function ProjectEditorWorkspace({
+  bootstrapRecord,
   initialDraft,
+  localDraftSavedAt,
+  localOverrideActive,
   project,
 }: {
+  bootstrapRecord: ProjectEditorStateRecord | null | undefined;
   initialDraft: ProjectEditorDraft;
+  localDraftSavedAt: string;
+  localOverrideActive: boolean;
   project: ProjectDetail;
 }) {
   const [activeTab, setActiveTab] = useState<EditorTab>("script");
-  const editor = useProjectEditorDraft(project, initialDraft);
+  const editor = useProjectEditorDraft(project, initialDraft, localOverrideActive);
   const preview = useProjectEditorPreview(project, editor.draft);
   const regenerateScene = useRegenerateScene(editor.draft, project.id, editor.hydrateSavedDraft);
+  useBootstrapHydration(bootstrapRecord, editor.draft, editor.hydrateSavedDraft, initialDraft, localDraftSavedAt);
 
   return (
     <ProjectEditorLayout
@@ -94,8 +108,8 @@ function ProjectEditorLayout({
   setActiveTab: (tab: EditorTab) => void;
 }) {
   return (
-    <div className="min-h-screen bg-[#121212] px-4 py-4 text-white lg:h-screen lg:overflow-hidden lg:px-5">
-      <div className="mx-auto flex h-full max-w-[1900px] flex-col gap-4">
+    <div className="h-screen overflow-hidden bg-[#121212] px-6 py-5 text-white">
+      <div className="mx-auto flex h-full max-w-[1950px] flex-col gap-5">
         <EditorHeader editor={editor} project={project} />
         <ProjectEditorGrid activeTab={activeTab} editor={editor} onRegenerateScene={onRegenerateScene} preview={preview} regeneratePending={regeneratePending} selectedScene={selectedScene} setActiveTab={setActiveTab} />
         <EditorTimelineSection editor={editor} onRegenerateScene={onRegenerateScene} preview={preview} regeneratePending={regeneratePending} />
@@ -162,7 +176,7 @@ function ProjectEditorGrid({
   setActiveTab: (tab: EditorTab) => void;
 }) {
   return (
-    <div className="grid min-h-0 flex-1 gap-4 xl:grid-cols-[58px_420px_minmax(0,1fr)] 2xl:grid-cols-[58px_540px_minmax(0,1fr)_300px]">
+    <div className="grid min-h-0 flex-1 gap-4 xl:grid-cols-[58px_530px_minmax(0,1fr)_296px]">
       <EditorRail activeTab={activeTab} setActiveTab={setActiveTab} />
       <EditorLeftPanel
         activeTab={activeTab}
@@ -190,8 +204,8 @@ function ProjectEditorGrid({
   );
 }
 
-function useProjectEditorDraft(project: ProjectDetail, initialDraft: ProjectEditorDraft) {
-  const persisted = usePersistedProjectEditorDraft(initialDraft, project.id);
+function useProjectEditorDraft(project: ProjectDetail, initialDraft: ProjectEditorDraft, localOverrideActive: boolean) {
+  const persisted = usePersistedProjectEditorDraft(initialDraft, project.id, localOverrideActive);
   const totalDuration = totalTimelineDuration(project, persisted.draft);
 
   return {
@@ -225,6 +239,31 @@ function useProjectEditorDraft(project: ProjectDetail, initialDraft: ProjectEdit
     updateSceneTiming: (sceneId: string, field: "start" | "end", value: number) =>
       persisted.setDraft((current) => updateSceneTiming(current, sceneId, field, value, totalDuration)),
   };
+}
+
+function useBootstrapHydration(
+  record: ProjectEditorStateRecord | null | undefined,
+  draft: ProjectEditorDraft,
+  hydrateSavedDraft: (draft: ProjectEditorDraft, updatedAt: string) => void,
+  initialDraft: ProjectEditorDraft,
+  localDraftSavedAt: string,
+) {
+  const hydratedAtRef = useRef("");
+  const initialSerializedRef = useRef(JSON.stringify(editorDraftToApiState(initialDraft)));
+
+  useEffect(() => {
+    if (
+      !record?.editor_state ||
+      !record.updated_at ||
+      hydratedAtRef.current === record.updated_at ||
+      shouldPreferLocalDraft(localDraftSavedAt, record.updated_at) ||
+      JSON.stringify(editorDraftToApiState(draft)) !== initialSerializedRef.current
+    ) {
+      return;
+    }
+    hydratedAtRef.current = record.updated_at;
+    hydrateSavedDraft(projectEditorStateToDraft(record.editor_state), record.updated_at);
+  }, [draft, hydrateSavedDraft, localDraftSavedAt, record]);
 }
 
 function useRegenerateScene(
@@ -356,15 +395,4 @@ function toggleVideoPlayback(video: HTMLVideoElement | null) {
     return;
   }
   video.pause();
-}
-
-function EditorDraftLoadingState() {
-  return (
-    <div className="grid min-h-screen place-items-center bg-[#121212] p-8 text-white">
-      <div className="rounded-[28px] border border-white/10 bg-[#1b1b1b] px-8 py-6 text-center">
-        <p className="text-xs uppercase tracking-[0.3em] text-fuchsia-200">Loading editor</p>
-        <p className="mt-4 text-lg text-slate-300">Pulling the AI draft, transcript, and the latest manual edits into the workspace.</p>
-      </div>
-    </div>
-  );
 }

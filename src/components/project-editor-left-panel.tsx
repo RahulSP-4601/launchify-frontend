@@ -20,6 +20,12 @@ import {
 } from "@/components/project-editor-icons";
 
 type EditorTab = "script" | "captions" | "scenes";
+type RailTool = {
+  icon: ReactNode;
+  id: string;
+  label: string;
+  tab?: EditorTab;
+};
 
 export function EditorRail({
   activeTab,
@@ -29,12 +35,18 @@ export function EditorRail({
   setActiveTab: (tab: EditorTab) => void;
 }) {
   return (
-    <aside className="rounded-[14px] border border-white/6 bg-[#151515] p-2">
+    <aside className="flex h-full flex-col items-center rounded-[14px] bg-[#151515] p-2">
       <div className="flex flex-col gap-3">
         {toolbarItems().map((item) => (
-          <ToolbarButton key={item.label} active={activeTab === item.id} label={item.label} onClick={() => setActiveTab(item.id)}>
+          <RailButton
+            key={item.id}
+            active={item.tab === activeTab}
+            disabled={!item.tab}
+            label={item.label}
+            onClick={railButtonHandler(item, setActiveTab)}
+          >
             {item.icon}
-          </ToolbarButton>
+          </RailButton>
         ))}
       </div>
     </aside>
@@ -66,21 +78,23 @@ export function EditorLeftPanel({
 }) {
   const [query, setQuery] = useState("");
   const scenes = useMemo(() => filterScenes(draft.scenes, query), [draft.scenes, query]);
+  const selectedScene = sceneForPanel(draft.scenes, selectedSceneId);
+
   return (
-    <section className="flex min-h-0 flex-col rounded-[14px] border border-white/6 bg-[#1a1a1a] p-3">
-      <SearchHeader query={query} setQuery={setQuery} />
-      <ModeHeader activeTab={activeTab} />
-      <PanelScroller>
-        {activeTab === "script" ? <TranscriptList captions={draft.captions} onSceneSelect={onSceneSelect} scenes={scenes} selectedSceneId={selectedSceneId} /> : null}
-        {activeTab === "captions" ? <CaptionList captions={draft.captions} onCaptionSelect={onCaptionSelect} onCaptionUpdate={onCaptionUpdate} /> : null}
-        {activeTab === "scenes" ? <SceneList onMoveScene={onMoveScene} onRegenerateScene={onRegenerateScene} onSceneSelect={onSceneSelect} onSceneUpdate={onSceneUpdate} regeneratePending={regeneratePending} scenes={scenes} /> : null}
-      </PanelScroller>
-      <PanelFooter onRegenerateScene={() => onRegenerateScene(selectedSceneId)} regeneratePending={regeneratePending} />
+    <section className="flex h-full min-h-0 flex-col rounded-[14px] bg-[#1d1d1d] p-3">
+      <SearchBar query={query} setQuery={setQuery} />
+      <ModeBar activeTab={activeTab} />
+      <PanelViewport>
+        {activeTab === "script" ? <TranscriptPanel captions={draft.captions} onSceneSelect={onSceneSelect} scene={selectedScene} /> : null}
+        {activeTab === "captions" ? <CaptionPanel captions={draft.captions} onCaptionSelect={onCaptionSelect} onCaptionUpdate={onCaptionUpdate} /> : null}
+        {activeTab === "scenes" ? <ScenePanel onMoveScene={onMoveScene} onRegenerateScene={onRegenerateScene} onSceneSelect={onSceneSelect} onSceneUpdate={onSceneUpdate} regeneratePending={regeneratePending} scenes={scenes} /> : null}
+      </PanelViewport>
+      <FooterActions onRegenerateScene={() => onRegenerateScene(selectedScene?.id ?? selectedSceneId)} regeneratePending={regeneratePending} />
     </section>
   );
 }
 
-function SearchHeader({
+function SearchBar({
   query,
   setQuery,
 }: {
@@ -88,23 +102,28 @@ function SearchHeader({
   setQuery: (value: string) => void;
 }) {
   return (
-    <div className="flex items-center gap-2">
-      <label className="flex h-10 flex-1 items-center rounded-[10px] border border-white/8 bg-[#171717] px-4">
-        <input className="w-full bg-transparent text-[15px] text-white outline-none placeholder:text-slate-500" onChange={(event) => setQuery(event.target.value)} placeholder="Search in transcript" value={query} />
+    <div className="flex items-center gap-3">
+      <label className="flex h-10 flex-1 items-center rounded-[8px] border border-white/8 bg-[#161616] px-4">
+        <input
+          className="w-full bg-transparent text-[15px] text-slate-300 outline-none placeholder:text-slate-500"
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder="Search in transcript"
+          value={query}
+        />
       </label>
-      <button className="grid h-10 w-10 place-items-center rounded-[10px] border border-white/8 bg-[#171717] text-slate-500" type="button">
+      <button className="grid h-10 w-10 place-items-center rounded-[8px] border border-white/8 bg-[#161616] text-slate-500" type="button">
         <FilterIcon />
       </button>
     </div>
   );
 }
 
-function ModeHeader({ activeTab }: { activeTab: EditorTab }) {
+function ModeBar({ activeTab }: { activeTab: EditorTab }) {
   return (
-    <div className="mt-3 flex items-center gap-2 rounded-[10px] bg-[#161616] p-3 text-[15px] text-slate-400">
-      <span className="rounded-[8px] border border-white/10 bg-[#232323] px-3 py-1 text-white">1</span>
-      <span className="rounded-[8px] border border-white/10 px-3 py-1">Video</span>
-      <span className="rounded-[8px] border border-fuchsia-400/20 bg-fuchsia-500/10 px-3 py-1 text-fuchsia-200">{panelLabel(activeTab)}</span>
+    <div className="mt-3 flex items-center gap-2 rounded-[10px] bg-[#161616] p-3 text-[15px]">
+      <Chip strong>1</Chip>
+      <Chip>Video</Chip>
+      <Chip accent>{tabLabel(activeTab)}</Chip>
       <button className="ml-auto grid h-8 w-8 place-items-center rounded-[8px] border border-white/8 text-slate-500" type="button">
         <WaveIcon />
       </button>
@@ -112,31 +131,35 @@ function ModeHeader({ activeTab }: { activeTab: EditorTab }) {
   );
 }
 
-function PanelScroller({ children }: { children: ReactNode }) {
-  return <div className="mt-3 min-h-0 flex-1 overflow-y-auto">{children}</div>;
-}
-
-function TranscriptList({
+function TranscriptPanel({
   captions,
   onSceneSelect,
-  scenes,
-  selectedSceneId,
+  scene,
 }: {
   captions: EditorCaptionDraft[];
   onSceneSelect: (sceneId: string) => void;
-  scenes: EditorSceneDraft[];
-  selectedSceneId: string;
+  scene: EditorSceneDraft | null;
 }) {
+  if (!scene) {
+    return <PanelEmptyState message="Select a scene to review the transcript." />;
+  }
   return (
-    <div className="rounded-[12px] border border-white/6 bg-[#1b1b1b] px-3 py-4">
-      {scenes.map((scene) => (
-        <TranscriptBlock key={scene.id} active={scene.id === selectedSceneId} captions={captions.filter((caption) => caption.sceneId === scene.id)} onClick={() => onSceneSelect(scene.id)} scene={scene} />
-      ))}
-    </div>
+    <article className="rounded-[12px] bg-[#222222] p-5">
+      <button className="w-full text-left" onClick={() => onSceneSelect(scene.id)} type="button">
+        <p className="text-[18px] leading-[3.4rem] text-slate-200">{scene.spokenLine}</p>
+      </button>
+      <div className="mt-4 flex flex-wrap gap-2">
+        {captionsForScene(captions, scene.id).slice(0, 3).map((caption, index) => (
+          <span key={caption.id} className="rounded-[8px] border border-white/10 bg-[#2a2a2a] px-3 py-1.5 text-xs text-slate-300">
+            Sync Point {index + 1}
+          </span>
+        ))}
+      </div>
+    </article>
   );
 }
 
-function CaptionList({
+function CaptionPanel({
   captions,
   onCaptionSelect,
   onCaptionUpdate,
@@ -148,18 +171,18 @@ function CaptionList({
   return (
     <div className="space-y-3">
       {captions.map((caption) => (
-        <article key={caption.id} className="rounded-[12px] border border-white/6 bg-[#1b1b1b] p-3">
+        <article key={caption.id} className="rounded-[12px] bg-[#222222] p-4">
           <button className="text-xs uppercase tracking-[0.18em] text-slate-500" onClick={() => caption.sceneId ? onCaptionSelect(caption.sceneId) : undefined} type="button">
             {formatRange(caption.start, caption.end)}
           </button>
-          <textarea className="mt-3 min-h-24 w-full resize-none bg-transparent text-sm leading-7 text-white outline-none" onChange={(event) => onCaptionUpdate(caption.id, event.target.value)} value={caption.text} />
+          <textarea className="mt-3 min-h-24 w-full resize-none bg-transparent text-sm leading-7 text-slate-300 outline-none" onChange={(event) => onCaptionUpdate(caption.id, event.target.value)} value={caption.text} />
         </article>
       ))}
     </div>
   );
 }
 
-function SceneList({
+function ScenePanel({
   onMoveScene,
   onRegenerateScene,
   onSceneSelect,
@@ -177,51 +200,48 @@ function SceneList({
   return (
     <div className="space-y-3">
       {scenes.map((scene, index) => (
-        <article key={scene.id} className="rounded-[12px] border border-white/6 bg-[#1b1b1b] p-4">
-          <button className="w-full text-left" onClick={() => onSceneSelect(scene.id)} type="button">
-            <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Scene {scene.sceneNumber}</p>
-            <p className="mt-2 text-lg font-semibold text-white">{scene.title}</p>
-          </button>
-          <textarea className="mt-3 min-h-16 w-full resize-none bg-transparent text-sm leading-7 text-slate-300 outline-none" onChange={(event) => onSceneUpdate(scene.id, { spokenLine: event.target.value })} value={scene.spokenLine} />
-          <div className="mt-3 flex flex-wrap gap-2">
-            <GhostAction disabled={index === 0} label="Move up" onClick={() => onMoveScene(scene.id, "backward")} />
-            <GhostAction disabled={index === scenes.length - 1} label="Move down" onClick={() => onMoveScene(scene.id, "forward")} />
-            <GhostAction disabled={regeneratePending} label="Restore AI scene" onClick={() => onRegenerateScene(scene.id)} />
-          </div>
-        </article>
+        <SceneCard key={scene.id} canMoveDown={index < scenes.length - 1} canMoveUp={index > 0} onMoveScene={onMoveScene} onRegenerateScene={onRegenerateScene} onSceneSelect={onSceneSelect} onSceneUpdate={onSceneUpdate} regeneratePending={regeneratePending} scene={scene} />
       ))}
     </div>
   );
 }
 
-function TranscriptBlock({
-  active,
-  captions,
-  onClick,
+function SceneCard({
+  canMoveDown,
+  canMoveUp,
+  onMoveScene,
+  onRegenerateScene,
+  onSceneSelect,
+  onSceneUpdate,
+  regeneratePending,
   scene,
 }: {
-  active: boolean;
-  captions: EditorCaptionDraft[];
-  onClick: () => void;
+  canMoveDown: boolean;
+  canMoveUp: boolean;
+  onMoveScene: (sceneId: string, direction: "backward" | "forward") => void;
+  onRegenerateScene: (sceneId: string) => void;
+  onSceneSelect: (sceneId: string) => void;
+  onSceneUpdate: (sceneId: string, patch: Partial<EditorSceneDraft>) => void;
+  regeneratePending: boolean;
   scene: EditorSceneDraft;
 }) {
   return (
-    <article className={`rounded-[10px] px-3 py-4 transition ${active ? "bg-white/[0.03]" : "hover:bg-white/[0.02]"}`}>
-      <button className="w-full text-left" onClick={onClick} type="button">
-        <p className="text-[17px] leading-[2.15rem] text-white">{scene.spokenLine}</p>
+    <article className="rounded-[12px] bg-[#222222] p-4">
+      <button className="w-full text-left" onClick={() => onSceneSelect(scene.id)} type="button">
+        <p className="text-xs uppercase tracking-[0.2em] text-slate-500">{`Scene ${scene.sceneNumber}`}</p>
+        <p className="mt-2 text-lg font-semibold text-white">{scene.title}</p>
       </button>
+      <textarea className="mt-3 min-h-16 w-full resize-none bg-transparent text-sm leading-7 text-slate-300 outline-none" onChange={(event) => onSceneUpdate(scene.id, { spokenLine: event.target.value })} value={scene.spokenLine} />
       <div className="mt-3 flex flex-wrap gap-2">
-        {captions.slice(0, 3).map((caption, index) => (
-          <span key={caption.id} className="rounded-[8px] border border-white/10 bg-[#242424] px-3 py-1 text-xs text-slate-300">
-            Sync Point {index + 1}
-          </span>
-        ))}
+        <MiniButton disabled={!canMoveUp} label="Move up" onClick={() => onMoveScene(scene.id, "backward")} />
+        <MiniButton disabled={!canMoveDown} label="Move down" onClick={() => onMoveScene(scene.id, "forward")} />
+        <MiniButton disabled={regeneratePending} label="Restore AI scene" onClick={() => onRegenerateScene(scene.id)} />
       </div>
     </article>
   );
 }
 
-function PanelFooter({
+function FooterActions({
   onRegenerateScene,
   regeneratePending,
 }: {
@@ -229,13 +249,13 @@ function PanelFooter({
   regeneratePending: boolean;
 }) {
   return (
-    <div className="mt-4 flex items-center justify-between border-t border-white/6 pt-4">
+    <div className="mt-4 flex items-center justify-between border-t border-white/8 pt-4">
       <div className="flex items-center gap-2">
-        <IconButton>...</IconButton>
-        <IconButton>+</IconButton>
+        <FooterIcon>...</FooterIcon>
+        <FooterIcon>+</FooterIcon>
       </div>
       <div className="flex items-center gap-3">
-        <button className="rounded-[10px] border border-white/8 bg-[#1d1d1d] px-4 py-3 text-sm text-slate-300" disabled={regeneratePending} onClick={onRegenerateScene} type="button">
+        <button className="rounded-[10px] border border-white/8 bg-[#1a1a1a] px-4 py-3 text-sm text-slate-300" disabled={regeneratePending} onClick={onRegenerateScene} type="button">
           AI Rewrite
         </button>
         <button className="rounded-[10px] bg-white px-4 py-3 text-sm font-medium text-black" type="button">
@@ -246,7 +266,65 @@ function PanelFooter({
   );
 }
 
-function GhostAction({
+function PanelViewport({ children }: { children: ReactNode }) {
+  return <div className="mt-3 min-h-0 flex-1 overflow-y-auto">{children}</div>;
+}
+
+function PanelEmptyState({ message }: { message: string }) {
+  return <div className="rounded-[12px] bg-[#222222] p-5 text-sm text-slate-400">{message}</div>;
+}
+
+function Chip({
+  accent,
+  children,
+  strong,
+}: {
+  accent?: boolean;
+  children: ReactNode;
+  strong?: boolean;
+}) {
+  const className = accent
+    ? "border border-fuchsia-400/25 bg-fuchsia-500/12 text-fuchsia-200"
+    : strong
+      ? "border border-white/10 bg-[#2a2a2a] text-white"
+      : "border border-white/10 text-slate-300";
+  return <span className={`rounded-[10px] px-3 py-1.5 ${className}`}>{children}</span>;
+}
+
+function RailButton({
+  active,
+  children,
+  disabled,
+  label,
+  onClick,
+}: {
+  active: boolean;
+  children: ReactNode;
+  disabled?: boolean;
+  label: string;
+  onClick?: () => void;
+}) {
+  return (
+    <button
+      aria-disabled={disabled}
+      aria-label={label}
+      className={`grid h-12 w-12 place-items-center rounded-[12px] transition ${
+        active ? "bg-white text-black" : "text-slate-500 hover:text-slate-300"
+      } ${disabled ? "cursor-default opacity-45 hover:text-slate-500" : ""}`}
+      disabled={disabled}
+      onClick={onClick}
+      type="button"
+    >
+      {children}
+    </button>
+  );
+}
+
+function FooterIcon({ children }: { children: ReactNode }) {
+  return <button className="grid h-10 w-10 place-items-center rounded-[10px] border border-white/8 bg-[#1a1a1a] text-slate-300">{children}</button>;
+}
+
+function MiniButton({
   disabled,
   label,
   onClick,
@@ -258,37 +336,34 @@ function GhostAction({
   return <button className="rounded-[10px] border border-white/8 px-3 py-2 text-xs uppercase tracking-[0.16em] text-slate-300 disabled:opacity-40" disabled={disabled} onClick={onClick} type="button">{label}</button>;
 }
 
-function IconButton({ children }: { children: ReactNode }) {
-  return <button className="grid h-10 w-10 place-items-center rounded-[10px] border border-white/8 bg-[#1d1d1d] text-slate-300" type="button">{children}</button>;
-}
-
-function ToolbarButton({
-  active,
-  children,
-  label,
-  onClick,
-}: {
-  active: boolean;
-  children: ReactNode;
-  label: string;
-  onClick: () => void;
-}) {
-  return <button aria-label={label} className={`grid h-10 w-10 place-items-center rounded-[10px] transition ${active ? "bg-white text-black" : "bg-[#161616] text-slate-500 hover:text-slate-300"}`} onClick={onClick} type="button">{children}</button>;
-}
-
-function toolbarItems() {
+function toolbarItems(): RailTool[] {
   return [
-    { id: "script" as const, label: "Script", icon: <CursorIcon /> },
-    { id: "captions" as const, label: "Media", icon: <VideoTextIcon /> },
-    { id: "scenes" as const, label: "Text", icon: <TypeIcon /> },
-    { id: "scenes" as const, label: "Box", icon: <SquareIcon /> },
-    { id: "scenes" as const, label: "Fx", icon: <FxIcon /> },
-    { id: "scenes" as const, label: "Pointer", icon: <PointerIcon /> },
-    { id: "scenes" as const, label: "Grid", icon: <GridIcon /> },
-    { id: "scenes" as const, label: "Split", icon: <SplitIcon /> },
-    { id: "captions" as const, label: "Closed Captions", icon: <CcIcon /> },
-    { id: "scenes" as const, label: "Comments", icon: <CommentIcon /> },
+    { id: "script", label: "Script", icon: <CursorIcon />, tab: "script" },
+    { id: "captions", label: "Media", icon: <VideoTextIcon />, tab: "captions" },
+    { id: "scenes", label: "Text", icon: <TypeIcon />, tab: "scenes" },
+    { id: "box", label: "Box", icon: <SquareIcon /> },
+    { id: "fx", label: "Fx", icon: <FxIcon /> },
+    { id: "pointer", label: "Pointer", icon: <PointerIcon /> },
+    { id: "grid", label: "Grid", icon: <GridIcon /> },
+    { id: "split", label: "Split", icon: <SplitIcon /> },
+    { id: "closed-captions", label: "Closed Captions", icon: <CcIcon /> },
+    { id: "comments", label: "Comments", icon: <CommentIcon /> },
   ];
+}
+
+function railButtonHandler(
+  item: RailTool,
+  setActiveTab: (tab: EditorTab) => void,
+) {
+  const { tab } = item;
+  if (!tab) {
+    return undefined;
+  }
+  return () => setActiveTab(tab);
+}
+
+function captionsForScene(captions: EditorCaptionDraft[], sceneId: string) {
+  return captions.filter((caption) => caption.sceneId === sceneId);
 }
 
 function filterScenes(scenes: EditorSceneDraft[], query: string) {
@@ -297,7 +372,11 @@ function filterScenes(scenes: EditorSceneDraft[], query: string) {
   return scenes.filter((scene) => [scene.title, scene.spokenLine, scene.onScreenText].join(" ").toLowerCase().includes(normalized));
 }
 
-function panelLabel(activeTab: EditorTab) {
+function sceneForPanel(scenes: EditorSceneDraft[], selectedSceneId: string) {
+  return scenes.find((scene) => scene.id === selectedSceneId) ?? scenes[0] ?? null;
+}
+
+function tabLabel(activeTab: EditorTab) {
   if (activeTab === "captions") return "Caption Pass";
   if (activeTab === "scenes") return "Scene Order";
   return "Casual Mark";

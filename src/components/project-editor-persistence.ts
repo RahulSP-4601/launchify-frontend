@@ -24,12 +24,17 @@ import {
 
 const STORAGE_PREFIX = "launchify-editor-draft:";
 const SAVE_DELAY_MS = 900;
+type LocalDraftRecord = {
+  draft: ProjectEditorDraft;
+  savedAt: string;
+};
 
 export function useProjectEditorBootstrap(
   project: ProjectDetail,
   transcript: TranscriptResponse["transcript"],
 ) {
-  const fallbackDraft = loadLocalDraft(project.id) ?? buildProjectEditorDraft(project, transcript);
+  const localDraft = loadLocalDraft(project.id);
+  const fallbackDraft = localDraft?.draft ?? buildProjectEditorDraft(project, transcript);
   const query = useQuery({
     queryKey: ["project-editor", project.id],
     queryFn: () => fetchProjectEditorState(project.id),
@@ -37,7 +42,11 @@ export function useProjectEditorBootstrap(
     staleTime: 30_000,
   });
   return {
-    draft: query.data?.editor_state ? editorDraftFromApiState(query.data.editor_state) : fallbackDraft,
+    draft: shouldUseServerDraft(query.data, localDraft?.savedAt)
+      ? editorDraftFromApiState(query.data!.editor_state)
+      : fallbackDraft,
+    localDraftSavedAt: localDraft?.savedAt ?? "",
+    localOverrideActive: shouldPreferLocalDraft(localDraft?.savedAt ?? "", query.data?.updated_at),
     pending: query.isPending,
     record: query.data,
   };
@@ -46,11 +55,12 @@ export function useProjectEditorBootstrap(
 export function usePersistedProjectEditorDraft(
   initialDraft: ProjectEditorDraft,
   projectId: string,
+  localOverrideActive = false,
 ) {
   const queryClient = useQueryClient();
   const history = useProjectEditorHistory(initialDraft);
   const [lastSavedSerialized, setLastSavedSerialized] = useState(
-    JSON.stringify(editorDraftToApiState(initialDraft)),
+    localOverrideActive ? "" : JSON.stringify(editorDraftToApiState(initialDraft)),
   );
   const lastSavedRef = useRef(lastSavedSerialized);
   const mutation = useMutation({
@@ -139,7 +149,7 @@ function loadLocalDraft(projectId: string) {
     if (!stored) {
       return null;
     }
-    return editorDraftFromApiState(JSON.parse(stored) as ProjectEditorState);
+    return parseLocalDraftRecord(JSON.parse(stored) as ProjectEditorState | StoredLocalDraft);
   } catch {
     return null;
   }
@@ -152,11 +162,66 @@ function persistLocalDraft(projectId: string, draft: ProjectEditorDraft) {
   try {
     window.localStorage.setItem(
       `${STORAGE_PREFIX}${projectId}`,
-      JSON.stringify(editorDraftToApiState(draft)),
+      JSON.stringify({
+        editor_state: editorDraftToApiState(draft),
+        saved_at: new Date().toISOString(),
+      } satisfies StoredLocalDraft),
     );
   } catch {
     return;
   }
+}
+
+type StoredLocalDraft = {
+  editor_state: ProjectEditorState;
+  saved_at: string;
+};
+
+function parseLocalDraftRecord(value: ProjectEditorState | StoredLocalDraft): LocalDraftRecord | null {
+  if (isStoredLocalDraft(value)) {
+    return {
+      draft: editorDraftFromApiState(value.editor_state),
+      savedAt: value.saved_at,
+    };
+  }
+  return {
+    draft: editorDraftFromApiState(value),
+    savedAt: "",
+  };
+}
+
+function isStoredLocalDraft(value: ProjectEditorState | StoredLocalDraft): value is StoredLocalDraft {
+  return "editor_state" in value && typeof value.saved_at === "string";
+}
+
+function shouldUseServerDraft(
+  record: ProjectEditorStateRecord | null | undefined,
+  localSavedAt?: string,
+) {
+  return Boolean(record?.editor_state) && !shouldPreferLocalDraft(localSavedAt ?? "", record?.updated_at);
+}
+
+export function shouldPreferLocalDraft(localSavedAt: string, serverUpdatedAt?: string | null) {
+  if (!localSavedAt) {
+    return false;
+  }
+  const parsedLocalSavedAt = parseTimestamp(localSavedAt);
+  if (parsedLocalSavedAt === null) {
+    return true;
+  }
+  if (!serverUpdatedAt) {
+    return true;
+  }
+  const parsedServerUpdatedAt = parseTimestamp(serverUpdatedAt);
+  if (parsedServerUpdatedAt === null) {
+    return true;
+  }
+  return parsedLocalSavedAt > parsedServerUpdatedAt;
+}
+
+function parseTimestamp(value: string) {
+  const timestamp = Date.parse(value);
+  return Number.isNaN(timestamp) ? null : timestamp;
 }
 
 export function editorDraftToApiState(draft: ProjectEditorDraft): ProjectEditorState {
