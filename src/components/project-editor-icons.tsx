@@ -4,6 +4,18 @@ export function SparkIcon() {
   return <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><path d="M7 4h3l7 7v9H7z" /><path d="M10 4v7h7" /></svg>;
 }
 
+export function FileDocIcon() {
+  return <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><path d="M7 3h7l5 5v13H7z" /><path d="M14 3v5h5" /></svg>;
+}
+
+export function CloudArrowIcon() {
+  return <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><path d="M8 18a4 4 0 1 1 .8-7.9A5.5 5.5 0 0 1 19 12.5 3.5 3.5 0 0 1 18 19H8" /><path d="m12 10 3 3" /><path d="m12 10-3 3" /><path d="M12 10v8" /></svg>;
+}
+
+export function TranslateIcon() {
+  return <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><path d="M5 6h10" /><path d="M10 6c0 5-2 8-5 10" /><path d="M10 11c1 2 3 4 6 5" /><path d="m15 14 4-8 4 8" /><path d="M16.5 11h5" /></svg>;
+}
+
 export function SpinnerIcon() {
   return <svg className="h-4 w-4 animate-spin" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.64-6.36" /></svg>;
 }

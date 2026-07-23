@@ -5,10 +5,12 @@ import type { ReactNode } from "react";
 
 import type { EditorAspectRatio, EditorSceneDraft, ProjectEditorDraft } from "@/components/project-editor-draft";
 import {
+  CloudArrowIcon,
+  FileDocIcon,
   HeadphoneIcon,
   RedoIcon,
-  SparkIcon,
   SpinnerIcon,
+  TranslateIcon,
   UndoIcon,
 } from "@/components/project-editor-icons";
 export { EditorLeftPanel, EditorRail } from "@/components/project-editor-left-panel";
@@ -30,9 +32,9 @@ export function EditorTopBar({
   saveLabel: string;
 }) {
   return (
-    <header className="flex items-start justify-between gap-6">
-      <TopBarProject project={project} />
-      <TopBarActions canRedo={canRedo} canUndo={canUndo} onRedo={onRedo} onUndo={onUndo} saveLabel={saveLabel} status={project.status} />
+    <header className="flex items-center justify-between gap-4 rounded-[14px] bg-[#121212]">
+      <ProjectGroup project={project} />
+      <ActionGroup canRedo={canRedo} canUndo={canUndo} onRedo={onRedo} onUndo={onUndo} saveLabel={saveLabel} />
     </header>
   );
 }
@@ -40,11 +42,7 @@ export function EditorTopBar({
 export function EditorInspector({
   draft,
   onAspectRatioChange,
-  onRegenerateScene,
-  onSceneUpdate,
   onToggleCaptions,
-  regeneratePending,
-  selectedScene,
 }: {
   draft: ProjectEditorDraft;
   onAspectRatioChange: (aspectRatio: EditorAspectRatio) => void;
@@ -55,112 +53,101 @@ export function EditorInspector({
   selectedScene: EditorSceneDraft | null;
 }) {
   return (
-    <aside className="flex min-h-0 flex-col overflow-hidden rounded-[18px] border border-white/6 bg-[#1b1b1b]">
-      <InspectorTopBar />
-      <InspectorSection label="Project">
+    <aside className="flex min-h-0 flex-col rounded-[14px] border border-white/6 bg-[#1f1f1f]">
+      <InspectorHeader />
+      <InspectorSection title="Project">
         <ToggleRow checked={draft.showCaptions} label="Show Transcript" onChange={onToggleCaptions} />
         <AspectRatioField aspectRatio={draft.aspectRatio} onChange={onAspectRatioChange} />
       </InspectorSection>
-      <InspectorSection label="Selected Scene">
-        {selectedScene ? (
-          <SelectedSceneFields onRegenerateScene={onRegenerateScene} onSceneUpdate={onSceneUpdate} regeneratePending={regeneratePending} selectedScene={selectedScene} />
-        ) : (
-          <p className="text-sm leading-7 text-slate-500">Pick a scene on the left or timeline to edit timing and copy.</p>
-        )}
-      </InspectorSection>
+      <div className="flex-1 border-t border-white/6" />
     </aside>
   );
 }
 
-function TopBarProject({ project }: { project: ProjectDetail }) {
+function ProjectGroup({ project }: { project: ProjectDetail }) {
   return (
-    <div className="flex items-center gap-3">
-      <div className="flex items-center gap-3 rounded-[16px] border border-white/8 bg-[#1d1d1d] px-5 py-3 shadow-[0_8px_30px_rgba(0,0,0,0.24)]">
-        <button className="grid h-8 w-8 place-items-center rounded-[10px] border border-white/8 text-slate-400" type="button">
-          <SparkIcon />
+    <div className="flex min-w-0 items-center gap-3">
+      <div className="flex min-w-0 items-center gap-3 rounded-[12px] border border-white/8 bg-[#202020] px-3 py-2.5">
+        <button className="grid h-8 w-8 place-items-center rounded-[8px] border border-white/8 text-slate-500" type="button">
+          <FileDocIcon />
         </button>
         <p className="truncate text-[15px] font-medium text-white">{project.project_name}</p>
+        <button className="grid h-8 w-8 place-items-center rounded-[8px] text-slate-500" type="button">
+          <CloudArrowIcon />
+        </button>
       </div>
-      <div className="flex items-center rounded-[14px] border border-white/8 bg-[#1a1a1a] p-1 text-sm text-slate-400">
-        <span className="rounded-[10px] bg-[#262626] px-4 py-2 text-white">Video</span>
+      <div className="flex items-center rounded-[12px] border border-white/8 bg-[#1e1e1e] p-1 text-[15px] text-slate-500">
+        <span className="rounded-[8px] bg-[#2a2a2a] px-4 py-2 text-white">Video</span>
         <span className="px-4 py-2">Article</span>
       </div>
-      <Link className="hidden rounded-[14px] border border-white/8 px-4 py-3 text-sm text-slate-400 xl:block" href="/">
+      <Link className="hidden rounded-[12px] border border-white/8 px-4 py-2.5 text-[15px] text-slate-400 xl:block" href="/">
         Projects
       </Link>
     </div>
   );
 }
 
-function TopBarActions({
+function ActionGroup({
   canRedo,
   canUndo,
   onRedo,
   onUndo,
   saveLabel,
-  status,
 }: {
   canRedo: boolean;
   canUndo: boolean;
   onRedo: () => void;
   onUndo: () => void;
   saveLabel: string;
-  status: ProjectDetail["status"];
 }) {
   return (
     <div className="flex items-center gap-3">
-      <TopBarStatusPill saveLabel={saveLabel} />
-      <span className="rounded-[12px] bg-[#2f5ef7] px-4 py-3 text-sm font-semibold text-white">{status === "ready" ? "R" : status.slice(0, 1).toUpperCase()}</span>
-      <button className="grid h-11 w-11 place-items-center rounded-[12px] border border-white/8 bg-[#1d1d1d] text-slate-300" type="button">R</button>
-      <button className="grid h-11 w-11 place-items-center rounded-[12px] border border-white/8 bg-[#151515] text-slate-400" onClick={onUndo} disabled={!canUndo} type="button">
-        <UndoIcon />
-      </button>
-      <button className="grid h-11 w-11 place-items-center rounded-[12px] border border-white/8 bg-[#151515] text-slate-400" onClick={onRedo} disabled={!canRedo} type="button">
-        <RedoIcon />
-      </button>
-      <button className="rounded-[12px] border border-white/8 bg-[#171717] px-4 py-3 text-sm text-slate-300" type="button">Translate</button>
-      <button className="rounded-[12px] bg-[#8d3f82] px-4 py-3 text-sm font-semibold text-white" type="button">Share</button>
+      <SavePill saveLabel={saveLabel} />
+      <TopSquare active>R</TopSquare>
+      <TopSquare><HeadphoneIcon /></TopSquare>
+      <TopSquare disabled={!canUndo} onClick={onUndo}><UndoIcon /></TopSquare>
+      <TopSquare disabled={!canRedo} onClick={onRedo}><RedoIcon /></TopSquare>
+      <GhostButton><TranslateIcon /><span>Translate</span></GhostButton>
+      <PrimaryButton>Share</PrimaryButton>
     </div>
   );
 }
 
-function TopBarStatusPill({ saveLabel }: { saveLabel: string }) {
+function SavePill({ saveLabel }: { saveLabel: string }) {
   return (
-    <div className="flex min-w-[280px] items-center justify-between rounded-[14px] bg-white px-4 py-3 text-black shadow-[0_10px_30px_rgba(0,0,0,0.22)]">
+    <div className="flex min-w-[318px] items-center justify-between rounded-[14px] bg-white px-4 py-3 text-black">
       <div className="flex items-center gap-3">
         <SpinnerIcon />
-        <span className="text-sm font-medium">{saveLabel}</span>
+        <span className="text-[15px] font-medium">{saveLabel}</span>
       </div>
-      <button className="text-sm text-slate-700" type="button">Cancel</button>
+      <button className="text-[15px] text-slate-700" type="button">Cancel</button>
     </div>
   );
 }
 
-function InspectorTopBar() {
+function InspectorHeader() {
   return (
-    <div className="flex items-center justify-between border-b border-white/6 px-4 py-4">
+    <div className="flex items-center justify-between border-b border-white/6 px-3 py-3">
       <div className="flex items-center gap-2">
-        <span className="grid h-10 w-10 place-items-center rounded-[10px] bg-[#3167f2] text-sm font-semibold text-white">R</span>
-        <button className="grid h-10 w-10 place-items-center rounded-[10px] border border-white/8 text-slate-300" type="button">
-          <HeadphoneIcon />
-        </button>
+        <TopSquare active>R</TopSquare>
+        <TopSquare><HeadphoneIcon /></TopSquare>
       </div>
-      <button className="rounded-[10px] bg-[#8d3f82] px-4 py-2 text-sm font-medium text-white" type="button">Share</button>
+      <PrimaryButton>Share</PrimaryButton>
     </div>
   );
 }
 
 function InspectorSection({
   children,
-  label,
+  title,
 }: {
   children: ReactNode;
-  label: string;
+  title: string;
 }) {
   return (
-    <section className="border-b border-white/6 px-4 py-5 last:min-h-0 last:flex-1 last:overflow-y-auto last:border-b-0">
-      <p className="text-[15px] font-medium text-slate-300">{label}</p>
-      <div className="mt-5 space-y-5">{children}</div>
+    <section className="px-4 py-4">
+      <p className="text-[15px] font-medium text-slate-400">{title}</p>
+      <div className="mt-6 space-y-8">{children}</div>
     </section>
   );
 }
@@ -176,9 +163,9 @@ function ToggleRow({
 }) {
   return (
     <div className="flex items-center justify-between gap-3">
-      <span className="text-[15px] text-slate-300">{label}</span>
-      <button className={`flex h-8 w-11 items-center rounded-full p-1 ${checked ? "bg-[#e35de0]" : "bg-[#2d2d2d]"}`} onClick={() => onChange(!checked)} type="button">
-        <span className={`h-6 w-6 rounded-full bg-white transition ${checked ? "translate-x-3" : ""}`} />
+      <span className="text-[15px] text-white">{label}</span>
+      <button className={`flex h-8 w-12 items-center rounded-full p-1 ${checked ? "bg-[#e35de0]" : "bg-[#2b2b2b]"}`} onClick={() => onChange(!checked)} type="button">
+        <span className={`h-6 w-6 rounded-full bg-white transition ${checked ? "translate-x-4" : ""}`} />
       </button>
     </div>
   );
@@ -193,8 +180,8 @@ function AspectRatioField({
 }) {
   return (
     <label className="block">
-      <span className="text-sm text-slate-400">Aspect Ratio</span>
-      <select className="mt-3 w-full rounded-[10px] border border-white/8 bg-[#1a1a1a] px-4 py-3 text-sm text-white outline-none" onChange={(event) => onChange(event.target.value as EditorAspectRatio)} value={aspectRatio}>
+      <span className="text-[15px] text-white">Aspect Ratio</span>
+      <select className="mt-4 h-11 w-full rounded-[8px] border border-white/8 bg-[#181818] px-4 text-[15px] text-white outline-none" onChange={(event) => onChange(event.target.value as EditorAspectRatio)} value={aspectRatio}>
         <option value="16:9">Landscape 16:9</option>
         <option value="9:16">Vertical 9:16</option>
         <option value="1:1">Square 1:1</option>
@@ -203,42 +190,24 @@ function AspectRatioField({
   );
 }
 
-function SelectedSceneFields({
-  onRegenerateScene,
-  onSceneUpdate,
-  regeneratePending,
-  selectedScene,
+function TopSquare({
+  active,
+  children,
+  disabled,
+  onClick,
 }: {
-  onRegenerateScene: (sceneId: string) => void;
-  onSceneUpdate: (sceneId: string, patch: Partial<EditorSceneDraft>) => void;
-  regeneratePending: boolean;
-  selectedScene: EditorSceneDraft;
+  active?: boolean;
+  children: ReactNode;
+  disabled?: boolean;
+  onClick?: () => void;
 }) {
-  return (
-    <>
-      <textarea className="min-h-28 w-full rounded-[12px] border border-white/8 bg-[#171717] px-4 py-4 text-sm leading-7 text-white outline-none" onChange={(event) => onSceneUpdate(selectedScene.id, { spokenLine: event.target.value })} value={selectedScene.spokenLine} />
-      <NumericSceneField label="Start" onChange={(value) => onSceneUpdate(selectedScene.id, { start: Math.min(value, selectedScene.end - 0.5) })} value={selectedScene.start} />
-      <NumericSceneField label="End" onChange={(value) => onSceneUpdate(selectedScene.id, { end: Math.max(value, selectedScene.start + 0.5) })} value={selectedScene.end} />
-      <button className="rounded-[12px] border border-fuchsia-400/30 px-4 py-3 text-sm font-medium text-fuchsia-200 disabled:opacity-40" disabled={regeneratePending} onClick={() => onRegenerateScene(selectedScene.id)} type="button">
-        Restore AI scene
-      </button>
-    </>
-  );
+  return <button className={`grid h-11 w-11 place-items-center rounded-[12px] border border-white/8 text-[15px] ${active ? "bg-[#3564f3] text-white" : "bg-[#1a1a1a] text-slate-300"} disabled:opacity-40`} disabled={disabled} onClick={onClick} type="button">{children}</button>;
 }
 
-function NumericSceneField({
-  label,
-  onChange,
-  value,
-}: {
-  label: string;
-  onChange: (value: number) => void;
-  value: number;
-}) {
-  return (
-    <label className="block">
-      <span className="text-sm text-slate-400">{label}</span>
-      <input className="mt-3 w-full rounded-[10px] border border-white/8 bg-[#171717] px-4 py-3 text-sm text-white outline-none" min={0} onChange={(event) => onChange(Number(event.target.value) || 0)} step={0.1} type="number" value={value.toFixed(1)} />
-    </label>
-  );
+function GhostButton({ children }: { children: ReactNode }) {
+  return <button className="flex h-11 items-center gap-2 rounded-[12px] border border-white/8 bg-[#1a1a1a] px-4 text-[15px] text-slate-300" type="button">{children}</button>;
+}
+
+function PrimaryButton({ children }: { children: ReactNode }) {
+  return <button className="h-11 rounded-[12px] bg-[#8d3f82] px-5 text-[15px] font-medium text-white" type="button">{children}</button>;
 }

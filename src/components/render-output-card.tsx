@@ -1,10 +1,10 @@
 "use client";
 
-import { PreviewStudioCard, useAssetObjectUrl } from "@/components/render-preview-studio";
+import { PreviewStudioCard, useAssetUrl } from "@/components/render-preview-studio";
 import { ProjectDetail } from "@/lib/types";
 
 export function RenderOutputCard({ project }: { project: ProjectDetail }) {
-  const renderedPreviewUrl = useAssetObjectUrl(
+  const renderedPreviewUrl = useAssetUrl(
     project.id,
     "source",
     Boolean(project.preview_video),
@@ -12,21 +12,21 @@ export function RenderOutputCard({ project }: { project: ProjectDetail }) {
     project.updated_at,
     "preview",
   );
-  const sourceAssetUrl = useAssetObjectUrl(
+  const sourceAssetUrl = useAssetUrl(
     project.id,
     "source",
     Boolean(project.asset),
     project.asset?.storage_path ?? "",
     project.updated_at,
   );
-  const usesRenderedPreview = Boolean(project.preview_video && renderedPreviewUrl.objectUrl);
+  const usesRenderedPreview = Boolean(project.preview_video && renderedPreviewUrl.url);
   const sourceError = renderedPreviewUrl.error || sourceAssetUrl.error;
-  const sourceUrl = renderedPreviewUrl.objectUrl || sourceAssetUrl.objectUrl;
+  const sourceUrl = renderedPreviewUrl.url || sourceAssetUrl.url;
   const voiceoverEnabled =
     !usesRenderedPreview &&
     project.voiceover?.status === "ready" &&
     project.voiceover?.mode !== "original";
-  const voiceoverUrl = useAssetObjectUrl(
+  const voiceoverUrl = useAssetUrl(
     project.id,
     "voiceover",
     voiceoverEnabled,
@@ -42,7 +42,7 @@ export function RenderOutputCard({ project }: { project: ProjectDetail }) {
         sourceUrl={sourceUrl}
         usesRenderedPreview={usesRenderedPreview}
         voiceoverError={voiceoverUrl.error}
-        voiceoverUrl={voiceoverUrl.objectUrl}
+        voiceoverUrl={voiceoverUrl.url}
       />
     </div>
   );

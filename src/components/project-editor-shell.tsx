@@ -28,7 +28,7 @@ import {
   EditorTimeline,
   ProjectEditorPreviewState,
 } from "@/components/project-editor-stage";
-import { useAssetObjectUrl } from "@/components/render-preview-studio";
+import { useAssetUrl } from "@/components/render-preview-studio";
 import { regenerateProjectEditorScene } from "@/lib/api";
 import { ProjectDetail, ProjectEditorState, TranscriptResponse } from "@/lib/types";
 
@@ -174,7 +174,6 @@ function ProjectEditorGrid({
         onSceneSelect={editor.setSelectedSceneId}
         onSceneUpdate={editor.updateScene}
         regeneratePending={regeneratePending}
-        selectedScene={selectedScene}
         selectedSceneId={selectedScene?.id ?? editor.draft.selectedSceneId}
       />
       <EditorPreviewStage draft={editor.draft} preview={preview} selectedScene={selectedScene} />
@@ -269,7 +268,7 @@ function projectEditorStateToDraft(state: ProjectEditorState) {
 }
 
 function useProjectEditorPreview(project: ProjectDetail, draft: ProjectEditorDraft) {
-  const renderedPreview = useAssetObjectUrl(
+  const renderedPreview = useAssetUrl(
     project.id,
     "source",
     Boolean(project.preview_video),
@@ -277,7 +276,7 @@ function useProjectEditorPreview(project: ProjectDetail, draft: ProjectEditorDra
     project.updated_at,
     "preview",
   );
-  const sourceAsset = useAssetObjectUrl(
+  const sourceAsset = useAssetUrl(
     project.id,
     "source",
     Boolean(project.asset),
@@ -287,8 +286,8 @@ function useProjectEditorPreview(project: ProjectDetail, draft: ProjectEditorDra
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [currentTime, setCurrentTime] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
-  const sourceUrl = renderedPreview.objectUrl || sourceAsset.objectUrl;
-  const isRenderedPreview = Boolean(project.preview_video && renderedPreview.objectUrl);
+  const sourceUrl = renderedPreview.url || sourceAsset.url;
+  const isRenderedPreview = Boolean(project.preview_video && renderedPreview.url);
   const totalDuration = useMemo(() => totalTimelineDuration(project, draft), [draft, project]);
 
   useEffect(() => bindPreviewState(videoRef.current, setCurrentTime, setIsPlaying), [sourceUrl]);

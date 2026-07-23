@@ -3,7 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Dispatch, RefObject, SetStateAction, useEffect, useMemo, useRef, useState } from "react";
 
-import { fetchProjectAsset, fetchRenderOutput } from "@/lib/api";
+import { fetchProjectAssetUrl, fetchRenderOutputUrl } from "@/lib/api";
 import { EditPlanScene, ProjectDetail } from "@/lib/types";
 import {
   activeSceneForPreviewTime,
@@ -69,7 +69,7 @@ export function PreviewStudioCard(props: PreviewStudioProps) {
   );
 }
 
-export function useAssetObjectUrl(
+export function useAssetUrl(
   projectId: string,
   key: "source" | "voiceover",
   enabled: boolean,
@@ -81,27 +81,17 @@ export function useAssetObjectUrl(
     queryKey: ["project-asset", projectId, key, renderVariant ?? "", assetKey, assetVersion ?? ""],
     queryFn: () => {
       if (renderVariant) {
-        return fetchRenderOutput(projectId, renderVariant);
+        return fetchRenderOutputUrl(projectId, renderVariant);
       }
-      return fetchProjectAsset(projectId, key);
+      return fetchProjectAssetUrl(projectId, key);
     },
     enabled: enabled && Boolean(assetKey),
-    staleTime: 60_000,
+    staleTime: 15 * 60_000,
     retry: false,
   });
-  const objectUrl = useMemo(() => (query.data ? URL.createObjectURL(query.data) : ""), [query.data]);
-
-  useEffect(() => {
-    return () => {
-      if (objectUrl) {
-        URL.revokeObjectURL(objectUrl);
-      }
-    };
-  }, [objectUrl]);
-
   return {
     error: query.error instanceof Error ? query.error.message : "",
-    objectUrl,
+    url: query.data ?? "",
     pending: enabled && query.isPending,
   };
 }
@@ -111,7 +101,7 @@ function usePreviewPlayback(project: ProjectDetail, voiceoverUrl: string, usesRe
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [currentTime, setCurrentTime] = useState(0);
   const [selectedScene, setSelectedScene] = useState<number | null>(project.edit_plan?.scenes[0]?.scene_number ?? null);
-  const scenes = useMemo(() => project.edit_plan?.scenes ?? [], [project.edit_plan?.scenes]);
+  const scenes = useMemo<EditPlanScene[]>(() => project.edit_plan?.scenes ?? [], [project.edit_plan?.scenes]);
   const sceneTimeline = useMemo(
     () => buildSceneTimeline(scenes, project.recording_session),
     [project.recording_session, scenes],

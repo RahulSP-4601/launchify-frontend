@@ -29,16 +29,10 @@ export function EditorPreviewStage({
   selectedScene: EditorSceneDraft | null;
 }) {
   return (
-    <section className="relative flex min-h-0 items-center justify-center overflow-hidden rounded-[18px] bg-[#080808] px-6 py-6">
-      <div className="absolute bottom-6 right-6 z-10 rounded-[10px] bg-[#1f1f1f] px-3 py-2 text-sm text-slate-300">100%</div>
-      <div className="w-full max-w-[980px] rounded-[18px] border border-dashed border-[#db44d8] p-6">
-        <PreviewCanvas
-          activeCaption={preview.activeCaption}
-          aspectRatio={draft.aspectRatio}
-          preview={preview}
-          selectedScene={selectedScene}
-          showCaptions={draft.showCaptions}
-        />
+    <section className="relative flex min-h-0 items-center justify-center overflow-hidden rounded-[14px] bg-[#0b0b0b] p-6">
+      <div className="absolute bottom-5 right-5 rounded-[8px] bg-[#202020] px-3 py-2 text-sm text-slate-300">100%</div>
+      <div className="w-full rounded-[14px] border border-dashed border-[#da4fe2] p-8">
+        <PreviewCanvas activeCaption={preview.activeCaption} aspectRatio={draft.aspectRatio} preview={preview} selectedScene={selectedScene} showCaptions={draft.showCaptions} />
       </div>
     </section>
   );
@@ -48,13 +42,9 @@ export function EditorTimeline({
   currentTime,
   draft,
   isPlaying,
-  onSceneNudge,
-  onSceneRegenerate,
   onSceneSelect,
-  onSceneTimingChange,
   onSeek,
   onTogglePlayback,
-  regeneratePending,
   totalDuration,
 }: {
   currentTime: number;
@@ -69,24 +59,12 @@ export function EditorTimeline({
   regeneratePending: boolean;
   totalDuration: number;
 }) {
-  const selectedScene = draft.scenes.find((scene) => scene.id === draft.selectedSceneId) ?? draft.scenes[0] ?? null;
+  const selectedSceneId = draft.selectedSceneId || draft.scenes[0]?.id || "";
   return (
-    <section className="rounded-[18px] bg-[#0c0c0c] px-5 pb-4 pt-3">
-      <TimelineControlBar currentTime={currentTime} isPlaying={isPlaying} onSeek={onSeek} onTogglePlayback={onTogglePlayback} totalDuration={totalDuration} />
-      <div className="mt-4 rounded-[14px] border border-white/6 bg-[#0f0f0f]">
-        <SceneTrackHeader scenes={draft.scenes} />
-        <SceneFilmstrip onSceneSelect={onSceneSelect} scenes={draft.scenes} selectedSceneId={selectedScene?.id ?? ""} totalDuration={totalDuration} />
-      </div>
-      {selectedScene ? (
-        <TimelineSceneEditor
-          onSceneNudge={onSceneNudge}
-          onSceneRegenerate={onSceneRegenerate}
-          onSceneTimingChange={onSceneTimingChange}
-          regeneratePending={regeneratePending}
-          scene={selectedScene}
-          totalDuration={totalDuration}
-        />
-      ) : null}
+    <section className="rounded-[14px] border border-white/6 bg-[#0f0f0f] px-4 pb-3 pt-2">
+      <TransportBar currentTime={currentTime} isPlaying={isPlaying} onTogglePlayback={onTogglePlayback} totalDuration={totalDuration} />
+      <TimelineRuler currentTime={currentTime} totalDuration={totalDuration} />
+      <TimelineLane currentTime={currentTime} onSceneSelect={onSceneSelect} onSeek={onSeek} scenes={draft.scenes} selectedSceneId={selectedSceneId} totalDuration={totalDuration} />
     </section>
   );
 }
@@ -106,96 +84,93 @@ function PreviewCanvas({
 }) {
   const ratioClass = aspectRatio === "9:16" ? "aspect-[9/16]" : aspectRatio === "1:1" ? "aspect-square" : "aspect-[16/9]";
   return (
-    <div className={`relative mx-auto w-full max-w-[890px] overflow-hidden rounded-[18px] bg-[#101010] ${ratioClass}`}>
-      {preview.sourceUrl ? (
-        <EditorVideo onTogglePlayback={preview.togglePlayback} sourceUrl={preview.sourceUrl} videoRef={preview.videoRef} />
-      ) : (
-        <EditorVideoEmptyState detail={preview.error} />
-      )}
-      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.06),rgba(0,0,0,0.34))]" />
-      {selectedScene ? <SceneOverlay selectedScene={selectedScene} /> : null}
-      {showCaptions && activeCaption ? <CaptionOverlay text={activeCaption.text} /> : null}
+    <div className={`relative mx-auto w-full max-w-[928px] overflow-hidden rounded-[14px] bg-[#101010] ${ratioClass}`}>
+      {preview.sourceUrl ? <PreviewVideo onTogglePlayback={preview.togglePlayback} sourceUrl={preview.sourceUrl} videoRef={preview.videoRef} /> : <PreviewEmptyState detail={preview.error} />}
+      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.08),rgba(0,0,0,0.28))]" />
+      {selectedScene ? <ScenePill title={selectedScene.title} /> : null}
+      {showCaptions && activeCaption ? <CaptionPill text={activeCaption.text} /> : null}
     </div>
   );
 }
 
-function TimelineControlBar({
+function TransportBar({
   currentTime,
   isPlaying,
-  onSeek,
   onTogglePlayback,
   totalDuration,
 }: {
   currentTime: number;
   isPlaying: boolean;
-  onSeek: (time: number) => void;
   onTogglePlayback: () => void;
   totalDuration: number;
 }) {
   return (
-    <div className="flex items-center gap-4 text-slate-400">
-      <button className="grid h-9 w-9 place-items-center rounded-[10px] border border-white/8" onClick={onTogglePlayback} type="button">
-        {isPlaying ? <PauseIcon /> : <PlayIcon />}
-      </button>
-      <button className="grid h-9 w-9 place-items-center rounded-[10px] border border-white/8" type="button">
-        <StepIcon />
-      </button>
-      <button className="grid h-9 w-9 place-items-center rounded-[10px] border border-white/8" type="button">
-        <StepForwardIcon />
-      </button>
-      <span className="min-w-[128px] text-sm text-slate-300">{formatTimelineTime(currentTime)}f / {formatTimelineTime(totalDuration)}f</span>
-      <span className="text-sm text-slate-300">1x</span>
-      <span className="text-sm text-slate-300">High res</span>
-      <div className="flex items-center gap-3">
-        <ToolbarGhostIcon><ScissorIcon /></ToolbarGhostIcon>
-        <ToolbarGhostIcon>+</ToolbarGhostIcon>
-      </div>
-      <input className="ml-auto h-2 w-[min(44vw,860px)] cursor-pointer appearance-none rounded-full bg-white/10" max={Math.max(totalDuration, 0.1)} min={0} onChange={(event) => onSeek(Number(event.target.value))} step={0.1} type="range" value={Math.min(currentTime, totalDuration)} />
+    <div className="flex items-center gap-3 text-slate-400">
+      <IconButton onClick={onTogglePlayback}>{isPlaying ? <PauseIcon /> : <PlayIcon />}</IconButton>
+      <IconButton><StepIcon /></IconButton>
+      <IconButton><StepForwardIcon /></IconButton>
+      <span className="min-w-[170px] text-[15px] text-slate-300">{formatTimelineTime(currentTime)}f / {formatTimelineTime(totalDuration)}f</span>
+      <span className="text-[15px] text-slate-300">1x</span>
+      <span className="text-[15px] text-slate-300">High res</span>
+      <IconButton><ScissorIcon /></IconButton>
+      <IconButton>+</IconButton>
     </div>
   );
 }
 
-function SceneTrackHeader({ scenes }: { scenes: EditorSceneDraft[] }) {
+function TimelineRuler({
+  currentTime,
+  totalDuration,
+}: {
+  currentTime: number;
+  totalDuration: number;
+}) {
   return (
-    <div className="border-b border-white/6 bg-[#121212] px-4 py-3 text-sm text-slate-500">
-      <div className="flex items-center gap-3">
-        <span className="rounded-[8px] bg-[#115bd4] px-3 py-1 text-white">Video</span>
-        <span>{scenes.length} scenes</span>
-      </div>
+    <div className="mt-2 flex items-end gap-0.5 px-1 text-[11px] text-slate-500">
+      <div className="rounded bg-white px-2 py-1 text-black">{Math.floor(currentTime)}s</div>
+      {rulerTicks(totalDuration).map((tick) => (
+        <div key={tick} className="flex-1 border-t border-dashed border-white/10 pt-2 text-center">{tick}s</div>
+      ))}
     </div>
   );
 }
 
-function SceneFilmstrip({
+function TimelineLane({
+  currentTime,
   onSceneSelect,
+  onSeek,
   scenes,
   selectedSceneId,
   totalDuration,
 }: {
+  currentTime: number;
   onSceneSelect: (scene: EditorSceneDraft) => void;
+  onSeek: (time: number) => void;
   scenes: EditorSceneDraft[];
   selectedSceneId: string;
   totalDuration: number;
 }) {
   return (
-    <div className="overflow-x-auto px-3 py-3">
-      <div className="flex min-w-max gap-1">
-        {scenes.map((scene) => (
-          <SceneStripSegment
-            key={scene.id}
-            isSelected={scene.id === selectedSceneId}
-            onClick={() => onSceneSelect(scene)}
-            scene={scene}
-            totalDuration={totalDuration}
-          />
-        ))}
+    <div className="mt-3 overflow-x-auto pb-2">
+      <div className="relative min-w-[1200px] rounded-[8px] bg-[#0b0b0b] p-2">
+        <div className="mb-2 flex items-center gap-2 text-sm text-slate-300">
+          <span className="rounded-[6px] bg-[#1b63e8] px-2 py-1 text-white">Video</span>
+        </div>
+        <div className="relative h-[116px] overflow-hidden rounded-[8px] bg-[#155fda]">
+          <CurrentTimeMarker currentTime={currentTime} totalDuration={totalDuration} />
+          <div className="flex h-full">
+            {scenes.map((scene) => (
+              <LaneSegment key={scene.id} isSelected={scene.id === selectedSceneId} onClick={() => { onSceneSelect(scene); onSeek(scene.start); }} scene={scene} totalDuration={totalDuration} />
+            ))}
+          </div>
+        </div>
+        <div className="mt-3 h-3 rounded-full bg-[#2a2a2a]" />
       </div>
-      <div className="mt-3 h-3 rounded-full bg-[#2a2a2a]" />
     </div>
   );
 }
 
-function EditorVideo({
+function PreviewVideo({
   onTogglePlayback,
   sourceUrl,
   videoRef,
@@ -207,35 +182,37 @@ function EditorVideo({
   return <video ref={videoRef} className="h-full w-full object-contain" onClick={onTogglePlayback} playsInline preload="metadata" src={sourceUrl} />;
 }
 
-function EditorVideoEmptyState({ detail }: { detail: string }) {
+function PreviewEmptyState({ detail }: { detail: string }) {
   return (
     <div className="grid h-full w-full place-items-center bg-[#101010] p-8 text-center">
-      <div className="max-w-lg">
-        <p className="text-xs uppercase tracking-[0.24em] text-fuchsia-200">Editor preview pending</p>
-        <p className="mt-4 text-lg font-semibold text-white">Launchify will load the source or rendered preview here once the media is ready.</p>
-        <p className="mt-3 text-sm leading-7 text-slate-400">{detail || "No video asset is available yet for this project."}</p>
+      <div className="max-w-xl">
+        <p className="text-xs uppercase tracking-[0.24em] text-fuchsia-200">Editor Preview Pending</p>
+        <p className="mt-5 text-[18px] font-semibold leading-9 text-white">Launchify will load the source or rendered preview here once the media is ready.</p>
+        <p className="mt-4 text-[15px] leading-8 text-slate-500">{detail || "No media asset is available yet for this project."}</p>
       </div>
     </div>
   );
 }
 
-function SceneOverlay({ selectedScene }: { selectedScene: EditorSceneDraft }) {
-  return (
-    <div className="absolute left-6 top-6 rounded-full bg-black/65 px-5 py-3 text-xs uppercase tracking-[0.24em] text-white">
-      Scene {selectedScene.sceneNumber}: {selectedScene.title}
-    </div>
-  );
+function ScenePill({ title }: { title: string }) {
+  return <div className="absolute left-6 top-6 rounded-full bg-black/70 px-5 py-2 text-xs uppercase tracking-[0.24em] text-white">{title}</div>;
 }
 
-function CaptionOverlay({ text }: { text: string }) {
-  return (
-    <div className="absolute inset-x-10 bottom-8 rounded-[16px] bg-black/70 px-5 py-4 text-center text-base font-medium text-white">
-      {text}
-    </div>
-  );
+function CaptionPill({ text }: { text: string }) {
+  return <div className="absolute inset-x-10 bottom-8 rounded-[14px] bg-black/70 px-5 py-4 text-center text-base font-medium text-white">{text}</div>;
 }
 
-function SceneStripSegment({
+function CurrentTimeMarker({
+  currentTime,
+  totalDuration,
+}: {
+  currentTime: number;
+  totalDuration: number;
+}) {
+  return <div className="absolute inset-y-0 z-10 w-0.5 bg-white/80" style={{ left: `${Math.min((currentTime / Math.max(totalDuration, 1)) * 100, 100)}%` }} />;
+}
+
+function LaneSegment({
   isSelected,
   onClick,
   scene,
@@ -246,87 +223,35 @@ function SceneStripSegment({
   scene: EditorSceneDraft;
   totalDuration: number;
 }) {
-  const width = `${Math.max((sceneDuration(scene) / Math.max(totalDuration, 1)) * 100, 10)}%`;
+  const width = `${Math.max((sceneDuration(scene) / Math.max(totalDuration, 1)) * 100, 8)}%`;
   return (
-    <button className={`relative h-20 overflow-hidden rounded-[10px] border ${isSelected ? "border-white/30 bg-[#0b4fa4]" : "border-white/6 bg-[#1f1f1f]"}`} onClick={onClick} style={{ width, minWidth: 120 }} type="button">
-      <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(0,0,0,0.16))]" />
-      <div className="absolute inset-x-0 top-0 flex gap-[2px] px-[2px] pt-[2px]">
+    <button className={`relative h-full border-r border-black/20 text-left ${isSelected ? "bg-white/6" : "bg-transparent hover:bg-white/[0.04]"}`} onClick={onClick} style={{ width, minWidth: 150 }} type="button">
+      <div className="absolute inset-x-2 top-2 flex gap-0.5">
         {Array.from({ length: 8 }).map((_, index) => (
-          <span key={index} className="h-12 flex-1 rounded-[4px] bg-white/10" />
+          <span key={index} className="h-16 flex-1 rounded-[4px] bg-black/14" />
         ))}
       </div>
-      <div className="absolute inset-x-0 bottom-0 px-3 py-2 text-left text-white">
-        <p className="text-[11px] uppercase tracking-[0.24em]">{`Scene ${scene.sceneNumber}`}</p>
-        <p className="mt-1 truncate text-sm font-semibold">{scene.title}</p>
+      <div className="absolute inset-x-0 bottom-0 bg-[linear-gradient(180deg,rgba(0,0,0,0),rgba(0,0,0,0.45))] px-4 py-3 text-white">
+        <p className="text-xs uppercase tracking-[0.24em]">{`Scene ${scene.sceneNumber}`}</p>
+        <p className="mt-1 truncate text-[16px] font-semibold">{scene.title}</p>
       </div>
     </button>
   );
 }
 
-function TimelineSceneEditor({
-  onSceneNudge,
-  onSceneRegenerate,
-  onSceneTimingChange,
-  regeneratePending,
-  scene,
-  totalDuration,
+function IconButton({
+  children,
+  onClick,
 }: {
-  onSceneNudge: (sceneId: string, delta: number) => void;
-  onSceneRegenerate: (sceneId: string) => void;
-  onSceneTimingChange: (sceneId: string, field: "start" | "end", value: number) => void;
-  regeneratePending: boolean;
-  scene: EditorSceneDraft;
-  totalDuration: number;
+  children: ReactNode;
+  onClick?: () => void;
 }) {
-  return (
-    <div className="mt-4 rounded-[16px] border border-white/6 bg-[#111111] p-4">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Timeline Editing</p>
-          <p className="mt-2 text-xl font-semibold text-white">{scene.title}</p>
-        </div>
-        <button className="rounded-[12px] border border-fuchsia-400/30 px-4 py-3 text-sm font-medium text-fuchsia-200 disabled:opacity-40" disabled={regeneratePending} onClick={() => onSceneRegenerate(scene.id)} type="button">
-          Restore AI scene
-        </button>
-      </div>
-      <SceneRangeField field="start" onChange={onSceneTimingChange} scene={scene} totalDuration={totalDuration} />
-      <SceneRangeField field="end" onChange={onSceneTimingChange} scene={scene} totalDuration={totalDuration} />
-      <div className="mt-5 flex flex-wrap gap-3">
-        <NudgeButton label="-0.5s" onClick={() => onSceneNudge(scene.id, -0.5)} />
-        <NudgeButton label="+0.5s" onClick={() => onSceneNudge(scene.id, 0.5)} />
-        <NudgeButton label="+1.0s" onClick={() => onSceneNudge(scene.id, 1)} />
-      </div>
-    </div>
-  );
+  return <button className="grid h-11 w-11 place-items-center rounded-[10px] border border-white/8 bg-[#121212]" onClick={onClick} type="button">{children}</button>;
 }
 
-function SceneRangeField({
-  field,
-  onChange,
-  scene,
-  totalDuration,
-}: {
-  field: "start" | "end";
-  onChange: (sceneId: string, field: "start" | "end", value: number) => void;
-  scene: EditorSceneDraft;
-  totalDuration: number;
-}) {
-  const value = field === "start" ? scene.start : scene.end;
-  return (
-    <label className="mt-5 block">
-      <span className="text-xs uppercase tracking-[0.24em] text-slate-500">{field}</span>
-      <input className="mt-4 h-2 w-full cursor-pointer appearance-none rounded-full bg-white/10" max={Math.max(totalDuration, 0.5)} min={0} onChange={(event) => onChange(scene.id, field, Number(event.target.value))} step={0.1} type="range" value={value} />
-      <p className="mt-3 text-sm text-slate-300">{formatTimelineTime(value)}</p>
-    </label>
-  );
-}
-
-function NudgeButton({ label, onClick }: { label: string; onClick: () => void }) {
-  return <button className="rounded-[10px] border border-white/8 px-3 py-2 text-sm text-slate-300" onClick={onClick} type="button">{label}</button>;
-}
-
-function ToolbarGhostIcon({ children }: { children: ReactNode }) {
-  return <button className="grid h-9 w-9 place-items-center rounded-[10px] border border-white/8" type="button">{children}</button>;
+function rulerTicks(totalDuration: number) {
+  const whole = Math.max(Math.ceil(totalDuration), 1);
+  return Array.from({ length: Math.min(6, whole + 1) }, (_, index) => index * 5).filter((tick) => tick <= whole);
 }
 
 function formatTimelineTime(seconds: number) {

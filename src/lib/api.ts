@@ -194,6 +194,16 @@ export async function fetchProjectAsset(projectId: string, variant: "source" | "
   return response.blob();
 }
 
+export async function fetchRenderOutputUrl(projectId: string, variant: "preview" | "final"): Promise<string> {
+  const response = await apiFetch(`/api/projects/${projectId}/renders/${variant}/url`, { cache: "no-store" });
+  return (await handleResponse<{ url: string }>(response)).url;
+}
+
+export async function fetchProjectAssetUrl(projectId: string, variant: "source" | "voiceover"): Promise<string> {
+  const response = await apiFetch(`/api/projects/${projectId}/assets/${variant}/url`, { cache: "no-store" });
+  return (await handleResponse<{ url: string }>(response)).url;
+}
+
 export async function fetchUsageSummary(): Promise<UsageSummary> {
   const response = await apiFetch("/api/usage", { cache: "no-store" });
   return handleResponse<UsageSummary>(response);
