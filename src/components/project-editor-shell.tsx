@@ -94,8 +94,8 @@ function ProjectEditorLayout({
   setActiveTab: (tab: EditorTab) => void;
 }) {
   return (
-    <div className="min-h-screen bg-[#121212] px-4 py-4 text-white lg:px-5">
-      <div className="mx-auto flex max-w-[1900px] flex-col gap-4">
+    <div className="min-h-screen bg-[#121212] px-4 py-4 text-white lg:h-screen lg:overflow-hidden lg:px-5">
+      <div className="mx-auto flex h-full max-w-[1900px] flex-col gap-4">
         <EditorHeader editor={editor} project={project} />
         <ProjectEditorGrid activeTab={activeTab} editor={editor} onRegenerateScene={onRegenerateScene} preview={preview} regeneratePending={regeneratePending} selectedScene={selectedScene} setActiveTab={setActiveTab} />
         <EditorTimelineSection editor={editor} onRegenerateScene={onRegenerateScene} preview={preview} regeneratePending={regeneratePending} />
@@ -126,19 +126,21 @@ function EditorTimelineSection({
   regeneratePending: boolean;
 }) {
   return (
-    <EditorTimeline
-      currentTime={preview.currentTime}
-      draft={editor.draft}
-      isPlaying={preview.isPlaying}
-      onSceneNudge={editor.nudgeScene}
-      onSceneRegenerate={onRegenerateScene}
-      onSceneSelect={preview.seekToScene}
-      onSceneTimingChange={editor.updateSceneTiming}
-      onSeek={preview.seek}
-      onTogglePlayback={preview.togglePlayback}
-      regeneratePending={regeneratePending}
-      totalDuration={preview.totalDuration}
-    />
+    <div className="min-h-0 shrink-0">
+      <EditorTimeline
+        currentTime={preview.currentTime}
+        draft={editor.draft}
+        isPlaying={preview.isPlaying}
+        onSceneNudge={editor.nudgeScene}
+        onSceneRegenerate={onRegenerateScene}
+        onSceneSelect={preview.seekToScene}
+        onSceneTimingChange={editor.updateSceneTiming}
+        onSeek={preview.seek}
+        onTogglePlayback={preview.togglePlayback}
+        regeneratePending={regeneratePending}
+        totalDuration={preview.totalDuration}
+      />
+    </div>
   );
 }
 
@@ -160,7 +162,7 @@ function ProjectEditorGrid({
   setActiveTab: (tab: EditorTab) => void;
 }) {
   return (
-    <div className="grid gap-4 2xl:grid-cols-[64px_380px_minmax(0,1fr)_320px]">
+    <div className="grid min-h-0 flex-1 gap-4 xl:grid-cols-[58px_420px_minmax(0,1fr)] 2xl:grid-cols-[58px_540px_minmax(0,1fr)_300px]">
       <EditorRail activeTab={activeTab} setActiveTab={setActiveTab} />
       <EditorLeftPanel
         activeTab={activeTab}
@@ -172,6 +174,8 @@ function ProjectEditorGrid({
         onSceneSelect={editor.setSelectedSceneId}
         onSceneUpdate={editor.updateScene}
         regeneratePending={regeneratePending}
+        selectedScene={selectedScene}
+        selectedSceneId={selectedScene?.id ?? editor.draft.selectedSceneId}
       />
       <EditorPreviewStage draft={editor.draft} preview={preview} selectedScene={selectedScene} />
       <EditorInspector
@@ -265,8 +269,21 @@ function projectEditorStateToDraft(state: ProjectEditorState) {
 }
 
 function useProjectEditorPreview(project: ProjectDetail, draft: ProjectEditorDraft) {
-  const renderedPreview = useAssetObjectUrl(project.id, "source", Boolean(project.preview_video), "preview");
-  const sourceAsset = useAssetObjectUrl(project.id, "source", Boolean(project.asset));
+  const renderedPreview = useAssetObjectUrl(
+    project.id,
+    "source",
+    Boolean(project.preview_video),
+    project.preview_video?.storage_path ?? "",
+    project.updated_at,
+    "preview",
+  );
+  const sourceAsset = useAssetObjectUrl(
+    project.id,
+    "source",
+    Boolean(project.asset),
+    project.asset?.storage_path ?? "",
+    project.updated_at,
+  );
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [currentTime, setCurrentTime] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);

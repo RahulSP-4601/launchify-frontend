@@ -73,17 +73,19 @@ export function useAssetObjectUrl(
   projectId: string,
   key: "source" | "voiceover",
   enabled: boolean,
+  assetKey: string,
+  assetVersion?: string,
   renderVariant?: "preview" | "final",
 ) {
   const query = useQuery({
-    queryKey: ["project-asset", projectId, key, renderVariant ?? ""],
+    queryKey: ["project-asset", projectId, key, renderVariant ?? "", assetKey, assetVersion ?? ""],
     queryFn: () => {
       if (renderVariant) {
         return fetchRenderOutput(projectId, renderVariant);
       }
       return fetchProjectAsset(projectId, key);
     },
-    enabled,
+    enabled: enabled && Boolean(assetKey),
     staleTime: 60_000,
     retry: false,
   });

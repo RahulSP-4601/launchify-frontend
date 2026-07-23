@@ -3,16 +3,16 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
+import type { EditorAspectRatio, EditorSceneDraft, ProjectEditorDraft } from "@/components/project-editor-draft";
 import {
-  EditorAspectRatio,
-  EditorSceneDraft,
-  ProjectEditorDraft,
-  sceneDuration,
-} from "@/components/project-editor-draft";
-import { StatusBadge } from "@/components/workspace-home";
+  HeadphoneIcon,
+  RedoIcon,
+  SparkIcon,
+  SpinnerIcon,
+  UndoIcon,
+} from "@/components/project-editor-icons";
+export { EditorLeftPanel, EditorRail } from "@/components/project-editor-left-panel";
 import { ProjectDetail } from "@/lib/types";
-
-type EditorTab = "script" | "captions" | "scenes";
 
 export function EditorTopBar({
   canRedo,
@@ -30,105 +30,10 @@ export function EditorTopBar({
   saveLabel: string;
 }) {
   return (
-    <header className="flex flex-col gap-3 rounded-[22px] border border-white/8 bg-[#1b1b1b] px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
-      <div className="flex min-w-0 items-center gap-3">
-        <Link className="rounded-[14px] border border-white/10 px-3 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-slate-300" href="/">
-          Projects
-        </Link>
-        <div className="min-w-0 rounded-[14px] border border-white/8 bg-[#232323] px-4 py-3">
-          <p className="truncate text-lg font-semibold text-white">{project.project_name}</p>
-        </div>
-      </div>
-      <div className="flex flex-wrap items-center gap-3">
-        <HistoryButton disabled={!canUndo} label="Undo" onClick={onUndo} />
-        <HistoryButton disabled={!canRedo} label="Redo" onClick={onRedo} />
-        <StatusBadge status={project.status} />
-        <span className="rounded-[14px] border border-fuchsia-400/40 bg-fuchsia-400/10 px-3 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-fuchsia-200">
-          {saveLabel}
-        </span>
-        <button className="rounded-[14px] border border-white/10 px-4 py-2 text-sm font-medium text-slate-200" type="button">
-          Share
-        </button>
-        <button className="rounded-[14px] bg-fuchsia-500 px-4 py-2 text-sm font-semibold text-white" type="button">
-          Export video
-        </button>
-      </div>
+    <header className="flex items-start justify-between gap-6">
+      <TopBarProject project={project} />
+      <TopBarActions canRedo={canRedo} canUndo={canUndo} onRedo={onRedo} onUndo={onUndo} saveLabel={saveLabel} status={project.status} />
     </header>
-  );
-}
-
-export function EditorRail({
-  activeTab,
-  setActiveTab,
-}: {
-  activeTab: EditorTab;
-  setActiveTab: (tab: EditorTab) => void;
-}) {
-  return (
-    <aside className="rounded-[22px] border border-white/8 bg-[#1b1b1b] p-2">
-      <div className="space-y-2">
-        {[
-          { id: "script", label: "Script", short: "S" },
-          { id: "captions", label: "Captions", short: "C" },
-          { id: "scenes", label: "Scenes", short: "T" },
-        ].map((item) => (
-          <button
-            key={item.id}
-            className={`grid h-12 w-12 place-items-center rounded-[14px] text-sm font-semibold transition ${
-              activeTab === item.id ? "bg-white text-slate-950" : "bg-[#232323] text-slate-300 hover:bg-[#2b2b2b]"
-            }`}
-            onClick={() => setActiveTab(item.id as EditorTab)}
-            title={item.label}
-            type="button"
-          >
-            {item.short}
-          </button>
-        ))}
-      </div>
-    </aside>
-  );
-}
-
-export function EditorLeftPanel({
-  activeTab,
-  draft,
-  onCaptionSelect,
-  onCaptionUpdate,
-  onMoveScene,
-  onRegenerateScene,
-  onSceneSelect,
-  onSceneUpdate,
-  regeneratePending,
-}: {
-  activeTab: EditorTab;
-  draft: ProjectEditorDraft;
-  onCaptionSelect: (sceneId: string) => void;
-  onCaptionUpdate: (captionId: string, text: string) => void;
-  onMoveScene: (sceneId: string, direction: "backward" | "forward") => void;
-  onRegenerateScene: (sceneId: string) => void;
-  onSceneSelect: (sceneId: string) => void;
-  onSceneUpdate: (sceneId: string, patch: Partial<EditorSceneDraft>) => void;
-  regeneratePending: boolean;
-}) {
-  return (
-    <section className="rounded-[22px] border border-white/8 bg-[#1f1f1f] p-3">
-      <EditorPanelHeader activeTab={activeTab} />
-      {activeTab === "script" ? (
-        <ScriptEditorList
-          draft={draft}
-          onRegenerateScene={onRegenerateScene}
-          onSceneSelect={onSceneSelect}
-          onSceneUpdate={onSceneUpdate}
-          regeneratePending={regeneratePending}
-        />
-      ) : null}
-      {activeTab === "captions" ? (
-        <CaptionEditorList draft={draft} onCaptionSelect={onCaptionSelect} onCaptionUpdate={onCaptionUpdate} />
-      ) : null}
-      {activeTab === "scenes" ? (
-        <SceneEditorList draft={draft} onMoveScene={onMoveScene} onSceneSelect={onSceneSelect} />
-      ) : null}
-    </section>
   );
 }
 
@@ -150,134 +55,97 @@ export function EditorInspector({
   selectedScene: EditorSceneDraft | null;
 }) {
   return (
-    <aside className="rounded-[22px] border border-white/8 bg-[#1f1f1f] p-4">
+    <aside className="flex min-h-0 flex-col overflow-hidden rounded-[18px] border border-white/6 bg-[#1b1b1b]">
+      <InspectorTopBar />
       <InspectorSection label="Project">
-        <ToggleRow checked={draft.showCaptions} label="Show captions" onChange={onToggleCaptions} />
+        <ToggleRow checked={draft.showCaptions} label="Show Transcript" onChange={onToggleCaptions} />
         <AspectRatioField aspectRatio={draft.aspectRatio} onChange={onAspectRatioChange} />
       </InspectorSection>
-      <InspectorSection label="Selected scene">
+      <InspectorSection label="Selected Scene">
         {selectedScene ? (
-          <SelectedSceneFields
-            onRegenerateScene={onRegenerateScene}
-            onSceneUpdate={onSceneUpdate}
-            regeneratePending={regeneratePending}
-            selectedScene={selectedScene}
-          />
+          <SelectedSceneFields onRegenerateScene={onRegenerateScene} onSceneUpdate={onSceneUpdate} regeneratePending={regeneratePending} selectedScene={selectedScene} />
         ) : (
-          <p className="text-sm leading-7 text-slate-400">Select a scene on the left or timeline to tune its copy and timing.</p>
+          <p className="text-sm leading-7 text-slate-500">Pick a scene on the left or timeline to edit timing and copy.</p>
         )}
       </InspectorSection>
     </aside>
   );
 }
 
-function HistoryButton({
-  disabled,
-  label,
-  onClick,
-}: {
-  disabled: boolean;
-  label: string;
-  onClick: () => void;
-}) {
+function TopBarProject({ project }: { project: ProjectDetail }) {
   return (
-    <button className="rounded-[14px] border border-white/10 px-4 py-2 text-sm font-medium text-slate-200 disabled:opacity-40" disabled={disabled} onClick={onClick} type="button">
-      {label}
-    </button>
-  );
-}
-
-function EditorPanelHeader({ activeTab }: { activeTab: EditorTab }) {
-  const title = activeTab === "script" ? "Script rewrite" : activeTab === "captions" ? "Caption pass" : "Scene order";
-  return (
-    <div className="mb-3 rounded-[18px] border border-white/8 bg-[#171717] px-4 py-3">
-      <p className="text-xs uppercase tracking-[0.24em] text-slate-400">{title}</p>
+    <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 rounded-[16px] border border-white/8 bg-[#1d1d1d] px-5 py-3 shadow-[0_8px_30px_rgba(0,0,0,0.24)]">
+        <button className="grid h-8 w-8 place-items-center rounded-[10px] border border-white/8 text-slate-400" type="button">
+          <SparkIcon />
+        </button>
+        <p className="truncate text-[15px] font-medium text-white">{project.project_name}</p>
+      </div>
+      <div className="flex items-center rounded-[14px] border border-white/8 bg-[#1a1a1a] p-1 text-sm text-slate-400">
+        <span className="rounded-[10px] bg-[#262626] px-4 py-2 text-white">Video</span>
+        <span className="px-4 py-2">Article</span>
+      </div>
+      <Link className="hidden rounded-[14px] border border-white/8 px-4 py-3 text-sm text-slate-400 xl:block" href="/">
+        Projects
+      </Link>
     </div>
   );
 }
 
-function ScriptEditorList({
-  draft,
-  onRegenerateScene,
-  onSceneSelect,
-  onSceneUpdate,
-  regeneratePending,
+function TopBarActions({
+  canRedo,
+  canUndo,
+  onRedo,
+  onUndo,
+  saveLabel,
+  status,
 }: {
-  draft: ProjectEditorDraft;
-  onRegenerateScene: (sceneId: string) => void;
-  onSceneSelect: (sceneId: string) => void;
-  onSceneUpdate: (sceneId: string, patch: Partial<EditorSceneDraft>) => void;
-  regeneratePending: boolean;
+  canRedo: boolean;
+  canUndo: boolean;
+  onRedo: () => void;
+  onUndo: () => void;
+  saveLabel: string;
+  status: ProjectDetail["status"];
 }) {
   return (
-    <div className="space-y-3 overflow-y-auto pr-1">
-      {draft.scenes.map((scene) => (
-        <article key={scene.id} className="rounded-[18px] border border-white/8 bg-[#171717] p-4">
-          <button className="w-full text-left" onClick={() => onSceneSelect(scene.id)} type="button">
-            <p className="text-xs uppercase tracking-[0.22em] text-fuchsia-200">Scene {scene.sceneNumber}</p>
-          </button>
-          <input className="mt-3 w-full bg-transparent text-lg font-semibold outline-none" onChange={(event) => onSceneUpdate(scene.id, { title: event.target.value })} value={scene.title} />
-          <textarea className="mt-3 min-h-24 w-full rounded-[14px] border border-white/8 bg-[#222] px-3 py-3 text-sm leading-7 text-slate-100 outline-none" onChange={(event) => onSceneUpdate(scene.id, { spokenLine: event.target.value })} value={scene.spokenLine} />
-          <textarea className="mt-3 min-h-20 w-full rounded-[14px] border border-white/8 bg-[#222] px-3 py-3 text-sm leading-7 text-slate-300 outline-none" onChange={(event) => onSceneUpdate(scene.id, { onScreenText: event.target.value })} value={scene.onScreenText} />
-          <button className="mt-3 rounded-[12px] border border-fuchsia-400/30 px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-fuchsia-200 disabled:opacity-40" disabled={regeneratePending} onClick={() => onRegenerateScene(scene.id)} type="button">
-            Restore AI scene
-          </button>
-        </article>
-      ))}
+    <div className="flex items-center gap-3">
+      <TopBarStatusPill saveLabel={saveLabel} />
+      <span className="rounded-[12px] bg-[#2f5ef7] px-4 py-3 text-sm font-semibold text-white">{status === "ready" ? "R" : status.slice(0, 1).toUpperCase()}</span>
+      <button className="grid h-11 w-11 place-items-center rounded-[12px] border border-white/8 bg-[#1d1d1d] text-slate-300" type="button">R</button>
+      <button className="grid h-11 w-11 place-items-center rounded-[12px] border border-white/8 bg-[#151515] text-slate-400" onClick={onUndo} disabled={!canUndo} type="button">
+        <UndoIcon />
+      </button>
+      <button className="grid h-11 w-11 place-items-center rounded-[12px] border border-white/8 bg-[#151515] text-slate-400" onClick={onRedo} disabled={!canRedo} type="button">
+        <RedoIcon />
+      </button>
+      <button className="rounded-[12px] border border-white/8 bg-[#171717] px-4 py-3 text-sm text-slate-300" type="button">Translate</button>
+      <button className="rounded-[12px] bg-[#8d3f82] px-4 py-3 text-sm font-semibold text-white" type="button">Share</button>
     </div>
   );
 }
 
-function CaptionEditorList({
-  draft,
-  onCaptionSelect,
-  onCaptionUpdate,
-}: {
-  draft: ProjectEditorDraft;
-  onCaptionSelect: (sceneId: string) => void;
-  onCaptionUpdate: (captionId: string, text: string) => void;
-}) {
+function TopBarStatusPill({ saveLabel }: { saveLabel: string }) {
   return (
-    <div className="space-y-3 overflow-y-auto pr-1">
-      {draft.captions.map((caption) => (
-        <article key={caption.id} className="rounded-[18px] border border-white/8 bg-[#171717] p-4">
-          <button className="w-full text-left" onClick={() => caption.sceneId ? onCaptionSelect(caption.sceneId) : undefined} type="button">
-            <p className="text-xs uppercase tracking-[0.22em] text-slate-400">{formatRange(caption.start, caption.end)}</p>
-          </button>
-          <textarea className="mt-3 min-h-20 w-full rounded-[14px] border border-white/8 bg-[#222] px-3 py-3 text-sm leading-7 text-slate-100 outline-none" onChange={(event) => onCaptionUpdate(caption.id, event.target.value)} value={caption.text} />
-        </article>
-      ))}
+    <div className="flex min-w-[280px] items-center justify-between rounded-[14px] bg-white px-4 py-3 text-black shadow-[0_10px_30px_rgba(0,0,0,0.22)]">
+      <div className="flex items-center gap-3">
+        <SpinnerIcon />
+        <span className="text-sm font-medium">{saveLabel}</span>
+      </div>
+      <button className="text-sm text-slate-700" type="button">Cancel</button>
     </div>
   );
 }
 
-function SceneEditorList({
-  draft,
-  onMoveScene,
-  onSceneSelect,
-}: {
-  draft: ProjectEditorDraft;
-  onMoveScene: (sceneId: string, direction: "backward" | "forward") => void;
-  onSceneSelect: (sceneId: string) => void;
-}) {
+function InspectorTopBar() {
   return (
-    <div className="space-y-3 overflow-y-auto pr-1">
-      {draft.scenes.map((scene, index) => (
-        <article key={scene.id} className="rounded-[18px] border border-white/8 bg-[#171717] p-4">
-          <button className="w-full text-left" onClick={() => onSceneSelect(scene.id)} type="button">
-            <p className="text-lg font-semibold text-white">{scene.title}</p>
-            <p className="mt-2 text-xs uppercase tracking-[0.22em] text-slate-400">{formatRange(scene.start, scene.end)}</p>
-          </button>
-          <div className="mt-4 flex items-center gap-2">
-            <button className="rounded-[12px] border border-white/10 px-3 py-2 text-xs font-semibold text-slate-200 disabled:opacity-30" disabled={index === 0} onClick={() => onMoveScene(scene.id, "backward")} type="button">
-              Move up
-            </button>
-            <button className="rounded-[12px] border border-white/10 px-3 py-2 text-xs font-semibold text-slate-200 disabled:opacity-30" disabled={index === draft.scenes.length - 1} onClick={() => onMoveScene(scene.id, "forward")} type="button">
-              Move down
-            </button>
-          </div>
-        </article>
-      ))}
+    <div className="flex items-center justify-between border-b border-white/6 px-4 py-4">
+      <div className="flex items-center gap-2">
+        <span className="grid h-10 w-10 place-items-center rounded-[10px] bg-[#3167f2] text-sm font-semibold text-white">R</span>
+        <button className="grid h-10 w-10 place-items-center rounded-[10px] border border-white/8 text-slate-300" type="button">
+          <HeadphoneIcon />
+        </button>
+      </div>
+      <button className="rounded-[10px] bg-[#8d3f82] px-4 py-2 text-sm font-medium text-white" type="button">Share</button>
     </div>
   );
 }
@@ -290,9 +158,9 @@ function InspectorSection({
   label: string;
 }) {
   return (
-    <section className="border-b border-white/8 pb-5 pt-2 last:border-b-0">
-      <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">{label}</p>
-      <div className="mt-4 space-y-4">{children}</div>
+    <section className="border-b border-white/6 px-4 py-5 last:min-h-0 last:flex-1 last:overflow-y-auto last:border-b-0">
+      <p className="text-[15px] font-medium text-slate-300">{label}</p>
+      <div className="mt-5 space-y-5">{children}</div>
     </section>
   );
 }
@@ -308,9 +176,9 @@ function ToggleRow({
 }) {
   return (
     <div className="flex items-center justify-between gap-3">
-      <span className="text-sm text-slate-200">{label}</span>
-      <button className={`flex h-8 w-14 items-center rounded-full p-1 transition ${checked ? "bg-fuchsia-500" : "bg-[#2c2c2c]"}`} onClick={() => onChange(!checked)} type="button">
-        <span className={`h-6 w-6 rounded-full bg-white transition ${checked ? "translate-x-6" : ""}`} />
+      <span className="text-[15px] text-slate-300">{label}</span>
+      <button className={`flex h-8 w-11 items-center rounded-full p-1 ${checked ? "bg-[#e35de0]" : "bg-[#2d2d2d]"}`} onClick={() => onChange(!checked)} type="button">
+        <span className={`h-6 w-6 rounded-full bg-white transition ${checked ? "translate-x-3" : ""}`} />
       </button>
     </div>
   );
@@ -325,8 +193,8 @@ function AspectRatioField({
 }) {
   return (
     <label className="block">
-      <span className="text-sm text-slate-300">Aspect ratio</span>
-      <select className="mt-2 w-full rounded-[14px] border border-white/10 bg-[#171717] px-3 py-3 text-sm text-white outline-none" onChange={(event) => onChange(event.target.value as EditorAspectRatio)} value={aspectRatio}>
+      <span className="text-sm text-slate-400">Aspect Ratio</span>
+      <select className="mt-3 w-full rounded-[10px] border border-white/8 bg-[#1a1a1a] px-4 py-3 text-sm text-white outline-none" onChange={(event) => onChange(event.target.value as EditorAspectRatio)} value={aspectRatio}>
         <option value="16:9">Landscape 16:9</option>
         <option value="9:16">Vertical 9:16</option>
         <option value="1:1">Square 1:1</option>
@@ -348,11 +216,10 @@ function SelectedSceneFields({
 }) {
   return (
     <>
-      <input className="w-full rounded-[14px] border border-white/10 bg-[#171717] px-3 py-3 text-sm text-white outline-none" onChange={(event) => onSceneUpdate(selectedScene.id, { title: event.target.value })} value={selectedScene.title} />
+      <textarea className="min-h-28 w-full rounded-[12px] border border-white/8 bg-[#171717] px-4 py-4 text-sm leading-7 text-white outline-none" onChange={(event) => onSceneUpdate(selectedScene.id, { spokenLine: event.target.value })} value={selectedScene.spokenLine} />
       <NumericSceneField label="Start" onChange={(value) => onSceneUpdate(selectedScene.id, { start: Math.min(value, selectedScene.end - 0.5) })} value={selectedScene.start} />
       <NumericSceneField label="End" onChange={(value) => onSceneUpdate(selectedScene.id, { end: Math.max(value, selectedScene.start + 0.5) })} value={selectedScene.end} />
-      <p className="text-xs uppercase tracking-[0.22em] text-slate-500">Duration {sceneDuration(selectedScene).toFixed(1)}s</p>
-      <button className="rounded-[12px] border border-fuchsia-400/30 px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-fuchsia-200 disabled:opacity-40" disabled={regeneratePending} onClick={() => onRegenerateScene(selectedScene.id)} type="button">
+      <button className="rounded-[12px] border border-fuchsia-400/30 px-4 py-3 text-sm font-medium text-fuchsia-200 disabled:opacity-40" disabled={regeneratePending} onClick={() => onRegenerateScene(selectedScene.id)} type="button">
         Restore AI scene
       </button>
     </>
@@ -370,19 +237,8 @@ function NumericSceneField({
 }) {
   return (
     <label className="block">
-      <span className="text-sm text-slate-300">{label}</span>
-      <input className="mt-2 w-full rounded-[14px] border border-white/10 bg-[#171717] px-3 py-3 text-sm text-white outline-none" min={0} onChange={(event) => onChange(Number(event.target.value) || 0)} step={0.1} type="number" value={value.toFixed(1)} />
+      <span className="text-sm text-slate-400">{label}</span>
+      <input className="mt-3 w-full rounded-[10px] border border-white/8 bg-[#171717] px-4 py-3 text-sm text-white outline-none" min={0} onChange={(event) => onChange(Number(event.target.value) || 0)} step={0.1} type="number" value={value.toFixed(1)} />
     </label>
   );
-}
-
-function formatRange(start: number, end: number) {
-  return `${formatClock(start)} - ${formatClock(end)}`;
-}
-
-function formatClock(seconds: number) {
-  const safeSeconds = Math.max(0, Math.floor(seconds));
-  const minutes = Math.floor(safeSeconds / 60);
-  const remainingSeconds = safeSeconds % 60;
-  return `${minutes.toString().padStart(2, "0")}:${remainingSeconds.toString().padStart(2, "0")}`;
 }
