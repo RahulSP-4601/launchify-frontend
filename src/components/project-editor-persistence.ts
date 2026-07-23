@@ -11,14 +11,20 @@ import {
   ProjectEditorDraft,
 } from "@/components/project-editor-draft";
 import { useProjectEditorHistory } from "@/components/project-editor-history";
+import { deriveEditorSequence } from "@/components/project-editor-sequence";
 import {
+  fetchProjectEditorRevisions,
   fetchProjectEditorState,
+  restoreProjectEditorRevision,
   saveProjectEditorState,
 } from "@/lib/api";
 import {
+  ProjectEditorClip,
   ProjectDetail,
+  ProjectEditorSequence,
   ProjectEditorState,
   ProjectEditorStateRecord,
+  ProjectEditorTrack,
   TranscriptResponse,
 } from "@/lib/types";
 
@@ -29,26 +35,40 @@ type LocalDraftRecord = {
   savedAt: string;
 };
 
+type StoredLocalDraft = {
+  editor_state: ProjectEditorState;
+  head_revision_id?: number | null;
+  saved_at: string;
+};
+
 export function useProjectEditorBootstrap(
   project: ProjectDetail,
   transcript: TranscriptResponse["transcript"],
 ) {
-  const localDraft = loadLocalDraft(project.id);
-  const fallbackDraft = localDraft?.draft ?? buildProjectEditorDraft(project, transcript);
+  const baseDraft = buildProjectEditorDraft(project, transcript);
+  const localDraft = loadLocalDraft(project.id, baseDraft);
+  const fallbackDraft = localDraft?.draft ?? baseDraft;
   const query = useQuery({
     queryKey: ["project-editor", project.id],
     queryFn: () => fetchProjectEditorState(project.id),
     retry: 1,
     staleTime: 30_000,
   });
+  const revisions = useQuery({
+    queryKey: ["project-editor-revisions", project.id],
+    queryFn: () => fetchProjectEditorRevisions(project.id),
+    retry: 1,
+    staleTime: 15_000,
+  });
   return {
     draft: shouldUseServerDraft(query.data, localDraft?.savedAt)
-      ? editorDraftFromApiState(query.data!.editor_state)
+      ? editorDraftFromApiState(project.id, query.data!.editor_state, query.data!.head_revision_id, fallbackDraft.sequence)
       : fallbackDraft,
     localDraftSavedAt: localDraft?.savedAt ?? "",
     localOverrideActive: shouldPreferLocalDraft(localDraft?.savedAt ?? "", query.data?.updated_at),
     pending: query.isPending,
     record: query.data,
+    revisions: revisions.data ?? [],
   };
 }
 
@@ -63,16 +83,8 @@ export function usePersistedProjectEditorDraft(
     localOverrideActive ? "" : JSON.stringify(editorDraftToApiState(initialDraft)),
   );
   const lastSavedRef = useRef(lastSavedSerialized);
-  const mutation = useMutation({
-    mutationFn: (nextDraft: ProjectEditorDraft) =>
-      saveProjectEditorState(projectId, editorDraftToApiState(nextDraft)),
-    onSuccess: (record) => {
-      queryClient.setQueryData(["project-editor", projectId], record);
-      const nextSaved = JSON.stringify(record.editor_state);
-      lastSavedRef.current = nextSaved;
-      setLastSavedSerialized(nextSaved);
-    },
-  });
+  const mutation = useSaveDraftMutation(projectId, queryClient, history.syncDraft, lastSavedRef, setLastSavedSerialized);
+  const restoreMutation = useRestoreRevisionMutation(history.replaceDraft, lastSavedRef, projectId, queryClient, setLastSavedSerialized);
 
   useEffect(() => persistLocalDraft(projectId, history.draft), [history.draft, projectId]);
   useEffect(
@@ -84,19 +96,62 @@ export function usePersistedProjectEditorDraft(
     canRedo: history.canRedo,
     canUndo: history.canUndo,
     draft: history.draft,
-    hydrateSavedDraft: (nextDraft: ProjectEditorDraft, updatedAt: string) => {
+    hydrateSavedDraft: (nextDraft: ProjectEditorDraft, updatedAt: string, headRevisionId: number | null) => {
       history.replaceDraft(nextDraft);
-      markSavedState(nextDraft, lastSavedRef, queryClient, projectId, setLastSavedSerialized, updatedAt);
+      markSavedState(nextDraft, headRevisionId, lastSavedRef, queryClient, projectId, setLastSavedSerialized, updatedAt);
     },
     redo: history.redo,
+    restoreRevision: (revisionId: number) => restoreMutation.mutate(revisionId),
+    restoreRevisionPending: restoreMutation.isPending,
     saveLabel: saveLabelForMutation(mutation, lastSavedSerialized, history.draft),
     setDraft: history.setDraft,
     undo: history.undo,
   };
 }
 
+function useRestoreRevisionMutation(
+  replaceDraft: ReturnType<typeof useProjectEditorHistory>["replaceDraft"],
+  lastSavedRef: RefObject<string>,
+  projectId: string,
+  queryClient: ReturnType<typeof useQueryClient>,
+  setLastSavedSerialized: (value: string) => void,
+) {
+  return useMutation({
+    mutationFn: (revisionId: number) => restoreProjectEditorRevision(projectId, revisionId),
+    onSuccess: (record) => {
+      replaceDraft(editorDraftFromApiState(projectId, record.editor_state, record.head_revision_id));
+      queryClient.setQueryData(["project-editor", projectId], { editor_state: record.editor_state, head_revision_id: record.head_revision_id, project_id: record.project_id, updated_at: record.updated_at });
+      queryClient.invalidateQueries({ queryKey: ["project-editor-revisions", projectId] });
+      const nextSaved = JSON.stringify(record.editor_state);
+      lastSavedRef.current = nextSaved;
+      setLastSavedSerialized(nextSaved);
+    },
+  });
+}
+
+function useSaveDraftMutation(
+  projectId: string,
+  queryClient: ReturnType<typeof useQueryClient>,
+  syncDraft: ReturnType<typeof useProjectEditorHistory>["syncDraft"],
+  lastSavedRef: RefObject<string>,
+  setLastSavedSerialized: (value: string) => void,
+) {
+  return useMutation({
+    mutationFn: (nextDraft: ProjectEditorDraft) => saveProjectEditorState(projectId, editorDraftToApiState(nextDraft), nextDraft.headRevisionId),
+    onSuccess: (record) => {
+      queryClient.setQueryData(["project-editor", projectId], record);
+      queryClient.invalidateQueries({ queryKey: ["project-editor-revisions", projectId] });
+      const nextSaved = JSON.stringify(record.editor_state);
+      lastSavedRef.current = nextSaved;
+      setLastSavedSerialized(nextSaved);
+      syncDraft((current) => ({ ...current, headRevisionId: record.head_revision_id }));
+    },
+  });
+}
+
 function markSavedState(
   draft: ProjectEditorDraft,
+  headRevisionId: number | null,
   lastSavedRef: RefObject<string>,
   queryClient: ReturnType<typeof useQueryClient>,
   projectId: string,
@@ -107,6 +162,7 @@ function markSavedState(
   lastSavedRef.current = nextSaved;
   queryClient.setQueryData(["project-editor", projectId], {
     editor_state: editorDraftToApiState(draft),
+    head_revision_id: headRevisionId,
     project_id: projectId,
     updated_at: updatedAt,
   });
@@ -135,12 +191,12 @@ function saveLabelForMutation(
     return "Saving to cloud";
   }
   if (mutation.error instanceof Error) {
-    return "Save failed";
+    return mutation.error.message.includes("newer editor revision exists") ? "Draft out of date" : "Save failed";
   }
   return JSON.stringify(editorDraftToApiState(draft)) === lastSaved ? "Saved to cloud" : "Unsaved changes";
 }
 
-function loadLocalDraft(projectId: string) {
+function loadLocalDraft(projectId: string, fallbackDraft: ProjectEditorDraft) {
   if (typeof window === "undefined") {
     return null;
   }
@@ -149,7 +205,7 @@ function loadLocalDraft(projectId: string) {
     if (!stored) {
       return null;
     }
-    return parseLocalDraftRecord(JSON.parse(stored) as ProjectEditorState | StoredLocalDraft);
+    return parseLocalDraftRecord(projectId, JSON.parse(stored) as ProjectEditorState | StoredLocalDraft, fallbackDraft.sequence);
   } catch {
     return null;
   }
@@ -164,6 +220,7 @@ function persistLocalDraft(projectId: string, draft: ProjectEditorDraft) {
       `${STORAGE_PREFIX}${projectId}`,
       JSON.stringify({
         editor_state: editorDraftToApiState(draft),
+        head_revision_id: draft.headRevisionId,
         saved_at: new Date().toISOString(),
       } satisfies StoredLocalDraft),
     );
@@ -172,20 +229,19 @@ function persistLocalDraft(projectId: string, draft: ProjectEditorDraft) {
   }
 }
 
-type StoredLocalDraft = {
-  editor_state: ProjectEditorState;
-  saved_at: string;
-};
-
-function parseLocalDraftRecord(value: ProjectEditorState | StoredLocalDraft): LocalDraftRecord | null {
+function parseLocalDraftRecord(
+  projectId: string,
+  value: ProjectEditorState | StoredLocalDraft,
+  fallbackSequence: ProjectEditorSequence,
+): LocalDraftRecord | null {
   if (isStoredLocalDraft(value)) {
     return {
-      draft: editorDraftFromApiState(value.editor_state),
+      draft: editorDraftFromApiState(projectId, value.editor_state, value.head_revision_id ?? null, fallbackSequence),
       savedAt: value.saved_at,
     };
   }
   return {
-    draft: editorDraftFromApiState(value),
+    draft: editorDraftFromApiState(projectId, value, null, fallbackSequence),
     savedAt: "",
   };
 }
@@ -225,6 +281,7 @@ function parseTimestamp(value: string) {
 }
 
 export function editorDraftToApiState(draft: ProjectEditorDraft): ProjectEditorState {
+  const sequence = syncSequenceWithDraft(draft);
   return {
     aspect_ratio: draft.aspectRatio,
     captions: draft.captions.map((caption) => ({
@@ -244,19 +301,114 @@ export function editorDraftToApiState(draft: ProjectEditorDraft): ProjectEditorS
       start: scene.start,
       title: scene.title,
     })),
+    edit_mode: draft.editMode,
     selected_scene_id: draft.selectedSceneId,
+    selected_track_id: draft.selectedTrackId,
+    sequence,
     show_captions: draft.showCaptions,
   };
 }
 
-function editorDraftFromApiState(state: ProjectEditorState): ProjectEditorDraft {
+function editorDraftFromApiState(
+  projectId: string,
+  state: ProjectEditorState,
+  headRevisionId: number | null,
+  fallbackSequence?: ProjectEditorSequence,
+): ProjectEditorDraft {
+  const scenes = state.scenes.map(mapSceneFromApi);
+  const captions = state.captions.map(mapCaptionFromApi);
   return {
     aspectRatio: state.aspect_ratio,
-    captions: state.captions.map(mapCaptionFromApi),
-    scenes: state.scenes.map(mapSceneFromApi),
+    captions,
+    editMode: state.edit_mode ?? "overwrite",
+    headRevisionId,
+    projectId,
+    scenes,
     selectedSceneId: state.selected_scene_id,
+    selectedTrackId: state.selected_track_id || state.sequence?.tracks.find((track) => track.kind === "video")?.id || "track-video-1",
+    sequence: state.sequence ?? deriveSequenceWithFallbackAudio(projectId, scenes, captions, fallbackSequence),
     showCaptions: state.show_captions,
   };
+}
+
+function deriveSequenceWithFallbackAudio(
+  projectId: string,
+  scenes: ProjectEditorDraft["scenes"],
+  captions: ProjectEditorDraft["captions"],
+  fallbackSequence?: ProjectEditorSequence,
+) {
+  return deriveEditorSequence(
+    projectId,
+    scenes,
+    captions,
+    extractAudioInputs(fallbackSequence),
+  );
+}
+
+function syncSequenceWithDraft(draft: ProjectEditorDraft): ProjectEditorSequence {
+  const fallback = deriveEditorSequence(
+    draft.projectId,
+    draft.scenes,
+    draft.captions,
+    extractAudioInputs(draft.sequence),
+    draft.sequence?.playhead_seconds ?? 0,
+    draft.sequence?.version ?? 1,
+  );
+  const base = draft.sequence ?? fallback;
+  const videoTrackId = base.tracks.find((track) => track.kind === "video")?.id ?? "track-video-1";
+  const captionTrackId = base.tracks.find((track) => track.kind === "caption")?.id ?? "track-caption-1";
+  const videoClips = fallback.tracks.find((track) => track.kind === "video")?.clips ?? [];
+  const captionClips = fallback.tracks.find((track) => track.kind === "caption")?.clips ?? [];
+  const tracks = mergeSequenceTracks(base.tracks, videoTrackId, captionTrackId, videoClips, captionClips);
+  const duration = maxTrackEnd(tracks);
+  return {
+    ...base,
+    duration_seconds: duration,
+    playhead_seconds: Math.min(Math.max(base.playhead_seconds, 0), duration),
+    tracks,
+  };
+}
+
+function extractAudioInputs(sequence: ProjectEditorSequence | undefined) {
+  return (sequence?.tracks ?? [])
+    .filter((track) => track.kind === "audio")
+    .flatMap((track) => track.clips)
+    .map((clip) => ({
+      end: clip.timeline_end,
+      id: clip.id.replace("audio-clip-", ""),
+      sceneId: clip.scene_id,
+      start: clip.timeline_start,
+      text: clip.text,
+      title: clip.title,
+    }));
+}
+
+function mergeSequenceTracks(
+  tracks: ProjectEditorTrack[],
+  videoTrackId: string,
+  captionTrackId: string,
+  videoClips: ProjectEditorClip[],
+  captionClips: ProjectEditorClip[],
+) {
+  return upsertTrack(
+    upsertTrack(tracks, { clips: videoClips, id: videoTrackId, kind: "video", locked: false, muted: false, name: "Video" }),
+    { clips: captionClips, id: captionTrackId, kind: "caption", locked: false, muted: false, name: "Captions" },
+  );
+}
+
+function upsertTrack(
+  tracks: ProjectEditorTrack[],
+  nextTrack: ProjectEditorTrack,
+) {
+  const existing = tracks.find((track) => track.id === nextTrack.id);
+  if (!existing) {
+    return [...tracks, nextTrack];
+  }
+  return tracks.map((track) => track.id === nextTrack.id ? { ...existing, clips: nextTrack.clips, kind: nextTrack.kind, name: nextTrack.name } : track);
+}
+
+function maxTrackEnd(tracks: ProjectEditorTrack[]) {
+  return tracks.reduce((max, track) => Math.max(max, track.clips.at(-1)?.timeline_end ?? 0), 0);
 }
 
 function mapCaptionFromApi(caption: ProjectEditorState["captions"][number]): EditorCaptionDraft {

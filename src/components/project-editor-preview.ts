@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { activeCaptionAtTime, EditorSceneDraft, ProjectEditorDraft } from "@/components/project-editor-draft";
+import { insertedSceneAtTime, sourceTimeForEditorTime } from "@/components/project-editor-playback-map";
 import { ProjectEditorPreviewState } from "@/components/project-editor-stage";
 import { useAssetUrl } from "@/components/render-preview-studio";
 import { ProjectDetail } from "@/lib/types";
@@ -33,25 +34,23 @@ function useEditorPlayback(
   const totalDuration = useMemo(() => totalTimelineDuration(project, draft), [draft, project]);
   const [currentTime, setCurrentTime] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
+  const currentTimeRef = useRef(0);
 
-  usePlaybackEvents(videoRef, totalDuration, setCurrentTime, setIsPlaying);
+  useEffect(() => {
+    currentTimeRef.current = currentTime;
+  }, [currentTime]);
+
+  useManualPlaybackClock(currentTimeRef, isPlaying, totalDuration, setCurrentTime, setIsPlaying);
   useResetPlaybackState(sourceUrl, setCurrentTime, setIsPlaying);
+  useSyncVideoFrame(videoRef, currentTime, draft.scenes, sourceUrl);
 
   const seek = (time: number) => {
     const nextTime = clampTime(time, totalDuration);
-    const video = videoRef.current;
-    if (video) video.currentTime = nextTime;
     setCurrentTime(nextTime);
   };
 
   const togglePlayback = () => {
-    const video = videoRef.current;
-    if (!video) return;
-    if (video.paused) {
-      void video.play();
-    } else {
-      video.pause();
-    }
+    setIsPlaying((value) => !value);
   };
 
   return {
@@ -73,7 +72,7 @@ function buildPreviewState(
 ): ProjectEditorPreviewState {
   return {
     activeCaption: activeCaptionAtTime(draft.captions, playback.currentTime),
-    activeScene: activeSceneAtTime(draft.scenes, playback.currentTime),
+    activeScene: insertedSceneAtTime(playback.currentTime, draft.scenes) ?? activeSceneAtTime(draft.scenes, playback.currentTime),
     currentTime: playback.currentTime,
     error: previewAsset.error || (project.preview_video ? "" : "No preview render is available yet for this project."),
     isPlaying: playback.isPlaying,
@@ -87,33 +86,48 @@ function buildPreviewState(
   };
 }
 
-function usePlaybackEvents(
-  videoRef: React.RefObject<HTMLVideoElement | null>,
+function useManualPlaybackClock(
+  currentTimeRef: React.RefObject<number>,
+  isPlaying: boolean,
   totalDuration: number,
   setCurrentTime: (value: number) => void,
   setIsPlaying: (value: boolean) => void,
 ) {
   useEffect(() => {
+    if (!isPlaying) return undefined;
+    let frameId = 0;
+    let lastTime = performance.now();
+
+    const tick = (now: number) => {
+      const deltaSeconds = (now - lastTime) / 1000;
+      lastTime = now;
+      const nextValue = clampTime(currentTimeRef.current + deltaSeconds, totalDuration);
+      if (nextValue >= totalDuration) {
+        setIsPlaying(false);
+      }
+      setCurrentTime(nextValue);
+      frameId = window.requestAnimationFrame(tick);
+    };
+
+    frameId = window.requestAnimationFrame(tick);
+    return () => window.cancelAnimationFrame(frameId);
+  }, [currentTimeRef, isPlaying, setCurrentTime, setIsPlaying, totalDuration]);
+}
+
+function useSyncVideoFrame(
+  videoRef: React.RefObject<HTMLVideoElement | null>,
+  currentTime: number,
+  scenes: ProjectEditorDraft["scenes"],
+  sourceUrl: string,
+) {
+  useEffect(() => {
     const video = videoRef.current;
-    if (!video) return undefined;
-    const syncTime = () => setCurrentTime(video.currentTime || 0);
-    const syncPause = () => setIsPlaying(false);
-    const syncPlay = () => setIsPlaying(true);
-    const syncEnded = () => {
-      setIsPlaying(false);
-      setCurrentTime(video.duration || totalDuration);
-    };
-    video.addEventListener("timeupdate", syncTime);
-    video.addEventListener("pause", syncPause);
-    video.addEventListener("play", syncPlay);
-    video.addEventListener("ended", syncEnded);
-    return () => {
-      video.removeEventListener("timeupdate", syncTime);
-      video.removeEventListener("pause", syncPause);
-      video.removeEventListener("play", syncPlay);
-      video.removeEventListener("ended", syncEnded);
-    };
-  }, [setCurrentTime, setIsPlaying, totalDuration, videoRef]);
+    if (!video || !sourceUrl) return;
+    const nextSourceTime = sourceTimeForEditorTime(currentTime, scenes);
+    if (Math.abs((video.currentTime || 0) - nextSourceTime) > 0.05) {
+      video.currentTime = nextSourceTime;
+    }
+  }, [currentTime, scenes, sourceUrl, videoRef]);
 }
 
 function useResetPlaybackState(
@@ -144,11 +158,11 @@ function activeSceneAtTime(scenes: EditorSceneDraft[], currentTime: number) {
 }
 
 function totalTimelineDuration(project: ProjectDetail, draft: ProjectEditorDraft) {
-  return (
-    project.preview_video?.duration_seconds ||
-    draft.scenes.at(-1)?.end ||
-    draft.captions.at(-1)?.end ||
-    1
+  return Math.max(
+    project.preview_video?.duration_seconds || 0,
+    draft.scenes.at(-1)?.end || 0,
+    draft.captions.at(-1)?.end || 0,
+    1,
   );
 }
 

@@ -1,6 +1,9 @@
 import {
   CreateProjectInput,
   RegenerateProjectEditorSceneInput,
+  ProjectEditorRevisionRecord,
+  ProjectEditorRevisionSummary,
+  ProjectEditorSaveInput,
   ProjectEditorState,
   ProjectEditorStateRecord,
   ProjectDetail,
@@ -103,15 +106,34 @@ export async function fetchProjectEditorState(projectId: string): Promise<Projec
 export async function saveProjectEditorState(
   projectId: string,
   input: ProjectEditorState,
+  baseRevisionId: number | null,
 ): Promise<ProjectEditorStateRecord> {
   const response = await apiFetch(`/api/projects/${projectId}/editor`, {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify(input),
+    body: JSON.stringify({
+      base_revision_id: baseRevisionId,
+      editor_state: input,
+    } satisfies ProjectEditorSaveInput),
   });
   return handleResponse<ProjectEditorStateRecord>(response);
+}
+
+export async function fetchProjectEditorRevisions(projectId: string): Promise<ProjectEditorRevisionSummary[]> {
+  const response = await apiFetch(`/api/projects/${projectId}/editor/revisions`, { cache: "no-store" });
+  return handleResponse<ProjectEditorRevisionSummary[]>(response);
+}
+
+export async function restoreProjectEditorRevision(
+  projectId: string,
+  revisionId: number,
+): Promise<ProjectEditorRevisionRecord> {
+  const response = await apiFetch(`/api/projects/${projectId}/editor/revisions/${revisionId}/restore`, {
+    method: "POST",
+  });
+  return handleResponse<ProjectEditorRevisionRecord>(response);
 }
 
 export async function regenerateProjectEditorScene(

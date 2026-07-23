@@ -24,6 +24,8 @@ export function useProjectEditorHistory(initialDraft: ProjectEditorDraft) {
     redo: () => setHistory((current) => redoHistory(current)),
     replaceDraft: (draft: ProjectEditorDraft, trackHistory = true) =>
       setHistory((current) => replaceHistoryDraft(current, draft, trackHistory)),
+    syncDraft: (updater: DraftUpdater) =>
+      setHistory((current) => replaceHistoryDraft(current, resolveDraftUpdate(current.present, updater), false)),
     setDraft: (updater: DraftUpdater) =>
       setHistory((current) => applyHistoryUpdate(current, updater)),
     undo: () => setHistory((current) => undoHistory(current)),
@@ -35,8 +37,12 @@ function createHistoryState(initialDraft: ProjectEditorDraft): DraftHistoryState
 }
 
 function applyHistoryUpdate(history: DraftHistoryState, updater: DraftUpdater): DraftHistoryState {
-  const nextDraft = typeof updater === "function" ? updater(history.present) : updater;
+  const nextDraft = resolveDraftUpdate(history.present, updater);
   return replaceHistoryDraft(history, nextDraft, true);
+}
+
+function resolveDraftUpdate(current: ProjectEditorDraft, updater: DraftUpdater) {
+  return typeof updater === "function" ? updater(current) : updater;
 }
 
 function replaceHistoryDraft(

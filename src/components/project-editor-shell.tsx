@@ -1,22 +1,18 @@
 "use client";
-
 import { useMutation } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
-
 import {
-  EditorAspectRatio,
   EditorSceneDraft,
   ProjectEditorDraft,
-  reorderScenes,
-  shiftSceneTiming,
-  updateSceneTiming,
 } from "@/components/project-editor-draft";
+import { buildSceneActions, buildSequenceActions } from "@/components/project-editor-actions";
 import {
   shouldPreferLocalDraft,
   usePersistedProjectEditorDraft,
   useProjectEditorBootstrap,
 } from "@/components/project-editor-persistence";
 import { editorDraftToApiState } from "@/components/project-editor-persistence";
+import { deriveEditorSequence } from "@/components/project-editor-sequence";
 import { EditorInspector, EditorTopBar } from "@/components/project-editor-panels";
 import { EditorLeftPanel, EditorRail } from "@/components/project-editor-left-panel";
 import { useProjectEditorPreview } from "@/components/project-editor-preview";
@@ -27,7 +23,6 @@ import {
 } from "@/components/project-editor-stage";
 import { regenerateProjectEditorScene } from "@/lib/api";
 import { ProjectDetail, ProjectEditorState, ProjectEditorStateRecord, TranscriptResponse } from "@/lib/types";
-
 type EditorTab = "script" | "captions" | "scenes";
 const EDITOR_BASE_WIDTH = 1860;
 const EDITOR_BASE_HEIGHT = 1040;
@@ -48,6 +43,7 @@ export function ProjectEditorShell({
       localDraftSavedAt={bootstrap.localDraftSavedAt}
       localOverrideActive={bootstrap.localOverrideActive}
       project={project}
+      revisions={bootstrap.revisions}
     />
   );
 }
@@ -58,12 +54,14 @@ function ProjectEditorWorkspace({
   localDraftSavedAt,
   localOverrideActive,
   project,
+  revisions,
 }: {
   bootstrapRecord: ProjectEditorStateRecord | null | undefined;
   initialDraft: ProjectEditorDraft;
   localDraftSavedAt: string;
   localOverrideActive: boolean;
   project: ProjectDetail;
+  revisions: ReturnType<typeof useProjectEditorBootstrap>["revisions"];
 }) {
   const [activeTab, setActiveTab] = useState<EditorTab>("script");
   const editor = useProjectEditorDraft(project, initialDraft, localOverrideActive);
@@ -79,12 +77,12 @@ function ProjectEditorWorkspace({
       preview={preview}
       project={project}
       regeneratePending={regenerateScene.isPending}
+      revisions={revisions}
       selectedScene={selectedSceneForLayout(editor.draft, preview)}
       setActiveTab={setActiveTab}
     />
   );
 }
-
 function ProjectEditorLayout({
   activeTab,
   editor,
@@ -92,6 +90,7 @@ function ProjectEditorLayout({
   preview,
   project,
   regeneratePending,
+  revisions,
   selectedScene,
   setActiveTab,
 }: {
@@ -101,6 +100,7 @@ function ProjectEditorLayout({
   preview: ProjectEditorPreviewState;
   project: ProjectDetail;
   regeneratePending: boolean;
+  revisions: ReturnType<typeof useProjectEditorBootstrap>["revisions"];
   selectedScene: EditorSceneDraft | null;
   setActiveTab: (tab: EditorTab) => void;
 }) {
@@ -116,6 +116,7 @@ function ProjectEditorLayout({
             onRegenerateScene={onRegenerateScene}
             preview={preview}
             regeneratePending={regeneratePending}
+            revisions={revisions}
             selectedScene={selectedScene}
             setActiveTab={setActiveTab}
           />
@@ -125,7 +126,6 @@ function ProjectEditorLayout({
     </div>
   );
 }
-
 function ScaledWorkspaceFrame({
   children,
   workspaceScale,
@@ -152,7 +152,6 @@ function ScaledWorkspaceFrame({
     </div>
   );
 }
-
 function EditorHeader({
   editor,
   project,
@@ -167,6 +166,7 @@ function EditorHeader({
       onRedo={editor.redo}
       onUndo={editor.undo}
       project={project}
+      revisionLabel={`Revision v${editor.draft.sequence.version}`}
       saveLabel={editor.saveLabel}
     />
   );
@@ -183,9 +183,25 @@ function EditorTimelineSection({
     <EditorTimeline
       currentTime={preview.currentTime}
       draft={editor.draft}
+      editMode={editor.draft.editMode}
       isPlaying={preview.isPlaying}
+      onAddOverlayCallout={editor.addOverlayCallout}
+      onAddScreen={editor.addScreenAfterSelected}
+      onAddVideoTrack={editor.addVideoTrack}
+      onEditModeChange={editor.setEditMode}
+      onExtractScene={editor.extractSelectedScene}
+      onLiftScene={editor.liftSelectedScene}
+      onRollBoundary={editor.rollSelectedBoundary}
+      onRippleDeleteScene={editor.rippleDeleteSelectedScene}
+      onSelectTrack={editor.setSelectedTrackId}
+      onToggleTrackLocked={editor.toggleTrackLocked}
+      onToggleTrackMuted={editor.toggleTrackMuted}
+      onSplitScene={editor.splitSelectedScene}
+      onSlideScene={editor.slideSelectedScene}
       onSceneSelect={preview.seekToScene}
       onSeek={preview.seek}
+      onSlipScene={editor.slipSelectedScene}
+      onTrimBoundary={editor.trimSceneBoundary}
       onTogglePlayback={preview.togglePlayback}
       totalDuration={preview.totalDuration}
     />
@@ -198,6 +214,7 @@ function ProjectEditorGrid({
   onRegenerateScene,
   preview,
   regeneratePending,
+  revisions,
   selectedScene,
   setActiveTab,
 }: {
@@ -206,6 +223,7 @@ function ProjectEditorGrid({
   onRegenerateScene: (sceneId: string) => void;
   preview: ProjectEditorPreviewState;
   regeneratePending: boolean;
+  revisions: ReturnType<typeof useProjectEditorBootstrap>["revisions"];
   selectedScene: EditorSceneDraft | null;
   setActiveTab: (tab: EditorTab) => void;
 }) {
@@ -227,9 +245,13 @@ function ProjectEditorGrid({
       />
       <EditorPreviewStage draft={editor.draft} preview={preview} selectedScene={selectedScene} />
       <EditorInspector
+        activeRevisionId={editor.draft.headRevisionId}
         draft={editor.draft}
         onAspectRatioChange={editor.setAspectRatio}
+        onRestoreRevision={editor.restoreRevision}
         onToggleCaptions={editor.setShowCaptions}
+        restoreRevisionPending={editor.restoreRevisionPending}
+        revisions={revisions}
         selectedScene={selectedScene}
       />
     </div>
@@ -262,63 +284,45 @@ function useProjectEditorDraft(project: ProjectDetail, initialDraft: ProjectEdit
     canRedo: persisted.canRedo,
     canUndo: persisted.canUndo,
     draft: persisted.draft,
+    ...buildSequenceActions(persisted.setDraft),
     hydrateSavedDraft: persisted.hydrateSavedDraft,
-    moveScene: (sceneId: string, direction: "backward" | "forward") =>
-      persisted.setDraft((current) => ({ ...current, scenes: reorderScenes(current.scenes, sceneId, direction) })),
-    nudgeScene: (sceneId: string, delta: number) =>
-      persisted.setDraft((current) => shiftSceneTiming(current, sceneId, delta, totalDuration)),
     redo: persisted.redo,
+    restoreRevision: persisted.restoreRevision,
+    restoreRevisionPending: persisted.restoreRevisionPending,
     saveLabel: persisted.saveLabel,
-    setAspectRatio: (aspectRatio: EditorAspectRatio) =>
-      persisted.setDraft((current) => ({ ...current, aspectRatio })),
-    setSelectedSceneId: (selectedSceneId: string) =>
-      persisted.setDraft((current) => ({ ...current, selectedSceneId })),
-    setShowCaptions: (showCaptions: boolean) =>
-      persisted.setDraft((current) => ({ ...current, showCaptions })),
     undo: persisted.undo,
-    updateCaption: (captionId: string, text: string) =>
-      persisted.setDraft((current) => ({
-        ...current,
-        captions: current.captions.map((caption) => caption.id === captionId ? { ...caption, text } : caption),
-      })),
-    updateScene: (sceneId: string, patch: Partial<EditorSceneDraft>) =>
-      persisted.setDraft((current) => ({
-        ...current,
-        scenes: current.scenes.map((scene) => scene.id === sceneId ? { ...scene, ...patch } : scene),
-      })),
-    updateSceneTiming: (sceneId: string, field: "start" | "end", value: number) =>
-      persisted.setDraft((current) => updateSceneTiming(current, sceneId, field, value, totalDuration)),
+    ...buildSceneActions(persisted.setDraft, totalDuration),
   };
 }
 
 function useBootstrapHydration(
   bootstrapRecord: ProjectEditorStateRecord | null | undefined,
-  hydrateSavedDraft: (draft: ProjectEditorDraft, updatedAt: string) => void,
+  hydrateSavedDraft: (draft: ProjectEditorDraft, updatedAt: string, headRevisionId: number | null) => void,
   initialDraft: ProjectEditorDraft,
   localDraftSavedAt: string,
 ) {
   useEffect(() => {
     if (!bootstrapRecord) {
       if (!shouldPreferLocalDraft(localDraftSavedAt, "")) {
-        hydrateSavedDraft(initialDraft, new Date().toISOString());
+        hydrateSavedDraft(initialDraft, new Date().toISOString(), initialDraft.headRevisionId);
       }
       return;
     }
-    const savedDraft = mapSavedStateToDraft(bootstrapRecord.editor_state, initialDraft);
+    const savedDraft = mapSavedStateToDraft(bootstrapRecord.editor_state, initialDraft, bootstrapRecord.head_revision_id);
     if (!savedDraft) {
       return;
     }
     if (shouldPreferLocalDraft(localDraftSavedAt, bootstrapRecord.updated_at)) {
       return;
     }
-    hydrateSavedDraft(savedDraft, bootstrapRecord.updated_at);
+    hydrateSavedDraft(savedDraft, bootstrapRecord.updated_at, bootstrapRecord.head_revision_id);
   }, [bootstrapRecord, hydrateSavedDraft, initialDraft, localDraftSavedAt]);
 }
 
 function useRegenerateScene(
   draft: ProjectEditorDraft,
   projectId: string,
-  hydrateSavedDraft: (draft: ProjectEditorDraft, updatedAt: string) => void,
+  hydrateSavedDraft: (draft: ProjectEditorDraft, updatedAt: string, headRevisionId: number | null) => void,
 ) {
   const latestDraftRef = useRef(draft);
 
@@ -328,12 +332,13 @@ function useRegenerateScene(
 
   return useMutation({
     mutationFn: async (sceneId: string) => regenerateProjectEditorScene(projectId, {
+      base_revision_id: draft.headRevisionId,
       editor_state: editorDraftToApiState(draft),
       scene_id: sceneId,
     }),
     onSuccess: (result, sceneId) => {
       const latestDraft = latestDraftRef.current;
-      const regeneratedDraft = mapSavedStateToDraft(result.editor_state, latestDraft);
+      const regeneratedDraft = mapSavedStateToDraft(result.editor_state, latestDraft, result.head_revision_id);
       if (!regeneratedDraft) {
         return;
       }
@@ -345,9 +350,10 @@ function useRegenerateScene(
       const mergedDraft = {
         ...latestDraft,
         captions: mergeRegeneratedCaptions(latestDraft.captions, regeneratedSceneCaptions, sceneId),
+        headRevisionId: result.head_revision_id,
         scenes: latestDraft.scenes.map((scene) => scene.id === regeneratedScene.id ? regeneratedScene : scene),
       };
-      hydrateSavedDraft(mergedDraft, result.updated_at);
+      hydrateSavedDraft(mergedDraft, result.updated_at, result.head_revision_id);
     },
   });
 }
@@ -367,17 +373,18 @@ function selectedSceneForLayout(
 }
 
 function editorTimelineDuration(project: ProjectDetail, draft: ProjectEditorDraft) {
-  return (
-    project.preview_video?.duration_seconds ||
-    draft.scenes.at(-1)?.end ||
-    draft.captions.at(-1)?.end ||
-    1
+  return Math.max(
+    project.preview_video?.duration_seconds || 0,
+    draft.scenes.at(-1)?.end || 0,
+    draft.captions.at(-1)?.end || 0,
+    1,
   );
 }
 
 function mapSavedStateToDraft(
   state: ProjectEditorState | null,
   fallbackDraft: ProjectEditorDraft,
+  headRevisionId: number | null,
 ) {
   if (!state) return null;
   const nextDraft = editorDraftToApiState(fallbackDraft);
@@ -385,28 +392,58 @@ function mapSavedStateToDraft(
     ...nextDraft,
     ...state,
   };
+  const scenes = mapScenesFromSavedState(merged);
+  const captions = mapCaptionsFromSavedState(merged);
   return {
     aspectRatio: merged.aspect_ratio,
-    captions: merged.captions.map((caption) => ({
-      end: caption.end,
-      id: caption.id,
-      sceneId: caption.scene_id,
-      start: caption.start,
-      text: caption.text,
-    })),
-    scenes: merged.scenes.map((scene) => ({
-      end: scene.end,
-      id: scene.id,
-      onScreenText: scene.on_screen_text,
-      sceneNumber: scene.scene_number,
-      source: scene.source,
-      spokenLine: scene.spoken_line,
-      start: scene.start,
-      title: scene.title,
-    })),
+    captions,
+    editMode: merged.edit_mode ?? "overwrite",
+    headRevisionId,
+    projectId: fallbackDraft.projectId,
+    scenes,
     selectedSceneId: merged.selected_scene_id,
+    selectedTrackId: merged.selected_track_id || fallbackDraft.selectedTrackId,
+    sequence: merged.sequence ?? deriveEditorSequence(
+      fallbackDraft.projectId,
+      scenes,
+      captions,
+      fallbackDraft.sequence.tracks
+        .filter((track) => track.kind === "audio")
+        .flatMap((track) => track.clips)
+        .map((clip) => ({
+          end: clip.timeline_end,
+          id: clip.id.replace("audio-clip-", ""),
+          sceneId: clip.scene_id,
+          start: clip.timeline_start,
+          text: clip.text,
+          title: clip.title,
+        })),
+    ),
     showCaptions: merged.show_captions,
   } satisfies ProjectEditorDraft;
+}
+
+function mapScenesFromSavedState(state: ProjectEditorState) {
+  return state.scenes.map((scene) => ({
+    end: scene.end,
+    id: scene.id,
+    onScreenText: scene.on_screen_text,
+    sceneNumber: scene.scene_number,
+    source: scene.source,
+    spokenLine: scene.spoken_line,
+    start: scene.start,
+    title: scene.title,
+  }));
+}
+
+function mapCaptionsFromSavedState(state: ProjectEditorState) {
+  return state.captions.map((caption) => ({
+    end: caption.end,
+    id: caption.id,
+    sceneId: caption.scene_id,
+    start: caption.start,
+    text: caption.text,
+  }));
 }
 
 function mergeRegeneratedCaptions(

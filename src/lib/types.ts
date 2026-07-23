@@ -307,8 +307,9 @@ export type UpdateRecordingSessionInput = {
 };
 
 export type EditorAspectRatio = "16:9" | "9:16" | "1:1";
+export type EditorEditMode = "overwrite" | "insert";
 
-export type EditorSceneSource = "edit_plan" | "launch_script" | "transcript" | "fallback";
+export type EditorSceneSource = "edit_plan" | "launch_script" | "transcript" | "fallback" | "inserted";
 
 export type ProjectEditorScene = {
   id: string;
@@ -329,23 +330,86 @@ export type ProjectEditorCaption = {
   scene_id: string | null;
 };
 
+export type EditorTrackKind = "video" | "audio" | "caption" | "overlay";
+
+export type EditorClipKind = "source_video" | "inserted_card" | "caption" | "voiceover";
+
+export type ProjectEditorClip = {
+  id: string;
+  track_id: string;
+  kind: EditorClipKind;
+  title: string;
+  scene_id: string | null;
+  timeline_start: number;
+  timeline_end: number;
+  source_start: number | null;
+  source_end: number | null;
+  text: string;
+  locked: boolean;
+  muted: boolean;
+};
+
+export type ProjectEditorTrack = {
+  id: string;
+  kind: EditorTrackKind;
+  name: string;
+  locked: boolean;
+  muted: boolean;
+  clips: ProjectEditorClip[];
+};
+
+export type ProjectEditorSequence = {
+  id: string;
+  version: number;
+  duration_seconds: number;
+  playhead_seconds: number;
+  tracks: ProjectEditorTrack[];
+};
+
 export type ProjectEditorState = {
   aspect_ratio: EditorAspectRatio;
+  edit_mode: EditorEditMode;
   selected_scene_id: string;
+  selected_track_id: string;
   show_captions: boolean;
   scenes: ProjectEditorScene[];
   captions: ProjectEditorCaption[];
+  sequence?: ProjectEditorSequence | null;
 };
 
 export type ProjectEditorStateRecord = {
   project_id: string;
   editor_state: ProjectEditorState;
   updated_at: string;
+  head_revision_id: number | null;
+};
+
+export type ProjectEditorRevisionSummary = {
+  id: number;
+  project_id: string;
+  created_at: string;
+  scene_count: number;
+  sequence_version: number;
+  parent_revision_id: number | null;
+};
+
+export type ProjectEditorRevisionRecord = {
+  project_id: string;
+  revision: ProjectEditorRevisionSummary;
+  editor_state: ProjectEditorState;
+  updated_at: string;
+  head_revision_id: number | null;
+};
+
+export type ProjectEditorSaveInput = {
+  editor_state: ProjectEditorState;
+  base_revision_id: number | null;
 };
 
 export type RegenerateProjectEditorSceneInput = {
   scene_id: string;
   editor_state: ProjectEditorState;
+  base_revision_id: number | null;
 };
 
 export type UsageSummary = {

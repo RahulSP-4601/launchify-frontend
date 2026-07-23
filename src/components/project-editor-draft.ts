@@ -1,9 +1,12 @@
 import {
+  EditorEditMode,
   EditPlanScene,
   LaunchScriptScene,
   ProjectDetail,
+  ProjectEditorSequence,
   TranscriptResponse,
 } from "@/lib/types";
+import { deriveEditorSequence } from "@/components/project-editor-sequence";
 
 export type EditorAspectRatio = "16:9" | "9:16" | "1:1";
 
@@ -15,7 +18,7 @@ export type EditorSceneDraft = {
   onScreenText: string;
   start: number;
   end: number;
-  source: "edit_plan" | "launch_script" | "transcript" | "fallback";
+  source: "edit_plan" | "launch_script" | "transcript" | "fallback" | "inserted";
 };
 
 export type EditorCaptionDraft = {
@@ -28,10 +31,15 @@ export type EditorCaptionDraft = {
 
 export type ProjectEditorDraft = {
   aspectRatio: EditorAspectRatio;
+  editMode: EditorEditMode;
+  headRevisionId: number | null;
+  projectId: string;
   selectedSceneId: string;
+  selectedTrackId: string;
   showCaptions: boolean;
   scenes: EditorSceneDraft[];
   captions: EditorCaptionDraft[];
+  sequence: ProjectEditorSequence;
 };
 
 export function buildProjectEditorDraft(
@@ -39,13 +47,33 @@ export function buildProjectEditorDraft(
   transcript: TranscriptResponse["transcript"],
 ): ProjectEditorDraft {
   const scenes = buildSceneDrafts(project, transcript);
+  const captions = buildCaptionDrafts(project, transcript, scenes);
+  const audioClips = buildAudioClipInputs(project);
   return {
     aspectRatio: "16:9",
-    captions: buildCaptionDrafts(project, transcript, scenes),
+    captions,
+    editMode: "overwrite",
+    headRevisionId: null,
+    projectId: project.id,
     selectedSceneId: scenes[0]?.id ?? "scene-1",
+    selectedTrackId: "track-video-1",
+    sequence: deriveEditorSequence(project.id, scenes, captions, audioClips),
     scenes,
     showCaptions: true,
   };
+}
+
+function buildAudioClipInputs(project: ProjectDetail) {
+  return (project.voiceover?.clips ?? [])
+    .filter((clip) => clip.audio_storage_path)
+    .map((clip, index) => ({
+      end: clip.end,
+      id: `voiceover-${clip.scene_number}-${index + 1}`,
+      sceneId: `scene-${clip.scene_number}`,
+      start: clip.start,
+      text: clip.text,
+      title: clip.text.slice(0, 48) || `Voiceover ${clip.scene_number}`,
+    }));
 }
 
 function buildSceneDrafts(
@@ -230,6 +258,10 @@ export function sceneDuration(scene: EditorSceneDraft) {
   return Math.max(scene.end - scene.start, 0.5);
 }
 
+export function isInsertedScene(scene: EditorSceneDraft) {
+  return scene.source === "inserted" || scene.id.startsWith("inserted-scene-");
+}
+
 export function activeCaptionAtTime(
   captions: EditorCaptionDraft[],
   currentTime: number,
@@ -325,4 +357,142 @@ function clampValue(value: number, minimum: number, maximum: number) {
 
 function roundToTenth(value: number) {
   return Math.round(value * 10) / 10;
+}
+
+export function insertScreenAfterScene(
+  draft: ProjectEditorDraft,
+  afterSceneId: string,
+  durationSeconds: number,
+) {
+  const insertAfterIndex = draft.scenes.findIndex((scene) => scene.id === afterSceneId);
+  const safeIndex = insertAfterIndex >= 0 ? insertAfterIndex : draft.scenes.length - 1;
+  const anchorEnd = draft.scenes[safeIndex]?.end ?? 0;
+  const insertDuration = roundToTenth(Math.max(durationSeconds, 0.5));
+  const insertedSceneId = `inserted-scene-${draft.scenes.length + 1}-${Math.round(anchorEnd * 10)}`;
+  const insertedScene: EditorSceneDraft = {
+    end: roundToTenth(anchorEnd + insertDuration),
+    id: insertedSceneId,
+    onScreenText: "Add visual guidance for this inserted screen.",
+    sceneNumber: safeIndex + 2,
+    source: "inserted",
+    spokenLine: "Inserted screen placeholder.",
+    start: roundToTenth(anchorEnd),
+    title: `Inserted Screen ${safeIndex + 2}`,
+  };
+  const shiftedScenes = draft.scenes.map((scene, index) => (
+    index > safeIndex
+      ? { ...scene, end: roundToTenth(scene.end + insertDuration), start: roundToTenth(scene.start + insertDuration) }
+      : scene
+  ));
+  const scenes = [...shiftedScenes.slice(0, safeIndex + 1), insertedScene, ...shiftedScenes.slice(safeIndex + 1)]
+    .map((scene, index) => ({ ...scene, sceneNumber: index + 1 }));
+  const captions = draft.captions.map((caption) => (
+    caption.start >= anchorEnd
+      ? { ...caption, end: roundToTenth(caption.end + insertDuration), start: roundToTenth(caption.start + insertDuration) }
+      : caption
+  ));
+  return {
+    ...draft,
+    captions,
+    scenes,
+    selectedSceneId: insertedSceneId,
+  };
+}
+
+export function splitSceneAtTime(
+  draft: ProjectEditorDraft,
+  sceneId: string,
+  splitTime: number,
+) {
+  const index = draft.scenes.findIndex((scene) => scene.id === sceneId);
+  const scene = draft.scenes[index];
+  if (!scene) {
+    return draft;
+  }
+  const nextSplit = roundToTenth(clampValue(splitTime, scene.start + 0.5, scene.end - 0.5));
+  if (nextSplit <= scene.start || nextSplit >= scene.end) {
+    return draft;
+  }
+  const firstScene = { ...scene, end: nextSplit };
+  const secondSceneId = `${scene.id}-split-${Math.round(nextSplit * 10)}`;
+  const secondScene: EditorSceneDraft = {
+    ...scene,
+    id: secondSceneId,
+    sceneNumber: scene.sceneNumber + 1,
+    start: nextSplit,
+    title: `${scene.title} (Cont.)`,
+  };
+  const captions = draft.captions.flatMap((caption) => splitCaptionAtTime(caption, scene, secondSceneId, nextSplit));
+  return {
+    ...draft,
+    captions,
+    scenes: rebuildSceneNumbers([
+      ...draft.scenes.slice(0, index),
+      firstScene,
+      secondScene,
+      ...draft.scenes.slice(index + 1),
+    ]),
+    selectedSceneId: secondSceneId,
+  };
+}
+
+export function trimSceneBoundary(
+  draft: ProjectEditorDraft,
+  sceneId: string,
+  nextBoundary: number,
+  totalDuration: number,
+) {
+  const index = draft.scenes.findIndex((scene) => scene.id === sceneId);
+  const currentScene = draft.scenes[index];
+  const nextScene = draft.scenes[index + 1];
+  if (!currentScene || !nextScene) {
+    return draft;
+  }
+  const minimumBoundary = roundToTenth(currentScene.start + 0.5);
+  const maximumBoundary = roundToTenth(nextScene.end - 0.5);
+  const boundary = roundToTenth(clampValue(nextBoundary, minimumBoundary, maximumBoundary));
+  const scenes = draft.scenes.map((scene, sceneIndex) => {
+    if (sceneIndex === index) {
+      return { ...scene, end: boundary };
+    }
+    if (sceneIndex === index + 1) {
+      return { ...scene, start: boundary };
+    }
+    return scene;
+  });
+  return {
+    ...draft,
+    captions: clampCaptionsToScenes(draft.captions, scenes, totalDuration),
+    scenes,
+  };
+}
+
+function splitCaptionAtTime(
+  caption: EditorCaptionDraft,
+  scene: EditorSceneDraft,
+  secondSceneId: string,
+  splitTime: number,
+) {
+  if (caption.sceneId !== scene.id) {
+    return [caption];
+  }
+  if (caption.end <= splitTime) {
+    return [{ ...caption, end: Math.min(caption.end, splitTime), sceneId: scene.id }];
+  }
+  if (caption.start >= splitTime) {
+    return [{ ...caption, sceneId: secondSceneId, start: Math.max(caption.start, splitTime) }];
+  }
+  return [
+    { ...caption, end: splitTime, sceneId: scene.id },
+    {
+      ...caption,
+      id: `${caption.id}-b`,
+      sceneId: secondSceneId,
+      start: splitTime,
+    },
+  ];
+}
+
+function rebuildSceneNumbers(scenes: EditorSceneDraft[]) {
+  return scenes.map((scene, index) => ({ ...scene, sceneNumber: index + 1 }));
 }

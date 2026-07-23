@@ -11,7 +11,8 @@ import {
   TranslateIcon,
   UndoIcon,
 } from "@/components/project-editor-icons";
-import { ProjectDetail } from "@/lib/types";
+import { EditorRevisionHistory } from "@/components/project-editor-revisions";
+import { ProjectDetail, ProjectEditorRevisionSummary } from "@/lib/types";
 
 export function EditorTopBar({
   canRedo,
@@ -19,6 +20,7 @@ export function EditorTopBar({
   onRedo,
   onUndo,
   project,
+  revisionLabel,
   saveLabel,
 }: {
   canRedo: boolean;
@@ -26,6 +28,7 @@ export function EditorTopBar({
   onRedo: () => void;
   onUndo: () => void;
   project: ProjectDetail;
+  revisionLabel: string;
   saveLabel: string;
 }) {
   return (
@@ -33,6 +36,7 @@ export function EditorTopBar({
       <ProjectCompactGroup project={project} />
       <div className="flex shrink-0 items-center gap-[10px]">
         <SaveStatusPill label={saveLabel} />
+        <span className="rounded-[10px] border border-white/8 bg-[#1a1a1a] px-3 py-4 text-[12px] text-[#c8c8c8]">{revisionLabel}</span>
         <AvatarButton />
         <ToolbarButton>
           <HeadphoneIcon />
@@ -54,19 +58,26 @@ export function EditorTopBar({
 }
 
 export function EditorInspector({
+  activeRevisionId,
   draft,
   onAspectRatioChange,
+  onRestoreRevision,
   onToggleCaptions,
+  restoreRevisionPending,
+  revisions,
   selectedScene,
 }: {
+  activeRevisionId: number | null;
   draft: ProjectEditorDraft;
   onAspectRatioChange: (aspectRatio: EditorAspectRatio) => void;
+  onRestoreRevision: (revisionId: number) => void;
   onToggleCaptions: (value: boolean) => void;
+  restoreRevisionPending: boolean;
+  revisions: ProjectEditorRevisionSummary[];
   selectedScene: EditorSceneDraft | null;
 }) {
   return (
     <aside className="flex h-full min-h-0 flex-col overflow-hidden rounded-[10px] border border-white/6 bg-[#211f1e] shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
-      <InspectorToolbar />
       <InspectorSection title="Project">
         <ToggleRow checked={draft.showCaptions} label="Show Transcript" onChange={onToggleCaptions} />
       </InspectorSection>
@@ -75,6 +86,9 @@ export function EditorInspector({
       </InspectorSection>
       <InspectorSection title="Selected Scene">
         <SceneDetails scene={selectedScene} />
+      </InspectorSection>
+      <InspectorSection title="Revision History">
+        <EditorRevisionHistory activeRevisionId={activeRevisionId} onRestore={onRestoreRevision} restorePending={restoreRevisionPending} revisions={revisions} />
       </InspectorSection>
     </aside>
   );
@@ -115,22 +129,6 @@ function SaveStatusPill({ label }: { label: string }) {
         <span className="truncate text-[14px] font-medium">{label}</span>
       </div>
       {isPending ? <span className="text-[14px] text-[#484848]">In progress</span> : null}
-    </div>
-  );
-}
-
-function InspectorToolbar() {
-  return (
-    <div className="flex items-center gap-2 border-b border-white/7 px-[12px] py-[10px]">
-      <AvatarButton compact />
-      <ToolbarButton compact>
-        <HeadphoneIcon />
-      </ToolbarButton>
-      <WideButton compact>
-        <TranslateIcon />
-        <span>Translate</span>
-      </WideButton>
-      <ShareButton compact>Share</ShareButton>
     </div>
   );
 }
